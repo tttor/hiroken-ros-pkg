@@ -1,0 +1,9 @@
+# TODO for the sake of safety, the joint names should be include. One way is to wrap the response into a single msg
+#string[] joint_names
+
+trajectory_msgs/JointTrajectoryPoint desired
+---
+# TODO for the sake of safety, the joint names should be include. One way is to wrap the response into a single msg
+#string[] joint_names
+
+trajectory_msgs/JointTrajectoryPoint actual

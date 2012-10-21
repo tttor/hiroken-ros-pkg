@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<robot>
+  <property name="M_PI" value="3.1415926535897931" />
+
+  <property name="pi" value="3.1415926535897931" />
+  <property name="rad_per_deg" value="0.0174532925" />
+</robot>

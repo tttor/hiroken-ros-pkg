@@ -1,0 +1,18 @@
+<launch>
+    <include file="$(find hiro_arm_navigation)/launch/hiro_planning_environment.launch" />
+    
+    <node pkg="arm_kinematics_constraint_aware" type="arm_kinematics_constraint_aware" name="hiro_rarm_kinematics">
+        <param name="group" type="string" value="rarm" />
+        <param name="rarm/root_name" type="string" value="link_base" />
+        <param name="rarm/tip_name" type="string" value="link_rhand_palm" />
+        <param name="kinematics_solver" type="string" value="arm_kinematics_constraint_aware/KDLArmKinematicsPlugin" />
+    </node>
+    
+    <node pkg="arm_kinematics" type="arm_kinematics" name="hiro_rarm_kinematics_2" >
+      <param name="urdf_xml" value="robot_description" />
+      <param name="root_name" value="link_base" />
+      <param name="tip_name" value="link_rhand_palm" />
+      <param name="maxIterations" value="1000" />    
+      <param name="epsilon" value="1e-2" />  
+    </node>    
+</launch>

@@ -1,0 +1,20 @@
+<package>
+  <description brief="grasp_planner">
+
+     grasp_planner
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/grasp_planner</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  <depend package="tf"/>
+  <depend package="kinematics_msgs"/>
+  <depend package="visualization_msgs"/>
+  <depend package="planning_environment"/>
+  <depend package="sensor_msgs"/>  
+</package>
+
+

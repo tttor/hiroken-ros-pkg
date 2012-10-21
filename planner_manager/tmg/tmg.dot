@@ -1,0 +1,14 @@
+digraph G {
+graph [bgcolor=lightgrey]
+0[label="MessyHome",fontsize="10",color="green"];
+1[label="TidyHome",fontsize="10",color="green"];
+2[label="CanGrasp_CAN1[]",fontsize="10",color="green"];
+3[label="Grasped_CAN1[]",fontsize="10",color="green"];
+4[label="CanRelease_CAN1[]",fontsize="10",color="green"];
+5[label="Released_CAN1[]",fontsize="10",color="green"];
+0->2 [label="TRANSIT_R_HOME_MESSY-SPOT\n2.9295",fontsize="10",color="blue"];
+2->3 [label="GRASP_R_CAN1_MESSY-SPOT\n62.516",fontsize="10",color="blue"];
+3->4 [label="TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT\n3.38421",fontsize="10",color="blue"];
+4->5 [label="UNGRASP_R_CAN1_TIDY-SPOT\n86.1227",fontsize="10",color="blue"];
+5->1 [label="TRANSIT_R_TIDY-SPOT_HOME\n2.70821",fontsize="10",color="blue"];
+}

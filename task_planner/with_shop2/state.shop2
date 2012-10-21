@@ -1,0 +1,40 @@
+#S(SHOP2.COMMON::MIXED-STATE
+   :BODY #<HASH-TABLE :TEST EQ :COUNT 4 {1002BC1C83}>
+   :TAGS-INFO ((5
+                #S(SHOP2.COMMON::STATE-UPDATE :ACTION ADD :LITERAL (IN R HOME))
+                #S(SHOP2.COMMON::STATE-UPDATE
+                   :ACTION DELETE
+                   :LITERAL (IN R TIDY-SPOT)))
+               (4
+                #S(SHOP2.COMMON::STATE-UPDATE
+                   :ACTION ADD
+                   :LITERAL (IN CAN1 TIDY-SPOT))
+                #S(SHOP2.COMMON::STATE-UPDATE :ACTION ADD :LITERAL (EMPTY R))
+                #S(SHOP2.COMMON::STATE-UPDATE
+                   :ACTION DELETE
+                   :LITERAL (HOLDING R CAN1)))
+               (3
+                #S(SHOP2.COMMON::STATE-UPDATE
+                   :ACTION ADD
+                   :LITERAL (IN R TIDY-SPOT))
+                #S(SHOP2.COMMON::STATE-UPDATE
+                   :ACTION DELETE
+                   :LITERAL (IN R MESSY-SPOT)))
+               (2
+                #S(SHOP2.COMMON::STATE-UPDATE
+                   :ACTION ADD
+                   :LITERAL (HOLDING R CAN1))
+                #S(SHOP2.COMMON::STATE-UPDATE
+                   :ACTION DELETE
+                   :LITERAL (EMPTY R))
+                #S(SHOP2.COMMON::STATE-UPDATE
+                   :ACTION DELETE
+                   :LITERAL (IN CAN1 MESSY-SPOT)))
+               (1
+                #S(SHOP2.COMMON::STATE-UPDATE
+                   :ACTION ADD
+                   :LITERAL (IN R MESSY-SPOT))
+                #S(SHOP2.COMMON::STATE-UPDATE
+                   :ACTION DELETE
+                   :LITERAL (IN R HOME)))
+               (0))) 

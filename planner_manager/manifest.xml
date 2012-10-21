@@ -1,0 +1,19 @@
+<package>
+  <description brief="planner_manager">
+
+     planner_manager
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/planner_manager</url>
+
+  <depend package="task_planner"/> 
+  <depend package="grasp_planner"/>
+  <depend package="hiro_sensor"/>  
+  <depend package="hiro_control"/> 
+  <depend package="hiro_common"/> 
+</package>
+
+

@@ -1,0 +1,5 @@
+arm_navigation_msgs/RobotTrajectory robot_trajectory
+---
+float64 length
+#float64 smoothness
+#float64 clearance

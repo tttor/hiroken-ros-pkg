@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 89
+/svn/wg-ros-pkg/!svn/ver/46674/stacks/pr2_common/trunk/pr2_description/materials/textures
+END
+pr2_wheel_left.png
+K 25
+svn:wc:ra_dav:version-url
+V 108
+/svn/wg-ros-pkg/!svn/ver/46674/stacks/pr2_common/trunk/pr2_description/materials/textures/pr2_wheel_left.png
+END
+pr2_caster_texture.png
+K 25
+svn:wc:ra_dav:version-url
+V 112
+/svn/wg-ros-pkg/!svn/ver/46674/stacks/pr2_common/trunk/pr2_description/materials/textures/pr2_caster_texture.png
+END
+pr2_wheel_right.png
+K 25
+svn:wc:ra_dav:version-url
+V 109
+/svn/wg-ros-pkg/!svn/ver/46674/stacks/pr2_common/trunk/pr2_description/materials/textures/pr2_wheel_right.png
+END
