@@ -1,0 +1,3 @@
+arm_navigation_msgs/RobotTrajectory robot_trajectory
+---
+bool successful

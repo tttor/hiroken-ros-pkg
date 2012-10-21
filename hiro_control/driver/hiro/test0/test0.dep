@@ -1,0 +1,3 @@
+test0.o: test0.cpp ../Robot.hpp ../systemCommand.hpp ../statusPlugin.hpp \
+ ../OpenHRPCommon.hpp ../HRPcontroller.hpp ../hiroCommonStatus.hpp \
+ ../armServer.hpp ../coordServer.hpp ../dioPlugin.hpp

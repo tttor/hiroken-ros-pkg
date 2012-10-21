@@ -1,0 +1,18 @@
+<package>
+  <description brief="task_planner">
+
+     task_planner
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/task_planner</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  <depend package="tf"/>
+  <depend package="arm_navigation_msgs"/>
+  <depend package="sensor_msgs"/>
+</package>
+
+

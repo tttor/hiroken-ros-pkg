@@ -1,0 +1,232 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="hiro_arm">
+  <!-- TODO Find out the exact value for below-->
+  <xacro:property name="dist_to_wrist_pitch_mesh_boundary" value="-0.025" />
+  
+  <xacro:macro name="arm" params="side reflect">
+  	<joint name="joint_${side}shoulder_yaw" type="revolute">
+      <parent link="link_chest_yaw"/>
+      <child link="link_${side}shoulder_yaw"/>
+      <origin xyz="0.000 ${-0.145*reflect} 0.380" rpy="${0.261799*reflect} 0 0"/> <!-- rotation   1 0 0  0.261799 -->
+      <axis xyz="0 0 1"/>
+      <limit lower="${-90*rad_per_deg}" upper="${90*rad_per_deg}" effort="1000.0" velocity="0.5"/>
+      <!--safety_controller  soft_lower_limit="${-85*rad_per_deg}" soft_upper_limit="${85*rad_per_deg}" k_position="0" k_velocity="0" /-->
+      <!-- rotorInertia	1.12e-01 -->
+      <dynamics damping="0.0" friction="0.0"/>  
+    </joint> 
+    
+    <link name="link_${side}shoulder_yaw">
+    <inertial>
+      <origin xyz="-0.00226388 ${0.00521383*reflect} 0.01560807"/>     
+      <mass value="1.32626000" />
+      <!-- momentsOfInertia [0.00207537 -0.00011276 0.00008927; -0.00011276 0.00240295 0.00004570; 0.00008927 0.00004570 0.00141912] -->
+      <inertia  ixx="0.00207537" ixy="${-0.00011276*reflect}"  ixz="0.00008927"  iyy="0.00240295"  iyz="${0.00004570*reflect}"  izz="0.00141912" />
+    </inertial> 
+      <visual>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/${side}sy.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+        <material name="green"/>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/${side}sy.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+      </collision>
+    </link>
+    <gazebo reference="link_${side}shoulder_yaw">
+      <material>Gazebo/Red</material>
+      <turnGravityOff>true</turnGravityOff>
+    </gazebo>
+    
+   	<joint name="joint_${side}shoulder_pitch" type="revolute">
+      <parent link="link_${side}shoulder_yaw"/>
+      <child link="link_${side}shoulder_pitch"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <axis xyz="0 1 0"/>
+      <limit lower="${-180*rad_per_deg}" upper="${120*rad_per_deg}" effort="1000.0" velocity="0.5"/>
+      <!--safety_controller  soft_lower_limit="${-175*rad_per_deg}" soft_upper_limit="${115*rad_per_deg}" k_position="0" k_velocity="0" /-->
+      <!-- rotorInertia	1.68e-01 -->
+      <dynamics damping="0.0" friction="0.0"/>    
+    </joint>
+    
+   	<link name="link_${side}shoulder_pitch">
+    <inertial>
+      <origin xyz="-0.00005236 ${-0.05831338*reflect} -0.10706059"/>     
+      <mass value="1.14898000" />
+      <!-- momentsOfInertia [0.01541678 -0.00000097 0.00000352; -0.00000098 0.01471175 -0.00213705; 0.00000351 -0.00213704 0.00126575] -->
+      <inertia  ixx="0.01541678" ixy="${-0.00000097*reflect}"  ixz="0.00000352"  iyy="0.01471175"  iyz="${-0.00213705*reflect}"  izz="0.00126575" />
+    </inertial> 
+      <visual>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/${side}sp.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+        <material name="yellow"/>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/${side}sp.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+      </collision>
+    </link>
+    <gazebo reference="link_${side}shoulder_pitch">
+      <material>Gazebo/Yellow</material>
+      <turnGravityOff>true</turnGravityOff>
+    </gazebo>
+    
+    <joint name="joint_${side}elbow_pitch" type="revolute">
+      <parent link="link_${side}shoulder_pitch"/>
+      <child link="link_${side}elbow_pitch"/>
+      <origin xyz="0.020 ${-0.085*reflect} -0.250" rpy="0 0 0"/> 
+      <axis xyz="0 1 0"/>
+      <limit lower="${-160*rad_per_deg}" upper="${10*rad_per_deg}" effort="1000.0" velocity="0.5"/>
+      <!--safety_controller  soft_lower_limit="${-155*rad_per_deg}" soft_upper_limit="${0*rad_per_deg}" k_position="0" k_velocity="0" /-->
+      <!-- rotorInertia	6.00e-02 -->
+      <dynamics damping="0.0" friction="0.0"/>     
+    </joint>
+    
+   	<link name="link_${side}elbow_pitch">
+      <inertial>
+        <origin xyz="-0.00002254 ${-0.00167107*reflect} -0.07151163"/>     
+        <mass value="0.57751838" />
+        <!-- momentsOfInertia [0.00143966 0.00000030 0.00000120; 0.00000030 0.00141763 0.00007596; 0.00000120 0.00007596 0.00019720] -->
+        <inertia  ixx="0.00143966" ixy="${0.00000030*reflect}"  ixz="0.00000120"  iyy="0.00141763"  iyz="${0.00007596*reflect}"  izz="0.00019720" />
+      </inertial> 
+      <visual>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/${side}ep.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+        <material name="green"/>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/${side}ep.stl"/>  
+          <turnGravityOff>true</turnGravityOff> 
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+      </collision>
+    </link>
+    <gazebo reference="link_${side}elbow_pitch">
+      <material>Gazebo/Yellow</material>
+    </gazebo>
+    
+    <joint name="joint_${side}wrist_yaw" type="revolute">
+      <parent link="link_${side}elbow_pitch"/>
+      <child link="link_${side}wrist_yaw"/>
+      <origin xyz="-0.02 0.0 -0.22" rpy="0 0 0"/> 
+      <axis xyz="0 0 1"/>
+      <limit lower="${-195*rad_per_deg}" upper="${135*rad_per_deg}" effort="1000.0" velocity="0.5"/>
+      <!--safety_controller  soft_lower_limit="${-190*rad_per_deg}" soft_upper_limit="${130*rad_per_deg}" k_position="0" k_velocity="0" /-->
+      <!-- rotorInertia	3.74e-03 -->
+      <dynamics damping="0.0" friction="0.0"/>      
+    </joint>
+    
+   	<link name="link_${side}wrist_yaw">
+      <inertial>
+        <origin xyz="-0.00001788 ${0.00395812*reflect} -0.20273050"/>     
+        <mass value="0.45741788" />
+        <!-- momentsOfInertia [0.00069205 -0.00000003 0.00000052; -0.00000003 0.00068903 0.00001915; 0.00000052 0.00001915 0.00013509] -->
+        <inertia  ixx="0.00069205" ixy="${-0.00000003*reflect}"  ixz="0.00000052"  iyy="0.00068903"  iyz="${0.00001915*reflect}"  izz="0.00013509" />
+      </inertial> 
+      <visual>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/${side}wy.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+        <material name="yellow"/>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/${side}wy.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+      </collision>
+    </link>
+    <gazebo reference="link_${side}wrist_yaw">
+      <material>Gazebo/Yellow</material>
+      <turnGravityOff>false</turnGravityOff>
+    </gazebo>
+    
+    <joint name="joint_${side}wrist_pitch" type="revolute">
+      <parent link="link_${side}wrist_yaw"/>
+      <child link="link_${side}wrist_pitch"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/> 
+      <axis xyz="0 1 0"/>
+      <limit lower="${-100*rad_per_deg}" upper="${100*rad_per_deg}" effort="1000.0" velocity="0.5"/>
+      <!--safety_controller  soft_lower_limit="${-95*rad_per_deg}" soft_upper_limit="${95*rad_per_deg}" k_position="0" k_velocity="0" /-->
+      <!-- rotorInertia	1.50e-02 -->
+      <dynamics damping="0.0" friction="0.0"/>  
+    </joint>
+    
+    <link name="link_${side}wrist_pitch">
+      <inertial>
+        <origin xyz="0.00243131 ${-0.00379733*reflect} -0.05770359"/>     
+        <mass value="0.41843443" />
+        <!-- momentsOfInertia [0.00052016 -0.00000169 0.00000790; -0.00000169 0.00050569 0.00005377; 0.00000790 0.00005377 0.00014004] -->
+        <inertia  ixx="0.00052016" ixy="${-0.00000169*reflect}"  ixz="0.00000790"  iyy="0.00050569"  iyz="${0.00005377*reflect}"  izz="0.00014004" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/${side}wp.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+        <material name="green"/>
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/${side}wp.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+      </collision>
+    </link>
+    <gazebo reference="link_${side}wrist_pitch">
+      <material>Gazebo/Yellow</material>
+      <turnGravityOff>true</turnGravityOff>
+    </gazebo>
+    
+    <joint name="joint_${side}wrist_roll" type="revolute">
+      <parent link="link_${side}wrist_pitch"/>
+      <child link="link_${side}wrist_roll"/>
+      <!--origin xyz="0.0  0.0 -0.090" rpy="0 0 0"/--> 
+      <origin xyz="${dist_to_wrist_pitch_mesh_boundary}  0.0 -0.090" rpy="0 0 0"/>       
+      <axis xyz="1 0 0"/>
+      <limit lower="${-130*rad_per_deg}" upper="${130*rad_per_deg}" effort="1000.0" velocity="0.5"/>
+      <!--safety_controller  soft_lower_limit="${-125*rad_per_deg}" soft_upper_limit="${125*rad_per_deg}" k_position="0" k_velocity="0" /-->
+      <!-- rotorInertia	7.56e-03 -->
+      <dynamics damping="0.0" friction="0.0"/>  
+    </joint>
+    
+    <link name="link_${side}wrist_roll">
+      <inertial>
+        <origin xyz="-0.04847597 ${0.00000320*reflect} -0.03889875"/>     
+        <mass value="1.05156000" />
+        <!-- momentsOfInertia [0.00194072 -0.00000011 -0.00042482; -0.00000011 0.00209392 -0.00000012; -0.00042482 -0.00000012 0.00035788] -->
+        <inertia  ixx="0.00194072" ixy="${-0.00000011*reflect}"  ixz="-0.00042482"  iyy="0.00209392"  iyz="${-0.00000012*reflect}"  izz="0.00035788" />
+      </inertial>
+      <visual>
+        <geometry>
+          <!--mesh filename="package://hiro_common/meshes/wr.stl"/-->  
+          <box size="0.010 0.055 0.070"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+        <material name="yellow"/>
+      </visual>
+      <collision>
+        <geometry>
+          <!--mesh filename="package://hiro_common/meshes/wr.stl"/-->  
+          <box size="0.010 0.055 0.070"/>
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/>     
+      </collision>
+    </link>
+    <gazebo reference="link_${side}wrist_roll">
+      <material>Gazebo/Yellow</material>
+      <turnGravityOff>false</turnGravityOff>
+    </gazebo>
+  </xacro:macro>
+</robot>
