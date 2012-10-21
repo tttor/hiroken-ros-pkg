@@ -1,0 +1,24 @@
+<package>
+  <description brief="hiro_control">
+
+     hiro_control
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/hiro_control</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  <depend package="planning_environment"/>
+  <depend package="kinematics_msgs"/>  
+  <depend package="actionlib"/>    
+  <depend package="control_msgs"/> 
+  <depend package="std_msgs"/>
+  <depend package="sensor_msgs"/>  
+  
+  <depend package="task_planner"/> 
+  <depend package="grasp_planner"/> 
+</package>
+
+

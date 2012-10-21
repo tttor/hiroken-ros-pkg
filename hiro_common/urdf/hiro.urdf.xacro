@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="hiro">
+  <include filename="$(find hiro_common)/urdf/common.xacro" />
+  <include filename="$(find hiro_common)/urdf/materials.urdf.xacro" />
+
+  <include filename="$(find hiro_common)/urdf/hiro_arm.urdf.xacro" />  
+  <include filename="$(find hiro_common)/urdf/hiro_base.urdf.xacro" /> 
+  <include filename="$(find hiro_common)/urdf/hiro_chest.urdf.xacro" />
+  <include filename="$(find hiro_common)/urdf/hiro_head.urdf.xacro" />  
+  <include filename="$(find hiro_common)/urdf/hiro_hand.urdf.xacro" />   
+
+	<xacro:base />    
+	<xacro:chest />      
+	<xacro:head />
+  <xacro:arm side="r" reflect="1" />
+  <xacro:hand side="r" reflect="1" />
+<!--  <xacro:arm side="l" reflect="-1" />-->
+<!--  <xacro:hand side="l" reflect="-1" />-->
+</robot>

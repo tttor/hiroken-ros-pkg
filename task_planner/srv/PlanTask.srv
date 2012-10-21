@@ -1,0 +1,4 @@
+# the id of the object
+arm_navigation_msgs/CollisionObject[] objects
+---
+string[] plans

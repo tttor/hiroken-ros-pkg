@@ -1,0 +1,76 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="hiro_head">
+  <xacro:macro name="head">
+    <joint name="joint_head_yaw" type="revolute">
+      <parent link="link_chest_yaw"/>
+      <child link="link_neck_yaw"/>
+      <origin xyz="0.0 0 0.5495" rpy="0 0 0"/> <!-- rotation 0 0 1 0 -->
+      <axis xyz="0 0 1"/>
+      <limit lower="${-165*rad_per_deg}" upper="${165*rad_per_deg}" effort="1000.0" velocity="0.5"/>
+      <safety_controller  soft_lower_limit="${-160*rad_per_deg}" soft_upper_limit="${160*rad_per_deg}" k_position="0" k_velocity="0" />
+      <dynamics damping="0.0" friction="0.0"/>
+    </joint>
+    
+    <link name="link_neck_yaw">
+      <inertial>
+        <origin xyz="-0.00002292 0.00547848 -0.00784016"/>     
+        <mass value="0.31792900" />
+        <!-- momentsOfInertia [0.00027682 0.00000003 -0.00000033; 0.00000003 0.00013009 -0.00001092; -0.00000033 -0.00001092 0.00020954] -->
+        <inertia  ixx="0.00027682" ixy="0.00000003"  ixz="-0.00000033"  iyy="0.00013009"  iyz="-0.00001092"  izz="0.00020954" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/ny.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/> 
+        <material name="green"/>
+      </visual>  
+      <collision>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/ny.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/> 
+      </collision>        
+    </link>
+    <gazebo reference="link_neck_yaw">
+      <material>Gazebo/Red</material>
+      <turnGravityOff>true</turnGravityOff>
+    </gazebo>
+    
+    <joint name="joint_head_pitch" type="revolute">
+      <parent link="link_neck_yaw"/>
+      <child link="link_neck_pitch"/>
+      <origin xyz="0 0 0" rpy="0 0 0"/> <!-- rotation 0 1 0 0 -->
+      <axis xyz="0 1 0"/>
+      <limit lower="${-50*rad_per_deg}" upper="${50*rad_per_deg}" effort="1000.0" velocity="0.5"/>
+      <safety_controller  soft_lower_limit="${-45*rad_per_deg}" soft_upper_limit="${45*rad_per_deg}" k_position="0" k_velocity="0" />
+      <dynamics damping="0.0" friction="0.0"/>
+    </joint>
+
+    <link name="link_neck_pitch">
+      <inertial>
+        <origin xyz="0.00000502 -0.01667768 0.01631533"/>     
+        <mass value="0.08085931" />
+        <!-- momentsOfInertia [0.00008070 -0.00000003 -0.00000000; -0.00000003 0.00003025 -0.00001277; -0.00000000 -0.00001277 0.00006637] -->
+        <inertia  ixx="0.00008070" ixy="-0.00000003"  ixz="-0.00000000"  iyy="0.00003025"  iyz="-0.00001277"  izz="0.00006637" />
+      </inertial>  
+      <visual>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/np.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/> 
+        <material name="yellow"/>
+      </visual>  
+      <collision>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/np.stl"/>  
+        </geometry>
+        <origin xyz="0 0 0" rpy="0 0 0"/> 
+      </collision>        
+    </link>
+    <gazebo reference="link_neck_pitch">
+      <material>Gazebo/Red</material>
+      <turnGravityOff>true</turnGravityOff>
+    </gazebo>  
+  </xacro:macro>
+</robot>

@@ -1,0 +1,21 @@
+<package>
+  <description brief="hiro_sensor">
+
+     hiro_sensor
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/hiro_sensor</url>
+  <depend package="tf"/>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  <depend package="kinematics_msgs"/>
+  <depend package="visualization_msgs"/>
+  <depend package="planning_environment"/>
+  <depend package="sensor_msgs"/>
+  <depend package="opencv2"/>
+</package>
+
+

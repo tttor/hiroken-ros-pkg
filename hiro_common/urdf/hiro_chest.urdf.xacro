@@ -1,0 +1,42 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="hiro_chest">
+  <xacro:macro name="chest">
+    <joint name="joint_chest_yaw" type="revolute">
+      <parent link="link_base"/>
+      <child link="link_chest_yaw"/>
+      <origin xyz="0 0 ${base_height}" rpy="0 0 0"/>
+      <axis xyz="0 0 1"/>
+      <limit lower="${-170*rad_per_deg}" upper="${170*rad_per_deg}" effort="1000.0" velocity="0.5"/>
+      <!--safety_controller  soft_lower_limit="${-170*rad_per_deg}" soft_upper_limit="${170*rad_per_deg}" k_position="0" k_velocity="0" /-->
+      <!-- rotorInertia	1.12e-01 -->
+      <dynamics damping="0.0" friction="0.0"/>
+    </joint> 
+    
+    <link name="link_chest_yaw">
+      <inertial>
+        <origin xyz="-0.00493378 -0.00097682 0.34405202"/>     
+        <mass value="6.20761000" />
+        <!-- momentsOfInertia [0.06395752 -0.00022833 0.00011172; -0.00022833 0.03108451 0.00006480; 0.00011172 0.00006480 0.05011067] -->
+        <inertia  ixx="0.06395752" ixy="-0.00022833"  ixz="0.00011172"  iyy="0.03108451"  iyz="0.00006480"  izz="0.05011067" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/cy.stl"/>        
+        </geometry>
+        <origin xyz="0 0 0"/>     
+        <!--material name="magenta"/-->
+        <material name="chest_red_3"/>      
+      </visual>
+      <collision>
+        <geometry>
+          <mesh filename="package://hiro_common/meshes/cy.stl"/>        
+        </geometry>
+        <origin xyz="0 0 0"/>     
+      </collision>
+    </link> 
+    <gazebo reference="link_chest_yaw">
+      <material>Gazebo/Red</material>
+      <turnGravityOff>true</turnGravityOff>    
+    </gazebo> 
+  </xacro:macro>
+</robot>

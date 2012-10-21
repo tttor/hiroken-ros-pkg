@@ -1,0 +1,87 @@
+planner_configs:
+  SBLkConfig1:
+    type: kinematic::SBL
+  LBKPIECEkConfig1:
+    type: kinematic::LBKPIECE
+  RRTkConfig1:
+    type: kinematic::RRT
+  RRTConnectkConfig1:
+    type: kinematic::RRTConnect
+  pRRTkConfig1:
+    type: kinematic::pRRT
+  LazyRRTkConfig1:
+    type: kinematic::LazyRRT
+  ESTkConfig1:
+    type: kinematic::EST
+  pSBLkConfig1:
+    type: kinematic::pSBL
+  KPIECEkConfig1:
+    type: kinematic::KPIECE
+  RRTStarkConfig1:
+    type: kinematic::RRTStar
+  BKPIECEkConfig1:
+    type: kinematic::BKPIECE
+groups:
+  - rarm
+  - rarm_cartesian
+rarm:
+  planner_type: JointPlanner
+  planner_configs:
+    - SBLkConfig1
+    - LBKPIECEkConfig1
+    - RRTkConfig1
+    - RRTConnectkConfig1
+    - pRRTkConfig1
+    - LazyRRTkConfig1
+    - ESTkConfig1
+    - pSBLkConfig1
+    - KPIECEkConfig1
+    - RRTStarkConfig1
+    - BKPIECEkConfig1
+  projection_evaluator: joint_state
+rarm_cartesian:
+  parent_frame: link_base
+  physical_group: rarm
+  planner_type: RPYIKTaskSpacePlanner
+  state_spaces:
+    - x
+    - y
+    - z
+    - roll
+    - pitch
+    - yaw
+  x:
+    type: Linear
+    min: -2.0
+    max: 2.0
+  y:
+    type: Linear
+    min: -2.0
+    max: 2.0
+  z:
+    type: Linear
+    min: -2.0
+    max: 2.0
+  roll:
+    type: Revolute
+  pitch:
+    type: Revolute
+  yaw:
+    type: Revolute
+  planner_configs:
+    - SBLkConfig1
+    - LBKPIECEkConfig1
+    - RRTkConfig1
+    - RRTConnectkConfig1
+    - pRRTkConfig1
+    - LazyRRTkConfig1
+    - ESTkConfig1
+    - pSBLkConfig1
+    - KPIECEkConfig1
+    - RRTStarkConfig1
+    - BKPIECEkConfig1
+  kinematics_solver: arm_kinematics_constraint_aware/KDLArmKinematicsPlugin
+  tip_name: link_rhand_palm
+  root_name: link_base
+  projection_evaluator: joint_state
+  longest_valid_segment_fraction: 0.001
