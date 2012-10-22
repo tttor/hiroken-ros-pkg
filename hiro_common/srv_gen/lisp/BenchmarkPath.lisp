@@ -7,11 +7,11 @@
 ;//! \htmlinclude BenchmarkPath-request.msg.html
 
 (cl:defclass <BenchmarkPath-request> (roslisp-msg-protocol:ros-message)
-  ((robot_trajectory
-    :reader robot_trajectory
-    :initarg :robot_trajectory
-    :type arm_navigation_msgs-msg:RobotTrajectory
-    :initform (cl:make-instance 'arm_navigation_msgs-msg:RobotTrajectory)))
+  ((trajectory
+    :reader trajectory
+    :initarg :trajectory
+    :type trajectory_msgs-msg:JointTrajectory
+    :initform (cl:make-instance 'trajectory_msgs-msg:JointTrajectory)))
 )
 
 (cl:defclass BenchmarkPath-request (<BenchmarkPath-request>)
@@ -22,17 +22,17 @@
   (cl:unless (cl:typep m 'BenchmarkPath-request)
     (roslisp-msg-protocol:msg-deprecation-warning "using old message class name hiro_common-srv:<BenchmarkPath-request> is deprecated: use hiro_common-srv:BenchmarkPath-request instead.")))
 
-(cl:ensure-generic-function 'robot_trajectory-val :lambda-list '(m))
-(cl:defmethod robot_trajectory-val ((m <BenchmarkPath-request>))
-  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader hiro_common-srv:robot_trajectory-val is deprecated.  Use hiro_common-srv:robot_trajectory instead.")
-  (robot_trajectory m))
+(cl:ensure-generic-function 'trajectory-val :lambda-list '(m))
+(cl:defmethod trajectory-val ((m <BenchmarkPath-request>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader hiro_common-srv:trajectory-val is deprecated.  Use hiro_common-srv:trajectory instead.")
+  (trajectory m))
 (cl:defmethod roslisp-msg-protocol:serialize ((msg <BenchmarkPath-request>) ostream)
   "Serializes a message object of type '<BenchmarkPath-request>"
-  (roslisp-msg-protocol:serialize (cl:slot-value msg 'robot_trajectory) ostream)
+  (roslisp-msg-protocol:serialize (cl:slot-value msg 'trajectory) ostream)
 )
 (cl:defmethod roslisp-msg-protocol:deserialize ((msg <BenchmarkPath-request>) istream)
   "Deserializes a message object of type '<BenchmarkPath-request>"
-  (roslisp-msg-protocol:deserialize (cl:slot-value msg 'robot_trajectory) istream)
+  (roslisp-msg-protocol:deserialize (cl:slot-value msg 'trajectory) istream)
   msg
 )
 (cl:defmethod roslisp-msg-protocol:ros-datatype ((msg (cl:eql '<BenchmarkPath-request>)))
@@ -43,24 +43,24 @@
   "hiro_common/BenchmarkPathRequest")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<BenchmarkPath-request>)))
   "Returns md5sum for a message object of type '<BenchmarkPath-request>"
-  "2165d26d9002c2d13ba6746a298d0f67")
+  "95fba3013376c1da22380f08a8f4052b")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'BenchmarkPath-request)))
   "Returns md5sum for a message object of type 'BenchmarkPath-request"
-  "2165d26d9002c2d13ba6746a298d0f67")
+  "95fba3013376c1da22380f08a8f4052b")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<BenchmarkPath-request>)))
   "Returns full string definition for message of type '<BenchmarkPath-request>"
-  (cl:format cl:nil "arm_navigation_msgs/RobotTrajectory robot_trajectory~%~%================================================================================~%MSG: arm_navigation_msgs/RobotTrajectory~%trajectory_msgs/JointTrajectory joint_trajectory~%arm_navigation_msgs/MultiDOFJointTrajectory multi_dof_joint_trajectory~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectory~%Header header~%string[] joint_names~%JointTrajectoryPoint[] points~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.secs: seconds (stamp_secs) since epoch~%# * stamp.nsecs: nanoseconds since stamp_secs~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%# 0: no frame~%# 1: global frame~%string frame_id~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectoryPoint~%float64[] positions~%float64[] velocities~%float64[] accelerations~%duration time_from_start~%================================================================================~%MSG: arm_navigation_msgs/MultiDOFJointTrajectory~%#A representation of a multi-dof joint trajectory~%duration stamp~%string[] joint_names~%string[] frame_ids~%string[] child_frame_ids~%MultiDOFJointTrajectoryPoint[] points~%~%================================================================================~%MSG: arm_navigation_msgs/MultiDOFJointTrajectoryPoint~%geometry_msgs/Pose[] poses~%duration time_from_start~%================================================================================~%MSG: geometry_msgs/Pose~%# A representation of pose in free space, composed of postion and orientation. ~%Point position~%Quaternion orientation~%~%================================================================================~%MSG: geometry_msgs/Point~%# This contains the position of a point in free space~%float64 x~%float64 y~%float64 z~%~%================================================================================~%MSG: geometry_msgs/Quaternion~%# This represents an orientation in free space in quaternion form.~%~%float64 x~%float64 y~%float64 z~%float64 w~%~%~%"))
+  (cl:format cl:nil "trajectory_msgs/JointTrajectory trajectory~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectory~%Header header~%string[] joint_names~%JointTrajectoryPoint[] points~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.secs: seconds (stamp_secs) since epoch~%# * stamp.nsecs: nanoseconds since stamp_secs~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%# 0: no frame~%# 1: global frame~%string frame_id~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectoryPoint~%float64[] positions~%float64[] velocities~%float64[] accelerations~%duration time_from_start~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'BenchmarkPath-request)))
   "Returns full string definition for message of type 'BenchmarkPath-request"
-  (cl:format cl:nil "arm_navigation_msgs/RobotTrajectory robot_trajectory~%~%================================================================================~%MSG: arm_navigation_msgs/RobotTrajectory~%trajectory_msgs/JointTrajectory joint_trajectory~%arm_navigation_msgs/MultiDOFJointTrajectory multi_dof_joint_trajectory~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectory~%Header header~%string[] joint_names~%JointTrajectoryPoint[] points~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.secs: seconds (stamp_secs) since epoch~%# * stamp.nsecs: nanoseconds since stamp_secs~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%# 0: no frame~%# 1: global frame~%string frame_id~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectoryPoint~%float64[] positions~%float64[] velocities~%float64[] accelerations~%duration time_from_start~%================================================================================~%MSG: arm_navigation_msgs/MultiDOFJointTrajectory~%#A representation of a multi-dof joint trajectory~%duration stamp~%string[] joint_names~%string[] frame_ids~%string[] child_frame_ids~%MultiDOFJointTrajectoryPoint[] points~%~%================================================================================~%MSG: arm_navigation_msgs/MultiDOFJointTrajectoryPoint~%geometry_msgs/Pose[] poses~%duration time_from_start~%================================================================================~%MSG: geometry_msgs/Pose~%# A representation of pose in free space, composed of postion and orientation. ~%Point position~%Quaternion orientation~%~%================================================================================~%MSG: geometry_msgs/Point~%# This contains the position of a point in free space~%float64 x~%float64 y~%float64 z~%~%================================================================================~%MSG: geometry_msgs/Quaternion~%# This represents an orientation in free space in quaternion form.~%~%float64 x~%float64 y~%float64 z~%float64 w~%~%~%"))
+  (cl:format cl:nil "trajectory_msgs/JointTrajectory trajectory~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectory~%Header header~%string[] joint_names~%JointTrajectoryPoint[] points~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.secs: seconds (stamp_secs) since epoch~%# * stamp.nsecs: nanoseconds since stamp_secs~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%# 0: no frame~%# 1: global frame~%string frame_id~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectoryPoint~%float64[] positions~%float64[] velocities~%float64[] accelerations~%duration time_from_start~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <BenchmarkPath-request>))
   (cl:+ 0
-     (roslisp-msg-protocol:serialization-length (cl:slot-value msg 'robot_trajectory))
+     (roslisp-msg-protocol:serialization-length (cl:slot-value msg 'trajectory))
 ))
 (cl:defmethod roslisp-msg-protocol:ros-message-to-list ((msg <BenchmarkPath-request>))
   "Converts a ROS message object to a list"
   (cl:list 'BenchmarkPath-request
-    (cl:cons ':robot_trajectory (robot_trajectory msg))
+    (cl:cons ':trajectory (trajectory msg))
 ))
 ;//! \htmlinclude BenchmarkPath-response.msg.html
 
@@ -118,10 +118,10 @@
   "hiro_common/BenchmarkPathResponse")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<BenchmarkPath-response>)))
   "Returns md5sum for a message object of type '<BenchmarkPath-response>"
-  "2165d26d9002c2d13ba6746a298d0f67")
+  "95fba3013376c1da22380f08a8f4052b")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'BenchmarkPath-response)))
   "Returns md5sum for a message object of type 'BenchmarkPath-response"
-  "2165d26d9002c2d13ba6746a298d0f67")
+  "95fba3013376c1da22380f08a8f4052b")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<BenchmarkPath-response>)))
   "Returns full string definition for message of type '<BenchmarkPath-response>"
   (cl:format cl:nil "float64 length~%~%~%~%~%~%"))

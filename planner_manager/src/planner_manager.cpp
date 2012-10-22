@@ -11,6 +11,8 @@
 #include <arm_navigation_msgs/MoveArmAction.h>
 #include <arm_navigation_msgs/utils.h>
 
+#include <arm_navigation_msgs/FilterJointTrajectoryWithConstraints.h>
+
 #include <boost/algorithm/string.hpp>
 #include <fstream>
 #include <algorithm>
@@ -30,7 +32,7 @@
 #include <list>
 #include <iostream>
 #include <fstream>
-#include <math.h>    // for sqrt
+#include <math.h>
 
 #include <boost/config.hpp>
 
@@ -53,42 +55,7 @@
 #include "hiro_control/ControlHand.h"
 #include "hiro_control/MoveArm.h"
 #include "hiro_common/BenchmarkPath.h"
-//==================
-#include <boost/config.hpp>
-#include <iostream>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/filtered_graph.hpp>
-#include <boost/graph/graph_utility.hpp>
 
-#include <boost/algorithm/string.hpp>
-#include <fstream>
-#include <algorithm>
-#include <functional>
-#include <limits>
-
-#include <boost/graph/astar_search.hpp>
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/random.hpp>
-#include <boost/random.hpp>
-#include <boost/graph/graphviz.hpp>
-#include <boost/graph/filtered_graph.hpp>
-#include <boost/graph/graph_utility.hpp>
-#include <sys/time.h>
-#include <vector>
-#include <list>
-#include <iostream>
-#include <fstream>
-#include <math.h>    // for sqrt
-
-#include <boost/config.hpp>
-
-#include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/depth_first_search.hpp>
-#include <boost/range/irange.hpp>
-#include <boost/pending/indirect_cmp.hpp>
-
-#include <iostream>
-//==============
 using namespace boost;
 using namespace std;
 
@@ -146,11 +113,7 @@ typedef double Output;// which is the true geometric cost
 typedef std::map<std::string, double> Input;// which consists of features
 typedef std::map<Input, Output> Data;
 
-// TODO wrap these data in a header
-static const double B_RADIUS = 0.065/2.;
-static const double B_HEIGHT = 0.123;
-static const double TABLE_THICKNESS = 0.050;
-
+static const std::string TRAJECTORY_FILTER = "/trajectory_filter_server/filter_trajectory_with_constraints";
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 static const size_t NUM_PLANNING_ATTEMPTS = 1;
 static const float ALLOWED_PLANNING_TIME = 0.1*60.;
@@ -231,9 +194,7 @@ public:
   bool 
   operator()(const Edge& e) const 
   {
-//    return edge_flag_map_[e]==PLANNED or edge_flag_map_==BEST_SOLUTION;// This killed my time: we _must_ put some parentheses
     return (edge_flag_map_[e]==PLANNED) or (edge_flag_map_[e]==BEST_SOLUTION);
-    
   }
 
 private:
@@ -375,7 +336,7 @@ public:
     {
       color_str = ",color=\"blue\"";
     }
-//    out << "[label=\"" << edge_name_map_[e] << "\\" << "n" << edge_weight_map_[e] << "\",fontsize=\"10\"]";
+
     out << "["
     << "label=\"" << edge_name_map_[e] << "\\" << "n" << edge_weight_map_[e] << "\",fontsize=\"10\""
     << color_str 
@@ -507,7 +468,6 @@ public:
     
     if(u == m_goal)
       throw FoundGoalSignal();
-    
   }
   
   template <class Graph>
@@ -585,6 +545,9 @@ PlannerManager(ros::NodeHandle& nh):
   ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
   set_planning_scene_diff_client_ = nh_.serviceClient<arm_navigation_msgs::SetPlanningSceneDiff> (SET_PLANNING_SCENE_DIFF_NAME);
 
+  ros::service::waitForService(TRAJECTORY_FILTER);
+  filter_trajectory_client_ = nh_.serviceClient<arm_navigation_msgs::FilterJointTrajectoryWithConstraints>(TRAJECTORY_FILTER);
+  
   motion_plan_pub_ = nh_.advertise<trajectory_msgs::JointTrajectory>("motion_plan", 1000);
       
   collision_object_pub_ = nh_.advertise<arm_navigation_msgs::CollisionObject>("collision_object", 10);
@@ -791,13 +754,10 @@ extract_features(const typename GraphType::vertex_descriptor& v, const GraphType
     (*f)[std::string(i->first+".qw")] = obj.poses.at(0).orientation.w;
   }
   
-  // Write the input
-  cout << "--------------" << endl;
-  for(Input::const_iterator j=f->begin(); j!=f->end(); ++j )
-  {
-    cout << (*j).first << "= " << (*j).second << endl;
-  }
-  cout << endl;
+//  cout << "--------------" << endl;
+//  for(Input::const_iterator j=f->begin(); j!=f->end(); ++j )
+//    cout << (*j).first << "= " << (*j).second << endl;
+//  cout << endl;
   
   return true;
 }
@@ -1197,6 +1157,8 @@ ros::Publisher motion_plan_pub_;
 */
 ros::ServiceClient set_planning_scene_diff_client_;
 
+ros::ServiceClient filter_trajectory_client_;
+
 //! A helper variable
 /*!
   Being used at several places.
@@ -1350,10 +1312,13 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
     {
       ROS_DEBUG("Motion planning succeeded");
     
-      // TODO filter!
-    
+      trajectory_msgs::JointTrajectory filtered_trajectory;
+      filter_path(res.trajectory.joint_trajectory, req, &filtered_trajectory);
+      motion_plan_pub_.publish(filtered_trajectory);
+      
       // Visualize the path
-      motion_plan_pub_.publish(res.trajectory.joint_trajectory);
+//      motion_plan_pub_.publish(res.trajectory.joint_trajectory);
+     motion_plan_pub_.publish(filtered_trajectory);
       
       // Put the response 
       *motion_path = res.trajectory;
@@ -1364,7 +1329,8 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
       hiro_common::BenchmarkPath::Request benchmark_path_req;
       hiro_common::BenchmarkPath::Response benchmark_path_res;
 
-      benchmark_path_req.robot_trajectory = res.trajectory;
+//      benchmark_path_req.trajectory = res.trajectory.joint_trajectory;
+      benchmark_path_req.trajectory = filtered_trajectory;
 
       if (benchmark_path_client.call(benchmark_path_req, benchmark_path_res))
       {
@@ -2042,10 +2008,30 @@ extract_solutions()
   \return whether successful
 */
 bool
-filter_path(const trajectory_msgs::JointTrajectory& trajectory_in, trajectory_msgs::JointTrajectory& trajectory_out)
+filter_path(const trajectory_msgs::JointTrajectory& trajectory_in, const arm_navigation_msgs::GetMotionPlan::Request& get_motion_plan_req, trajectory_msgs::JointTrajectory* trajectory_out)
 {
-  //TODO implement me!  
-  return false;
+  arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Request  req;
+  arm_navigation_msgs::FilterJointTrajectoryWithConstraints::Response res;
+
+//  req.trajectory.joint_names = trajectory_in.joint_names;
+//  req.trajectory.points = trajectory_in.points;
+  req.trajectory = trajectory_in;
+  req.group_name = "rarm";
+  req.start_state =get_motion_plan_req.motion_plan_request.start_state;
+  req.path_constraints = get_motion_plan_req.motion_plan_request.path_constraints;
+  req.goal_constraints = get_motion_plan_req.motion_plan_request.goal_constraints;
+  req.allowed_time = ros::Duration(3.0);
+
+  if(filter_trajectory_client_.call(req,res))
+  {
+    *trajectory_out = res.trajectory;
+    return true;
+  }
+  else
+  {
+    ROS_ERROR("Service call to filter trajectory failed.");
+    return false;
+  }
 }
 //! Reset the collision space or planning environment.
 /*!
@@ -2125,6 +2111,10 @@ get_object(const std::string& object_id, const std::vector<arm_navigation_msgs::
 void
 set_tidy_config()
 {
+  const double B_RADIUS = 0.065/2.;
+  const double B_HEIGHT = 0.123;
+  const double TABLE_THICKNESS = 0.050;
+  
   //------------------------------------------------------------------CAN1
   arm_navigation_msgs::CollisionObject can1;
    
@@ -2520,7 +2510,7 @@ main(int argc, char **argv)
   }
   ROS_INFO("sensing: finished");
   
-  pm.plan();// TODO pass all sensed object here!
+  pm.plan();
   pm.collect();
 //  pm.commit();
 

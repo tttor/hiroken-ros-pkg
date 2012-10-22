@@ -1,4 +1,4 @@
-arm_navigation_msgs/RobotTrajectory robot_trajectory
+trajectory_msgs/JointTrajectory trajectory
 ---
 float64 length
 #float64 smoothness

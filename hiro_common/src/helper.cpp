@@ -242,14 +242,14 @@ benchmark_path(const std::vector<geometry_msgs::Point>& path)
 bool
 benchmark_path_srv_cb(hiro_common::BenchmarkPath::Request& req, hiro_common::BenchmarkPath::Response& res)
 {
-  if(req.robot_trajectory.joint_trajectory.points.empty())
+  if(req.trajectory.points.empty())
   {
     res.length = 0.;  
   }
   else
   {
     std::vector<geometry_msgs::Point> path;
-    path = convert_to_cartesian(req.robot_trajectory.joint_trajectory);
+    path = convert_to_cartesian(req.trajectory);
     
     // Length
     double len = 0.0;

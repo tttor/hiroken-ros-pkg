@@ -78,7 +78,7 @@ sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Respo
   // Hardcode the sensed_objects_----------------------------------------------------------------------
   sense_static_object();
    
-  get_messy_config(1);
+  get_messy_config(2, false);
 
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
@@ -380,7 +380,7 @@ void
 get_messy_config(const size_t& n, bool random=true)
 {
   if( !random )
-    return hardcode_messy_cfg();
+    return hardcode_messy_cfg(n);
 
   std::vector<std::string> ids;
   std::string common_id = "CAN";
@@ -485,33 +485,37 @@ get_messy_config(const size_t& n, bool random=true)
 //  cv::waitKey(0);
 }
 void
-hardcode_messy_cfg()
+hardcode_messy_cfg(const size_t& n)
 {
-  // Right hand side: Odd number
-  sense_movable_object( "CAN1",
-                B_RADIUS, B_HEIGHT,
-                0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                0.,0.,0.,1.
-              );
-
-  sense_movable_object( "CAN3",
-                B_RADIUS, B_HEIGHT,
-                0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
-                0.,sqrt(0.5),0.,sqrt(0.5)
-              );
-  
-  // Left hand side: Even number
-  sense_movable_object( "CAN2",
-                B_RADIUS, B_HEIGHT,
-                0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                0.,0.,0.,1.
-              );
-
-//  sense_movable_object( "CAN4",
-//                B_RADIUS, B_HEIGHT,
-//                0.30, 0.25,(TABLE_THICKNESS/2)+(B_RADIUS),
-//                0.,sqrt(0.5),0.,sqrt(0.5)
-//              );
+  switch(n)
+  {
+    case 4:
+          sense_movable_object( "CAN4",
+                                B_RADIUS, B_HEIGHT,
+                                0.30, 0.25,(TABLE_THICKNESS/2)+(B_RADIUS),
+                                0.,sqrt(0.5),0.,sqrt(0.5)
+                              );
+    case 3:
+          sense_movable_object( "CAN3",
+                                B_RADIUS, B_HEIGHT,
+                                0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+                                0.,sqrt(0.5),0.,sqrt(0.5)
+                              );
+    case 2:
+          sense_movable_object( "CAN2",
+                                B_RADIUS, B_HEIGHT,
+                                0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                                0.,0.,0.,1.
+                              );
+    case 1:
+          sense_movable_object( "CAN1",
+                                B_RADIUS, B_HEIGHT,
+                                0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                                0.,0.,0.,1.
+                              );
+    case 0:
+          ROS_WARN("There is no sensed object.");
+  }
 }
 };// enf of: class VisionSensor
 
