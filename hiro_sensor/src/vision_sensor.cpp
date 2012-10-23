@@ -78,7 +78,7 @@ sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Respo
   // Hardcode the sensed_objects_----------------------------------------------------------------------
   sense_static_object();
    
-  get_messy_config(2, false);
+  get_messy_config(2, true);
 
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
@@ -399,7 +399,7 @@ get_messy_config(const size_t& n, bool random=true)
   cv::Mat img( rows, cols, CV_8UC1, cv::Scalar(255));// White image single channel 8 Unsigned
   
   // Set the dead zone: robot's torso + Set the unmovable_object (obstacles)
-  const double rbt_r = 0.150;
+  const double rbt_r = 0.250;
   
   cv::Point rbt_p;
   rbt_p.x = (rows/2);
@@ -513,9 +513,9 @@ hardcode_messy_cfg(const size_t& n)
                                 0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
                                 0.,0.,0.,1.
                               );
-    case 0:
-          ROS_WARN("There is no sensed object.");
   }
+  if(n==0)
+          ROS_WARN("There is no sensed object.");
 }
 };// enf of: class VisionSensor
 

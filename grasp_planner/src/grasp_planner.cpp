@@ -213,7 +213,7 @@ plan_grasp_cb(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp:
     rate.sleep();
   } // End of for(size_t i=0; i<yaw_step;++i)
   
-  res.process_cost = (double) (yaw_step-num_grasp_plan) / yaw_step * 100.;
+  res.process_cost = (double) (yaw_step-num_grasp_plan) / yaw_step;// * 100.;
   
   ROS_DEBUG_STREAM("Grasp planning: DONE with " << num_grasp_plan << " grasp plan(s)");
   return true;

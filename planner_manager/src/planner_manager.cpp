@@ -1,4 +1,3 @@
-//TODO change how messy_config_ and tidy_config_ are set!
 #include <ros/ros.h>
 
 #include <arm_navigation_msgs/CollisionObject.h>
@@ -115,8 +114,6 @@ typedef std::map<Input, Output> Data;
 
 static const std::string TRAJECTORY_FILTER = "/trajectory_filter_server/filter_trajectory_with_constraints";
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
-static const size_t NUM_PLANNING_ATTEMPTS = 1;
-static const float ALLOWED_PLANNING_TIME = 0.1*60.;
 
 static boost::mt19937 g_rng( static_cast<unsigned int>(std::time(0)) );
 
@@ -304,7 +301,7 @@ struct GraphPropWriter
   void
   operator()(std::ostream& out) const 
   {
-    out << "graph [bgcolor=lightgrey]" << std::endl;
+//    out << "graph [bgcolor=lightgrey]" << std::endl;
   }
 };
 
@@ -499,8 +496,9 @@ private:
 struct GeoPlanningCost
 {
   GeoPlanningCost()
-    :process(1.), result(1.), w_p(1.), w_r(1.)//TODO consider these init values
-  {}
+    :process(1.), result(1.)
+    , w_p(1.), w_r(1.)
+  { }
   
   double process;
   double result;
@@ -511,7 +509,18 @@ struct GeoPlanningCost
   double
   total()
   {
+    // We normalize both process_cost and result_cost as well as put some weight to control the trade-off.
+    // The ratio of (process/result) means the process cost per result-cost-unit. 
+    // In the same vein, (result/process) means the result cost per process-cost-unit. 
+    // We are happy to call this step as normalization.
     return (w_p*(process/result)) + (w_r*(result/process));
+  }
+  
+  // This is for comparing among paths insided plan_motion();
+  double
+  total_2()
+  {
+    return ( (w_p*process) + (w_r*result) );
   }
 };
 
@@ -771,6 +780,8 @@ extract_features(const typename GraphType::vertex_descriptor& v, const GraphType
 bool
 collect()
 {
+  // TODO read the 1st line of the existing csv to get the feature_ids vector; then add necessary feature ids
+  
   // Holds all training data
   std::string data_file_path = planner_manager_path_ + "/data/data.csv";
   
@@ -835,7 +846,7 @@ collect()
   for(std::vector<std::string>::iterator feature_ids_it=feature_ids_vec.begin(); feature_ids_it!=feature_ids_vec.end(); ++feature_ids_it)
   {
     cout << *feature_ids_it << ",";
-    data_file << *feature_ids_it << ",";
+    data_file << *feature_ids_it << ",";//TODO donot write it over and over
   }
   cout << "OUT";
   data_file << "OUT";
@@ -893,7 +904,7 @@ plan()
   // Create task plan space encoded in a task motion graph
   plan_symbollically();
   
-  // Searching over task plan space, within which a geometric planner is called to validate eash symbollically feasible task plan.
+  // Searching over the task plan space, within which a geometric planner is called to validate eash task plan whether it is symbollically feasible.
   Vertex start = MessyHome;
   Vertex goal = TidyHome;  
   
@@ -953,7 +964,7 @@ plan()
     list<Vertex> man_plan_vertices_tmp;
     for(Vertex v = goal;; v = p[v]) 
     {
-      man_plan_vertices_tmp.push_front(v);// Note that p contains a backtracking record
+      man_plan_vertices_tmp.push_front(v);// Note that p is a vector that contains a backtracking record
       
       if(p[v] == v)
         break;
@@ -1243,7 +1254,6 @@ plan_task()
 }
 //! Brief ...
 /*!
-  More ...
   Assuming that the motion planner is an oracle i.e. always returns the best motion plan for given a pair of start and goal states
   Note: the planner does not put any values at motion_plan.joint_trajectory.points.at(0).velocities
   motion_plan.joint_trajectory.points.at(0).velocities.size() is always zero here.
@@ -1257,9 +1267,11 @@ plan_task()
 bool
 plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::JointState& goal_state, arm_navigation_msgs::RobotTrajectory* motion_path, GeoPlanningCost* cost=0)
 {
-  while(!ros::service::waitForService("ompl_planning/plan_kinematic_path", ros::Duration(1.0))) {
+  const size_t NUM_PLANNING_ATTEMPTS = 3;
+  const double ALLOWED_PLANNING_TIME = 0.5*60.;
+  
+  while(!ros::service::waitForService("ompl_planning/plan_kinematic_path", ros::Duration(1.0))) 
     ROS_INFO_STREAM("Waiting for requested service " << "ompl_planning/plan_kinematic_path");
-  }
   
   ros::ServiceClient planning_client = nh_.serviceClient<arm_navigation_msgs::GetMotionPlan>("ompl_planning/plan_kinematic_path");
 
@@ -1296,17 +1308,21 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
     req.motion_plan_request.start_state.joint_state.effort.at(i) = 0.;
   }  
   
-  // TODO Due to probabilistically complete, we should call the plan as many as possible
-  if (planning_client.call(req, res))
+  ros::Time planning_begin = ros::Time::now();
+  if ( planning_client.call(req, res) )
   {
+    double planning_time = (ros::Time::now()-planning_begin).toSec();
+    
     if (res.trajectory.joint_trajectory.points.empty())
     {
-      ROS_WARN("Motion planner was unable to plan a path to goal");
+//      ROS_WARN("Motion planner was unable to plan a path to goal");
+      
+      // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
+      cost->result += 0.;// Ensure the length is exactly 0 + the initial value
+      
+      cost->process += NUM_PLANNING_ATTEMPTS * ALLOWED_PLANNING_TIME;// Incremented, instead of just assignment because we want to preserve the base/default value.
 
-      cost->result += 0.;// Note that the result depends only on the path length
-      cost->process = 10.;// TODO make this not a magic number
-
-      return false;
+      return false;// No feasible motion plan must indicate that the call to this function is unsuccesful.
     }
     else
     {
@@ -1335,18 +1351,21 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
       if (benchmark_path_client.call(benchmark_path_req, benchmark_path_res))
       {
         ROS_DEBUG("BenchmarkPath succeeded");
-        cost->result += benchmark_path_res.length;// Note that the result depends only on the path length
-        cost->process = 1.;
+        
+        // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
+        cost->result += benchmark_path_res.length;// Incremented, instead of just assignment because we want to preserve the base/default value.
+        
+        cost->process += planning_time;// Incremented, instead of just assignment because we want to preserve the base/default value.
       }
       else
       {
         ROS_ERROR("BenchmarkPath service failed on %s",benchmark_path_client.getService().c_str());
-        return false;
+        return false;// Although not truly appropriate, this must indicate that the call to this function is unsuccessful.
       }
       
       // Clear the path visualization
       trajectory_msgs::JointTrajectory empty_path;
-      ros::Duration(0.1).sleep();// May be not necessary
+      ros::Duration(0.1).sleep();// May be not necessary, just to make the visualization time as longer as you want.
       motion_plan_pub_.publish(empty_path);
       return true;
     }
@@ -1354,27 +1373,38 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
   else
   {
     ROS_ERROR("Motion planning service failed on %s",planning_client.getService().c_str());
-    return false;
+    return false;// Although not truly appropriate, this must indicate that the call to this function is unsuccessful.
   }
 }
-
+//! Brief ...
+/*!
+  More ...
+  
+  \param &start_states A vector containing all possible start states.
+  \param &goal_states A vector containing all possible goal states.
+  \param *path Best motion path.
+  \param *cost The geometric planning cost. It is the best due to of the best path.
+  \return whether successful
+*/
 bool
 plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std::vector<sensor_msgs::JointState>& goal_states, arm_navigation_msgs::RobotTrajectory* best_motion_path, GeoPlanningCost* best_cost=0)
 {
-  best_cost->result = std::numeric_limits<double>::max();// Initialize with a very long path!  
-
-  size_t n_failure = 0;// For computing motion planning process cost
-
-  // For suppressing the number of motion planning trials
+  // For suppressing the number of motion planning trials.
+  const double portion = 0.05;// is in [0.,1.]
   size_t min_n_success;
-  min_n_success = (size_t)(0.05 * start_states.size()*goal_states.size());// TODO attempts should be picked randomly
+  min_n_success = (size_t)(portion * start_states.size() * goal_states.size());
   if (min_n_success < 1)
     min_n_success = 1;// At least, one attempt
   
   min_n_success = 1;// TODO remove me!
-   
-  size_t n_success = 0;
   
+  GeoPlanningCost old_cost;// We do not use directly the best_cost to store this value because in the case of no motion plan, the value of  std::numeric_limits<double>::max() in result and cosr will not make sense, inconvenient to see, etc ...
+  old_cost.result = std::numeric_limits<double>::max();// Initialize with a very long path because it serves as a base for comparison
+  old_cost.process = std::numeric_limits<double>::max();// Initialize with a very long path because it serves as a base for comparison
+  
+  size_t n_success = 0;
+  size_t n_failure = 0;// For computing motion planning process cost
+    
   for(std::vector<sensor_msgs::JointState>::const_iterator start_state_it=start_states.begin(); start_state_it!=start_states.end(); ++start_state_it)
   {
     for(std::vector<sensor_msgs::JointState>::const_iterator goal_state_it=goal_states.begin(); goal_state_it!=goal_states.end(); ++goal_state_it)
@@ -1384,42 +1414,44 @@ plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std:
       
       if( !plan_motion(*start_state_it, *goal_state_it, &motion_path, &cost) )
       {
-        ROS_WARN("Motion planning failed, continue...");
+//        ROS_WARN("Motion planning failed, continue...");
         
         ++n_failure;
-        
         continue;
       } 
       
-      
-      // Note here we determine the best motion path that depends only on cost.result value
-      if( (cost.result < best_cost->result) )
+      if( cost.total_2() < old_cost.total_2() )
       {
-        best_cost->result = cost.result;
-        best_cost->process = cost.process;
-        *best_motion_path = motion_path;
+        old_cost.result = cost.result;
+        old_cost.process = cost.process;
         
-        // TODO mark start and goal grasps that form the best path
+        *best_cost = old_cost;
+        *best_motion_path = motion_path;
       }
-      
+  
       ++n_success;
       
       if(n_success >= min_n_success)
         break;
     }
     if(n_success >= min_n_success)
-    break;
+      break;
   } 
-
-  //Compute the process cost;
+  
+  //Compute the process cost of iterating through all possibel starts/goals pairings;
   double iter_cost;
   iter_cost = (double) n_failure / min_n_success * 100.;// in the range og [0,100] to suppress the ratio value
-  best_cost->process += iter_cost;
-        
+  best_cost->process += iter_cost;// Note it is intentionally incremented! Ask why?
+
   if( best_motion_path->joint_trajectory.points.empty() )
   {
     ROS_WARN("All motion planing attempts on all start-goal-state pairs: FAILED");
-    //TODO should we penalize the process cost again!
+    
+    // If this happens, the best_cost.result must be 1. (the initial value) 
+    // Note that a failed geometric planinng cost will not be used in learning how to predict h(n)
+    const double FAILURE_PROCESS_PENALTY = 100.;
+    
+    best_cost->process += FAILURE_PROCESS_PENALTY;
     
     return false;
   }
@@ -1430,12 +1462,13 @@ plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std:
 }
 //! Brief ...
 /*!
-  More ...
-  This is for both grasp and ungrasp operations.
+  This is for both grasp operations.
+  The plan_ungrasp also calls this function.
   
-  \param object The collision object to be grasp or ungrasped.
-  \param revert Whether the function has to revert the planning environment after grasp/ungrasp planning.
-  \return All feasible grasp poses.
+  \param &object The collision object to be grasp or ungrasped.
+  \param *grasp_poses All possible grasp poses.
+  \param *cost Geometric planning cost.
+  \return whether successful.
 */
 bool
 plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs::JointState>* grasp_poses, GeoPlanningCost* cost=0)
@@ -1458,7 +1491,7 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs
   ros::ServiceClient plan_grasp_client;
   plan_grasp_client = nh_.serviceClient<grasp_planner::PlanGrasp>("plan_grasp");
     
-  if (plan_grasp_client.call(plan_grasp_req, plan_grasp_res))
+  if ( plan_grasp_client.call(plan_grasp_req, plan_grasp_res) )
   {
     ROS_DEBUG("Succeeded to call plan_grasp service");
     
@@ -1466,7 +1499,7 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs
     {
       *grasp_poses = plan_grasp_res.grasp_plans;
       
-      cost->process = plan_grasp_res.process_cost;// TODO get the process cost info from plan_grasp response
+      cost->process = plan_grasp_res.process_cost;
       cost->result = 1.;
 
       return true;
@@ -1484,32 +1517,42 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs
     return false;
   }
 }
-
+//! Brief ...
+/*!
+  This is for ungrasp operations.
+  This function calls plan_ungrasp().
+  
+  \param &object The collision object to be grasp or ungrasped.
+  \param *grasp_poses All possible grasp poses.
+  \param *cost Geometric planning cost.
+  \return whether successful.
+*/
 bool
 plan_ungrasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs::JointState>* ungrasp_poses, GeoPlanningCost* cost=0)
 {
-  bool is_successful = false;
-  
-  is_successful = plan_grasp(object, ungrasp_poses, cost); 
-  
-  // Revert the particular object in the planning_environment to the messy_config_
-  // Revert is for ungrasp planning, where the object passed here is from tidy_config_
-  std::vector<arm_navigation_msgs::CollisionObject>::const_iterator object_it;
-  object_it = get_object(object.id, messy_config_);
-      
-  if(object_it == messy_config_.end())
-    ROS_ERROR_STREAM("Can not find " << object.id << " from the messy_config_");
-      
-  object = *object_it;// Change object from tidy_config_ to messy_config_
-      
-  object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
-  collision_object_pub_.publish(object);
-  ros::Duration(2.0).sleep();
+  return plan_grasp(object, ungrasp_poses, cost); 
+//  bool success = false;
+//  
+//  success = plan_grasp(object, ungrasp_poses, cost); 
+//  
+//  // Revert the particular object in the planning_environment to the messy_config_
+//  // Revert is for ungrasp planning, where the object passed here is from tidy_config_
+//  std::vector<arm_navigation_msgs::CollisionObject>::const_iterator object_it;
+//  object_it = get_object(object.id, messy_config_);
+//      
+//  if(object_it == messy_config_.end())
+//    ROS_ERROR_STREAM("Can not find " << object.id << " from the messy_config_");
+//      
+//  object = *object_it;// Change object from tidy_config_ to messy_config_
+//      
+//  object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
+//  collision_object_pub_.publish(object);
+//  ros::Duration(2.0).sleep();
 
-  if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
-    ROS_WARN("Can't get planning scene. Env can not be configured correctly");
+//  if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
+//    ROS_WARN("Can't get planning scene. Env can not be configured correctly");
     
-  return is_successful;
+//  return success;
 }
 //! Plan at symbolic level
 /*!
@@ -1527,33 +1570,27 @@ plan_symbollically()
 /*!
   This includes calling plan_grasp() and plan_motion().
   Also bencmarking the motion plan, which is the lowest level of a manipulation plan that determines the quality of a manipulation plan.
+  Note that grasp planning is called within motion planning.
+  In addition, the best grasp/ungrasp pose is embedded in the motion path, as a start/goal waypoint of trajectory.
   
   \param *plan A pointer to a manipulation plan.
 */
 bool
 plan_geometrically(const Edge& e)
 {
-  // Call motion planning, note that grasp planning is called within motion planning
-  property_traits<EdgeNameMap>::value_type e_name;
-  e_name = get(edge_name, g_, e);
-
-  std::vector<std::string> e_name_parts;  
-  boost::split( e_name_parts, e_name, boost::is_any_of("_") );
-  
-  // TODO if this is  a GRASP then do nothing, because grasp planning is called within motion planning, although likely that the edge passed in is not GRASP/UNGRASP
-  
   // Determine the start states for the motion planning by retrieving the implementation of the previous edge.
+  std::vector<sensor_msgs::JointState> start_states;
+
   Vertex s;
   s = source(e, g_);
-    
-  std::vector<sensor_msgs::JointState> start_states;
+
   if( !strcmp(get(vertex_name, g_, s).c_str(), "MessyHome") )
   {
-    start_states.push_back(hiro_home_joint_state_);
+    start_states.push_back(hiro_home_joint_state_);// No need to plan grasp if it comes from MessyHome
   }
   else
   {
-    // Obtain the start state from the previous edge's implementation, which the in_edges of the source vertex
+    // Obtain the start states (resulted from grasp planning) )from the previous edge's implementation, which the in_edges of the source vertex
     graph_traits<Graph>::in_edge_iterator ie_i,ie_j;// Assume that ie_i = ie_j because there is only one in-edge
     tie(ie_i,ie_j) =  in_edges(s, g_);
     
@@ -1563,43 +1600,35 @@ plan_geometrically(const Edge& e)
     start_states = impl.grasp_poses;
   }
   
-  // Determine the goal state for the motion planning by calling the grasp planner for implementing the next edge
+  // Determine the goal states for the motion planning by calling the grasp planner for implementing the next edge
+  std::vector<sensor_msgs::JointState> goal_states;
+    
   Vertex t;
   t = target(e, g_);
-    
-  std::vector<sensor_msgs::JointState> goal_states;
   
   if( !strcmp(get(vertex_name, g_, t).c_str(), "TidyHome") )
   {
-    goal_states.push_back(hiro_home_joint_state_); 
+    goal_states.push_back(hiro_home_joint_state_); // No need to plan grasp if it arrives at TidyHome
   }
   else
   {
-    // Set the planning environment so as to satisfy the init_state, i.e. by setting already-tidied-up object at tidy spot. Get the name and parse
+    // Set the planning environment (for grasp planning) so as to satisfy the init_state, i.e. by setting already-tidied-up object at tidy spot. 
+    // Get the name of target vertex of edge e, then parse it. Note that grasp planning here is the implementation of out_edge of target vertex t
     property_traits<VertexNameMap>::value_type t_name;
     t_name = get(vertex_name, g_, t);// e.g CAN1[CAN2.CAN3.]
     
     std::vector<std::string> t_name_parts;
     boost::split( t_name_parts, t_name, boost::is_any_of("[") );// e.g from "CAN1[CAN2.CAN3.]" to "CAN1" and "CAN2.CAN3.]"
     
-    std::vector<std::string> tidiedup_object_ids;
-    boost::split( tidiedup_object_ids, t_name_parts.at(1), boost::is_any_of(".") );// e.g. from "CAN2.CAN3.]" to CAN2 and CAN3 and ]
-    tidiedup_object_ids.erase(tidiedup_object_ids.end()-1);//remove a "]"
+    std::vector<std::string> tidied_object_ids;
+    boost::split( tidied_object_ids, t_name_parts.at(1), boost::is_any_of(".") );// e.g. from "CAN2.CAN3.]" to CAN2 and CAN3 and ]
+    tidied_object_ids.erase(tidied_object_ids.end()-1);//remove a "]"
   
     // Set planning environment
-    for(std::vector<std::string>::const_iterator i=tidiedup_object_ids.begin(); i!=tidiedup_object_ids.end(); ++i)
+    for(std::vector<std::string>::const_iterator i=tidied_object_ids.begin(); i!=tidied_object_ids.end(); ++i)
     {
-      std::vector<arm_navigation_msgs::CollisionObject>::const_iterator object_it;
-      object_it = get_object(*i, tidy_config_);
-      
-      if(object_it == tidy_config_.end())
-      {
-        ROS_ERROR_STREAM("Can not find " << *i << " from the tidy_config_");
-        return false;
-      }
-      
       arm_navigation_msgs::CollisionObject object;
-      object = *object_it;
+      object = tidy_cfg_[*i];
         
       object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
       collision_object_pub_.publish(object);
@@ -1623,21 +1652,12 @@ plan_geometrically(const Edge& e)
     
     property_traits<EdgeImplMap>::value_type oe_impl;
     property_traits<EdgeFlagMap>::value_type oe_flag;
-    GeoPlanningCost grasp_planning_cost;
+    GeoPlanningCost grasp_planning_cost;// This is for either grasp or ungrasp planning
   
-    if( !strcmp(out_edge_name_parts.at(0).c_str(), "GRASP") )
+    if( !strcmp(out_edge_name_parts.at(0).c_str(), "GRASP") )// Assume that GRASP is always in messy_spot
     {
-      std::vector<arm_navigation_msgs::CollisionObject>::const_iterator object_it;// Not a const_iterator because its time stamp has to be updated!
-      object_it = get_object(out_edge_name_parts.at(2), messy_config_);// Assume that GRASP is always at messy_spot
-      
-      if(object_it == messy_config_.end())
-      {
-        ROS_ERROR_STREAM("Can not find " << out_edge_name_parts.at(2) << " from the messy_config_");
-        return false;// TODO is this ok?
-      }
-      
       arm_navigation_msgs::CollisionObject object;
-      object = *object_it;
+      object = messy_cfg_[out_edge_name_parts.at(2)];
       
       if( plan_grasp(object, &goal_states, &grasp_planning_cost) )
       {
@@ -1649,19 +1669,10 @@ plan_geometrically(const Edge& e)
         oe_flag = PLANNED_BUT_FAILURE;
       }
     }
-    else if( !strcmp(out_edge_name_parts.at(0).c_str(), "UNGRASP") )
+    else if( !strcmp(out_edge_name_parts.at(0).c_str(), "UNGRASP") )// Assume that UNGRASP is always in tidy_spot
     {
-      std::vector<arm_navigation_msgs::CollisionObject>::const_iterator object_it;// Not a const_iterator because its time stamp has to be updated!
-      object_it = get_object(out_edge_name_parts.at(2), tidy_config_);// Assume that GRASP is always at messy_spot
-      
-      if(object_it == tidy_config_.end())
-      {
-        ROS_ERROR_STREAM("Can not find " << out_edge_name_parts.at(2) << " from the tidy_config_");
-        return false;
-      }
-      
       arm_navigation_msgs::CollisionObject object;
-      object = *object_it;
+      object = tidy_cfg_[out_edge_name_parts.at(2)];
       
       if( plan_ungrasp(object, &goal_states, &grasp_planning_cost) )
       {
@@ -1678,37 +1689,29 @@ plan_geometrically(const Edge& e)
     put(edge_flag, g_, *oe_i, oe_flag);
     put(edge_weight, g_, *oe_i, grasp_planning_cost.total());
     
-    // Important to ...
+    // It is a must to reset_collision_space()
     reset_collision_space();
   }
 
-  // Set the planning environmet as specisified by the source vertex so as to do below motion planning, synch with the state in the source node
+  // Set the planning environmet (for motion planning) as specified by the source vertex of edge e.
   property_traits<VertexNameMap>::value_type s_name;// the name of source vertex of edge e
   s_name = get(vertex_name, g_, s);// e.g "Grasped_CAN1[CAN2.CAN3.]"
   
-  if( strcmp(s_name.c_str(), "MessyHome") )// If the s-name != "MessyHome"
+  if( strcmp(s_name.c_str(), "MessyHome") )// If the s-name != "MessyHome" do below, else do nothing because we are still at MessyHome
   {
     std::vector<std::string> s_name_parts;
     boost::split( s_name_parts, s_name, boost::is_any_of("[") );// e.g from "Grasped_CAN1[CAN2.CAN3.]" to "Grasped_CAN1" and "CAN2.CAN3.]"
 
-    std::vector<std::string> tidiedup_object_ids;
-    boost::split( tidiedup_object_ids, s_name_parts.at(1), boost::is_any_of(".") );// e.g. from "CAN2.CAN3.]" to "CAN2" and "CAN3" and "]"
-    tidiedup_object_ids.erase(tidiedup_object_ids.end()-1);//remove a "]"
+    std::vector<std::string> tidied_object_ids;
+    boost::split( tidied_object_ids, s_name_parts.at(1), boost::is_any_of(".") );// e.g. from "CAN2.CAN3.]" to "CAN2" and "CAN3" and "]"
+    tidied_object_ids.erase(tidied_object_ids.end()-1);//remove a "]"
 
-    // Set planning environment
-    for(std::vector<std::string>::const_iterator i=tidiedup_object_ids.begin(); i!=tidiedup_object_ids.end(); ++i)
+    // Set planning environment 
+    // By setting tidiedup object in the tidy_spot
+    for(std::vector<std::string>::const_iterator i=tidied_object_ids.begin(); i!=tidied_object_ids.end(); ++i)
     {
-      std::vector<arm_navigation_msgs::CollisionObject>::const_iterator object_it;
-      object_it = get_object(*i, tidy_config_);
-      
-      if(object_it == tidy_config_.end())
-      {
-        ROS_ERROR_STREAM("Can not find " << *i << " from the tidy_config_");
-        return false;
-      }
-      
       arm_navigation_msgs::CollisionObject object;
-      object = *object_it;
+      object = tidy_cfg_[*i];
         
       object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
       collision_object_pub_.publish(object);
@@ -1718,23 +1721,15 @@ plan_geometrically(const Edge& e)
         ROS_WARN("Can't get planning scene. Env can not be configured correctly");
     }
     
+    // By simulating ReleasedXXX and GraspedXXX condition
     std::vector<std::string> state_parts;
     boost::split( state_parts, s_name_parts.at(0), boost::is_any_of("_") );// e.g. from "Grasped_CAN1" to "Grasped" and "CAN1"
     
     if( !strcmp(state_parts.at(0).c_str(), "Released") )// If source state of edge e is RELEASED then the released_objects _must_ be in tidyspot, this is for TRANSIT
     {
       // Set the released object in the tidy spot
-      std::vector<arm_navigation_msgs::CollisionObject>::const_iterator object_it;
-      object_it = get_object(state_parts.at(1), tidy_config_);
-      
-      if(object_it == tidy_config_.end())
-      {
-        ROS_ERROR_STREAM("Can not find " << state_parts.at(1) << " from the tidy_config_");
-        return false;
-      }
-      
       arm_navigation_msgs::CollisionObject object;
-      object = *object_it;
+      object = tidy_cfg_[state_parts.at(1)];
         
       object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
       collision_object_pub_.publish(object);
@@ -1768,7 +1763,7 @@ plan_geometrically(const Edge& e)
     }
   }// End of: if( strcmp(s_name.c_str(), "MessyHome") )// If the s-name != "MessyHome"
   
-  // Call the motion planning now. Pick only the best motion path, TODO also MArk the best grasp plan
+  // Call the motion planning now. Pick only the best motion path.
   arm_navigation_msgs::RobotTrajectory best_motion_path;
   GeoPlanningCost best_motion_planning_cost;
 
@@ -1777,23 +1772,18 @@ plan_geometrically(const Edge& e)
   property_traits<EdgeWeightMap>::value_type e_weight;
 
   if( plan_motion(start_states, goal_states, &best_motion_path, &best_motion_planning_cost) )
-  {
-    e_impl.motion_path = best_motion_path; 
     e_flag = PLANNED; 
-    e_weight = best_motion_planning_cost.total();
-  }
   else
-  {
-    e_impl.motion_path = best_motion_path; 
     e_flag = PLANNED_BUT_FAILURE; 
-    e_weight = best_motion_planning_cost.total();
-  }  
+  
+  e_impl.motion_path = best_motion_path; 
+  e_weight = best_motion_planning_cost.total();
   
   put(edge_weight, g_, e, e_weight);
   put(edge_impl, g_, e, e_impl);
   put(edge_flag, g_, e, e_flag);
   
-  // Important to ...
+  // It is a must to call reset_collision_space()
   reset_collision_space();
 
   return true;  
@@ -2292,8 +2282,8 @@ goto_goal_joint(const sensor_msgs::JointState& joint_state, bool with_path_const
   goal.planner_service_name = std::string("ompl_planning/plan_kinematic_path");  
 
   goal.motion_plan_request.group_name = "rarm";
-  goal.motion_plan_request.num_planning_attempts = NUM_PLANNING_ATTEMPTS;
-  goal.motion_plan_request.allowed_planning_time = ros::Duration(ALLOWED_PLANNING_TIME);
+  goal.motion_plan_request.num_planning_attempts = 1;
+  goal.motion_plan_request.allowed_planning_time = ros::Duration(5.);
   goal.motion_plan_request.planner_id= std::string("");
   
   goal.motion_plan_request.goal_constraints.joint_constraints.resize(joint_state.name.size());
