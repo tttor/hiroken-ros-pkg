@@ -866,7 +866,7 @@ collect()
     metadata_file_out << "OUT";
   }
   
-  // Write  
+  // Write. Note that which feature value that is written depends on the metadata!
   std::string data_file_path = planner_manager_path_ + "/data/data.csv";
   
   std::ofstream data_file;
