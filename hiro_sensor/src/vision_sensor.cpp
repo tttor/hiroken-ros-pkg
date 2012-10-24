@@ -194,36 +194,36 @@ sense_static_object()
 //  collision_space_pub_.publish(wall);
 //  ROS_INFO("The wall should have been published");
   
-//  // The vase 
-//  arm_navigation_msgs::CollisionObject vase;
-//  
-//  vase.id = "vase";
-//  vase.header.frame_id = "/link_base";
-//  vase.header.stamp = ros::Time::now();
-//  vase.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-//  
-//  arm_navigation_msgs::Shape vase_shape;
-//  
-//  vase_shape.type = arm_navigation_msgs::Shape::CYLINDER;
-//  vase_shape.dimensions.resize(2);
-//  vase_shape.dimensions[0] = VASE_R;
-//  vase_shape.dimensions[1] = 0.40;// The real size of the flower vase is 0.40m
-//  
-//  geometry_msgs::Pose vase_pose;
-//  
-//  vase_pose.position.x = VASE_X;
-//  vase_pose.position.y = VASE_Y;
-//  vase_pose.position.z = TABLE_HEIGHT + (TABLE_THICKNESS/2) + (vase_shape.dimensions[1]/2);
-//  vase_pose.orientation.x = 0;
-//  vase_pose.orientation.y = 0;
-//  vase_pose.orientation.z = 0;
-//  vase_pose.orientation.w = 1;
-//  
-//  vase.shapes.push_back(vase_shape);
-//  vase.poses.push_back(vase_pose);
-//  
-//  collision_space_pub_.publish(vase);
-//  ROS_INFO("The vase should have been published");
+  // The vase 
+  arm_navigation_msgs::CollisionObject vase;
+  
+  vase.id = "vase";
+  vase.header.frame_id = "/link_base";
+  vase.header.stamp = ros::Time::now();
+  vase.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
+  
+  arm_navigation_msgs::Shape vase_shape;
+  
+  vase_shape.type = arm_navigation_msgs::Shape::CYLINDER;
+  vase_shape.dimensions.resize(2);
+  vase_shape.dimensions[0] = VASE_R;
+  vase_shape.dimensions[1] = 0.40;// The real size of the flower vase is 0.40m
+  
+  geometry_msgs::Pose vase_pose;
+  
+  vase_pose.position.x = VASE_X;
+  vase_pose.position.y = VASE_Y;
+  vase_pose.position.z = TABLE_HEIGHT + (TABLE_THICKNESS/2) + (vase_shape.dimensions[1]/2);
+  vase_pose.orientation.x = 0;
+  vase_pose.orientation.y = 0;
+  vase_pose.orientation.z = 0;
+  vase_pose.orientation.w = 1;
+  
+  vase.shapes.push_back(vase_shape);
+  vase.poses.push_back(vase_pose);
+  
+  collision_space_pub_.publish(vase);
+  ROS_INFO("The vase should have been published");
   
   return true;
 }  
@@ -399,7 +399,7 @@ get_messy_config(const size_t& n, bool random=true)
   cv::Mat img( rows, cols, CV_8UC1, cv::Scalar(255));// White image single channel 8 Unsigned
   
   // Set the dead zone: robot's torso + Set the unmovable_object (obstacles)
-  const double rbt_r = 0.150;
+  const double rbt_r = 0.250;
   
   cv::Point rbt_p;
   rbt_p.x = (rows/2);
@@ -513,9 +513,9 @@ hardcode_messy_cfg(const size_t& n)
                                 0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
                                 0.,0.,0.,1.
                               );
-    case 0:
-          ROS_WARN("There is no sensed object.");
   }
+  
+  if(n==0) ROS_WARN("There is no sensed object.");
 }
 };// enf of: class VisionSensor
 
