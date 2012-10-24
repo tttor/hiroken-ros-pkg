@@ -1,39 +1,13 @@
 digraph G {
-graph [bgcolor=lightgrey]
 0[label="MessyHome",fontsize="10",color="green"];
 1[label="TidyHome",fontsize="10",color="green"];
 2[label="CanGrasp_CAN1[]",fontsize="10",color="green"];
 3[label="Grasped_CAN1[]",fontsize="10",color="green"];
 4[label="CanRelease_CAN1[]",fontsize="10",color="green"];
 5[label="Released_CAN1[]",fontsize="10",color="green"];
-6[label="CanGrasp_CAN2[CAN1.]",fontsize="10",color="green"];
-7[label="Grasped_CAN2[CAN1.]",fontsize="10",color="green"];
-8[label="CanRelease_CAN2[CAN1.]",fontsize="10",color="green"];
-9[label="Released_CAN2[CAN1.]",fontsize="10",color="green"];
-10[label="CanGrasp_CAN2[]",fontsize="10",color="green"];
-11[label="Grasped_CAN2[]",fontsize="10",color="green"];
-12[label="CanRelease_CAN2[]",fontsize="10",color="green"];
-13[label="Released_CAN2[]",fontsize="10",color="green"];
-14[label="CanGrasp_CAN1[CAN2.]",fontsize="10",color="green"];
-15[label="Grasped_CAN1[CAN2.]",fontsize="10",color="green"];
-16[label="CanRelease_CAN1[CAN2.]",fontsize="10",color="green"];
-17[label="Released_CAN1[CAN2.]",fontsize="10",color="green"];
-0->2 [label="TRANSIT_R_HOME_MESSY-SPOT\n2.9569",fontsize="10",color="blue"];
-2->3 [label="GRASP_R_CAN1_MESSY-SPOT\n2.18469",fontsize="10",color="blue"];
-3->4 [label="TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT\n3.64179",fontsize="10",color="blue"];
-4->5 [label="UNGRASP_R_CAN1_TIDY-SPOT\n2.0224",fontsize="10",color="blue"];
-5->6 [label="TRANSIT_R_TIDY-SPOT_MESSY-SPOT\n3.15942",fontsize="10",color="blue"];
-6->7 [label="GRASP_R_CAN2_MESSY-SPOT\n2.00079",fontsize="10",color="blue"];
-7->8 [label="TRANSFER_R_CAN2_MESSY-SPOT_TIDY-SPOT\n2.14939",fontsize="10",color="blue"];
-8->9 [label="UNGRASP_R_CAN2_TIDY-SPOT\n2.00181",fontsize="10",color="blue"];
-9->1 [label="TRANSIT_R_TIDY-SPOT_HOME\n3.44093",fontsize="10",color="blue"];
-0->10 [label="TRANSIT_R_HOME_MESSY-SPOT\n3.45046",fontsize="10",color="green"];
-10->11 [label="GRASP_R_CAN2_MESSY-SPOT\n2.00079",fontsize="10",color="green"];
-11->12 [label="TRANSFER_R_CAN2_MESSY-SPOT_TIDY-SPOT\n3.94277",fontsize="10",color="green"];
-12->13 [label="UNGRASP_R_CAN2_TIDY-SPOT\n2.00327",fontsize="10",color="green"];
-13->14 [label="TRANSIT_R_TIDY-SPOT_MESSY-SPOT\n3.78113",fontsize="10",color="green"];
-14->15 [label="GRASP_R_CAN1_MESSY-SPOT\n2.18469",fontsize="10",color="green"];
-15->16 [label="TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT\n3.77601",fontsize="10",color="green"];
-16->17 [label="UNGRASP_R_CAN1_TIDY-SPOT\n2.01047",fontsize="10",color="green"];
-17->1 [label="TRANSIT_R_TIDY-SPOT_HOME\n2.03471",fontsize="10",color="green"];
+0->2 [label="TRANSIT_R_HOME_MESSY-SPOT\n3.71555",fontsize="10",color="blue"];
+2->3 [label="GRASP_R_CAN1_MESSY-SPOT\n1.58333",fontsize="10",color="blue"];
+3->4 [label="TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT\n3.69889",fontsize="10",color="blue"];
+4->5 [label="UNGRASP_R_CAN1_TIDY-SPOT\n1.86111",fontsize="10",color="blue"];
+5->1 [label="TRANSIT_R_TIDY-SPOT_HOME\n3.50279",fontsize="10",color="blue"];
 }

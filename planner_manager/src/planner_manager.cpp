@@ -496,7 +496,7 @@ private:
 struct GeoPlanningCost
 {
   GeoPlanningCost()
-    :process(1.), result(1.)
+    :process(0.), result(0.)
     , w_p(1.), w_r(1.)
   { }
   
@@ -506,17 +506,18 @@ struct GeoPlanningCost
   double w_p;
   double w_r;
   
-  double
-  total()
-  {
-    // We normalize both process_cost and result_cost as well as put some weight to control the trade-off.
-    // The ratio of (process/result) means the process cost per result-cost-unit. 
-    // In the same vein, (result/process) means the result cost per process-cost-unit. 
-    // We are happy to call this step as normalization.
-    return (w_p*(process/result)) + (w_r*(result/process));
-  }
+//  double
+//  total()
+//  {
+//    // We normalize both process_cost and result_cost as well as put some weight to control the trade-off.
+//    // The ratio of (process/result) means the process cost per result-cost-unit. 
+//    // In the same vein, (result/process) means the result cost per process-cost-unit. 
+//    // We are happy to call this step as normalization.
+//    return (w_p*(process/result)) + (w_r*(result/process));
+//  }
   
   // This is for comparing among paths insided plan_motion();
+  // And finally for all (?)
   double
   total_2()
   {
@@ -780,14 +781,7 @@ extract_features(const typename GraphType::vertex_descriptor& v, const GraphType
 bool
 collect()
 {
-  // TODO read the 1st line of the existing csv to get the feature_ids vector; then add necessary feature ids
-  
   // Holds all training data
-  std::string data_file_path = planner_manager_path_ + "/data/data.csv";
-  
-  std::ofstream data_file;
-  data_file.open(data_file_path.c_str(), std::ios_base::app);
-  
   std::map< Input, Output> data;
 
   // Extract all solutions!
@@ -836,24 +830,48 @@ collect()
     }
   }
   
-  // Convert the set be converted to a vector to ensure the ordering
-  std::vector<std::string> feature_ids_vec;
-  for(std::set<std::string>::iterator it=feature_ids.begin(); it!=feature_ids.end(); ++it)
+  // Convert the set be converted to a vector to ensure the ordering, chek the metadata whether it already has the ordering
+  std::string metadata_file_path = planner_manager_path_ + "/data/metadata.csv";// Note that the metadata must only contain 1 line at most.
+  std::ifstream metadata_file_in(metadata_file_path.c_str());
+  
+  std::string metadata;  
+  if (metadata_file_in.is_open())
   {
-    feature_ids_vec.push_back(*it);
+    getline(metadata_file_in, metadata);// Read only the first line
+    metadata_file_in.close();
+  }
+  else 
+  {
+    ROS_ERROR("Unable to open metadata file");
+    return false;
   }
   
-  for(std::vector<std::string>::iterator feature_ids_it=feature_ids_vec.begin(); feature_ids_it!=feature_ids_vec.end(); ++feature_ids_it)
+  // Parse the metadata, put into the vector
+  std::vector<std::string> feature_ids_vec;
+  
+  boost::split( feature_ids_vec, metadata, boost::is_any_of(",") );
+  feature_ids_vec.erase(feature_ids_vec.begin());// Note that eventhough there is no ",", the resulted vector still has 1 element which is an empty string.
+  
+  if( feature_ids_vec.empty() )
   {
-    cout << *feature_ids_it << ",";
-    data_file << *feature_ids_it << ",";//TODO donot write it over and over
+    for(std::set<std::string>::iterator it=feature_ids.begin(); it!=feature_ids.end(); ++it)
+      feature_ids_vec.push_back(*it);
+    
+    // Write the metadata_file
+    std::ofstream metadata_file_out;
+    metadata_file_out.open(metadata_file_path.c_str());
+  
+    for(std::vector<std::string>::iterator feature_ids_it=feature_ids_vec.begin(); feature_ids_it!=feature_ids_vec.end(); ++feature_ids_it)
+      metadata_file_out << *feature_ids_it << ",";
+    metadata_file_out << "OUT";
   }
-  cout << "OUT";
-  data_file << "OUT";
-  cout << endl;
-  data_file << std::endl;
   
   // Write  
+  std::string data_file_path = planner_manager_path_ + "/data/data.csv";
+  
+  std::ofstream data_file;
+  data_file.open(data_file_path.c_str(), std::ios_base::app);
+
   for(std::map<Input, Output>::const_iterator data_it=data.begin(); data_it!=data.end(); ++data_it)
   {
 //    cerr << "=========================================================" << endl;
@@ -1315,7 +1333,7 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
     
     if (res.trajectory.joint_trajectory.points.empty())
     {
-//      ROS_WARN("Motion planner was unable to plan a path to goal");
+      ROS_DEBUG("Motion planner was unable to plan a path to goal");
       
       // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
       cost->result += 0.;// Ensure the length is exactly 0 + the initial value
@@ -1329,23 +1347,24 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
       ROS_DEBUG("Motion planning succeeded");
     
       trajectory_msgs::JointTrajectory filtered_trajectory;
+      
+      ros::Time smoothing_begin = ros::Time::now();
+
       filter_path(res.trajectory.joint_trajectory, req, &filtered_trajectory);
-      motion_plan_pub_.publish(filtered_trajectory);
+
+      double smoothing_time = (ros::Time::now()-smoothing_begin).toSec();
       
       // Visualize the path
-//      motion_plan_pub_.publish(res.trajectory.joint_trajectory);
-     motion_plan_pub_.publish(filtered_trajectory);
+      motion_plan_pub_.publish(filtered_trajectory);
       
       // Put the response 
-      *motion_path = res.trajectory;
+      motion_path->joint_trajectory = filtered_trajectory;
 
-      // Benchmark the path
+      // Benchmark the filtered path
       ros::ServiceClient benchmark_path_client = nh_.serviceClient<hiro_common::BenchmarkPath>("benchmark_motion_plan");
-
       hiro_common::BenchmarkPath::Request benchmark_path_req;
       hiro_common::BenchmarkPath::Response benchmark_path_res;
 
-//      benchmark_path_req.trajectory = res.trajectory.joint_trajectory;
       benchmark_path_req.trajectory = filtered_trajectory;
 
       if (benchmark_path_client.call(benchmark_path_req, benchmark_path_res))
@@ -1355,7 +1374,7 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
         // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
         cost->result += benchmark_path_res.length;// Incremented, instead of just assignment because we want to preserve the base/default value.
         
-        cost->process += planning_time;// Incremented, instead of just assignment because we want to preserve the base/default value.
+        cost->process += (planning_time + smoothing_time);// Incremented, instead of just assignment because we want to preserve the base/default value.
       }
       else
       {
@@ -1390,69 +1409,55 @@ bool
 plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std::vector<sensor_msgs::JointState>& goal_states, arm_navigation_msgs::RobotTrajectory* best_motion_path, GeoPlanningCost* best_cost=0)
 {
   // For suppressing the number of motion planning trials.
-  const double portion = 0.05;// is in [0.,1.]
-  size_t min_n_success;
-  min_n_success = (size_t)(portion * start_states.size() * goal_states.size());
-  if (min_n_success < 1)
-    min_n_success = 1;// At least, one attempt
+  const size_t min_n_success = 1;
   
-  min_n_success = 1;// TODO remove me!
-  
-  GeoPlanningCost old_cost;// We do not use directly the best_cost to store this value because in the case of no motion plan, the value of  std::numeric_limits<double>::max() in result and cosr will not make sense, inconvenient to see, etc ...
-  old_cost.result = std::numeric_limits<double>::max();// Initialize with a very long path because it serves as a base for comparison
-  old_cost.process = std::numeric_limits<double>::max();// Initialize with a very long path because it serves as a base for comparison
+  best_cost->result = std::numeric_limits<double>::max();// Initialize with a very long path because it serves as a base for comparison
+  best_cost->process = std::numeric_limits<double>::max();// Initialize with a very long path because it serves as a base for comparison
   
   size_t n_success = 0;
   size_t n_failure = 0;// For computing motion planning process cost
-    
+  size_t n_attempt = 0;
+  
   for(std::vector<sensor_msgs::JointState>::const_iterator start_state_it=start_states.begin(); start_state_it!=start_states.end(); ++start_state_it)
   {
     for(std::vector<sensor_msgs::JointState>::const_iterator goal_state_it=goal_states.begin(); goal_state_it!=goal_states.end(); ++goal_state_it)
     {
+      ++n_attempt;
+      
       arm_navigation_msgs::RobotTrajectory motion_path;
       GeoPlanningCost cost;
       
       if( !plan_motion(*start_state_it, *goal_state_it, &motion_path, &cost) )
       {
-//        ROS_WARN("Motion planning failed, continue...");
+        ROS_DEBUG("Motion planning call for this start-goal-state pair: failed, continue...");
         
         ++n_failure;
         continue;
       } 
       
-      if( cost.total_2() < old_cost.total_2() )
+      if( cost.total_2() < best_cost->total_2() )
       {
-        old_cost.result = cost.result;
-        old_cost.process = cost.process;
-        
-        *best_cost = old_cost;
+        *best_cost = cost;
         *best_motion_path = motion_path;
       }
   
       ++n_success;
       
-      if(n_success >= min_n_success)
-        break;
+      if(n_success >= min_n_success) break;
     }
-    if(n_success >= min_n_success)
-      break;
+    if(n_success >= min_n_success) break;
   } 
   
   //Compute the process cost of iterating through all possibel starts/goals pairings;
   double iter_cost;
-  iter_cost = (double) n_failure / min_n_success * 100.;// in the range og [0,100] to suppress the ratio value
+  iter_cost = (double) n_failure / n_attempt;
   best_cost->process += iter_cost;// Note it is intentionally incremented! Ask why?
 
   if( best_motion_path->joint_trajectory.points.empty() )
   {
     ROS_WARN("All motion planing attempts on all start-goal-state pairs: FAILED");
     
-    // If this happens, the best_cost.result must be 1. (the initial value) 
-    // Note that a failed geometric planinng cost will not be used in learning how to predict h(n)
-    const double FAILURE_PROCESS_PENALTY = 100.;
-    
-    best_cost->process += FAILURE_PROCESS_PENALTY;
-    
+    // TODO although, this failure is already penalized with iter_cost above, is it necessary to penalize it again?
     return false;
   }
   else
@@ -1500,14 +1505,13 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs
       *grasp_poses = plan_grasp_res.grasp_plans;
       
       cost->process = plan_grasp_res.process_cost;
-      cost->result = 1.;
+      cost->result = 1.;// TODO fix this value
 
       return true;
     }
     else
     {
-      cost->process = plan_grasp_res.process_cost;
-      cost->result = 1.;
+      ROS_WARN("plan_grasp srv: FAILED");
       return false;    
     }
   }
@@ -1687,7 +1691,7 @@ plan_geometrically(const Edge& e)
      
     put(edge_impl, g_, *oe_i, oe_impl);
     put(edge_flag, g_, *oe_i, oe_flag);
-    put(edge_weight, g_, *oe_i, grasp_planning_cost.total());
+    put(edge_weight, g_, *oe_i, grasp_planning_cost.total_2());
     
     // It is a must to reset_collision_space()
     reset_collision_space();
@@ -1777,7 +1781,7 @@ plan_geometrically(const Edge& e)
     e_flag = PLANNED_BUT_FAILURE; 
   
   e_impl.motion_path = best_motion_path; 
-  e_weight = best_motion_planning_cost.total();
+  e_weight = best_motion_planning_cost.total_2();
   
   put(edge_weight, g_, e, e_weight);
   put(edge_impl, g_, e, e_impl);
@@ -2010,7 +2014,7 @@ filter_path(const trajectory_msgs::JointTrajectory& trajectory_in, const arm_nav
   req.start_state =get_motion_plan_req.motion_plan_request.start_state;
   req.path_constraints = get_motion_plan_req.motion_plan_request.path_constraints;
   req.goal_constraints = get_motion_plan_req.motion_plan_request.goal_constraints;
-  req.allowed_time = ros::Duration(3.0);
+  req.allowed_time = ros::Duration(2.0);
 
   if(filter_trajectory_client_.call(req,res))
   {

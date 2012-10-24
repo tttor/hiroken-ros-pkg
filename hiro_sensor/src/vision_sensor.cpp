@@ -78,7 +78,7 @@ sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Respo
   // Hardcode the sensed_objects_----------------------------------------------------------------------
   sense_static_object();
    
-  get_messy_config(2, true);
+  get_messy_config(1, false);
 
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
@@ -194,36 +194,36 @@ sense_static_object()
 //  collision_space_pub_.publish(wall);
 //  ROS_INFO("The wall should have been published");
   
-//  // The vase 
-//  arm_navigation_msgs::CollisionObject vase;
-//  
-//  vase.id = "vase";
-//  vase.header.frame_id = "/link_base";
-//  vase.header.stamp = ros::Time::now();
-//  vase.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-//  
-//  arm_navigation_msgs::Shape vase_shape;
-//  
-//  vase_shape.type = arm_navigation_msgs::Shape::CYLINDER;
-//  vase_shape.dimensions.resize(2);
-//  vase_shape.dimensions[0] = VASE_R;
-//  vase_shape.dimensions[1] = 0.40;// The real size of the flower vase is 0.40m
-//  
-//  geometry_msgs::Pose vase_pose;
-//  
-//  vase_pose.position.x = VASE_X;
-//  vase_pose.position.y = VASE_Y;
-//  vase_pose.position.z = TABLE_HEIGHT + (TABLE_THICKNESS/2) + (vase_shape.dimensions[1]/2);
-//  vase_pose.orientation.x = 0;
-//  vase_pose.orientation.y = 0;
-//  vase_pose.orientation.z = 0;
-//  vase_pose.orientation.w = 1;
-//  
-//  vase.shapes.push_back(vase_shape);
-//  vase.poses.push_back(vase_pose);
-//  
-//  collision_space_pub_.publish(vase);
-//  ROS_INFO("The vase should have been published");
+  // The vase 
+  arm_navigation_msgs::CollisionObject vase;
+  
+  vase.id = "vase";
+  vase.header.frame_id = "/link_base";
+  vase.header.stamp = ros::Time::now();
+  vase.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
+  
+  arm_navigation_msgs::Shape vase_shape;
+  
+  vase_shape.type = arm_navigation_msgs::Shape::CYLINDER;
+  vase_shape.dimensions.resize(2);
+  vase_shape.dimensions[0] = VASE_R;
+  vase_shape.dimensions[1] = 0.40;// The real size of the flower vase is 0.40m
+  
+  geometry_msgs::Pose vase_pose;
+  
+  vase_pose.position.x = VASE_X;
+  vase_pose.position.y = VASE_Y;
+  vase_pose.position.z = TABLE_HEIGHT + (TABLE_THICKNESS/2) + (vase_shape.dimensions[1]/2);
+  vase_pose.orientation.x = 0;
+  vase_pose.orientation.y = 0;
+  vase_pose.orientation.z = 0;
+  vase_pose.orientation.w = 1;
+  
+  vase.shapes.push_back(vase_shape);
+  vase.poses.push_back(vase_pose);
+  
+  collision_space_pub_.publish(vase);
+  ROS_INFO("The vase should have been published");
   
   return true;
 }  
@@ -514,8 +514,8 @@ hardcode_messy_cfg(const size_t& n)
                                 0.,0.,0.,1.
                               );
   }
-  if(n==0)
-          ROS_WARN("There is no sensed object.");
+  
+  if(n==0) ROS_WARN("There is no sensed object.");
 }
 };// enf of: class VisionSensor
 
