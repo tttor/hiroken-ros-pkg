@@ -1285,8 +1285,8 @@ plan_task()
 bool
 plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::JointState& goal_state, arm_navigation_msgs::RobotTrajectory* motion_path, GeoPlanningCost* cost=0)
 {
-  const size_t NUM_PLANNING_ATTEMPTS = 3;
-  const double ALLOWED_PLANNING_TIME = 0.5*60.;
+  const size_t NUM_PLANNING_ATTEMPTS = 1;
+  const double ALLOWED_PLANNING_TIME = 0.2*60.;
   
   while(!ros::service::waitForService("ompl_planning/plan_kinematic_path", ros::Duration(1.0))) 
     ROS_INFO_STREAM("Waiting for requested service " << "ompl_planning/plan_kinematic_path");
@@ -1411,8 +1411,8 @@ plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std:
   // For suppressing the number of motion planning trials.
   const size_t min_n_success = 1;
   
-  best_cost->result = std::numeric_limits<double>::max();// Initialize with a very long path because it serves as a base for comparison
-  best_cost->process = std::numeric_limits<double>::max();// Initialize with a very long path because it serves as a base for comparison
+  best_cost->result = 10.;// Initialize with a very long path because it serves as a base for comparison
+  best_cost->process = 10.;// Initialize with a very long path because it serves as a base for comparison
   
   size_t n_success = 0;
   size_t n_failure = 0;// For computing motion planning process cost
@@ -1457,7 +1457,6 @@ plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std:
   {
     ROS_WARN("All motion planing attempts on all start-goal-state pairs: FAILED");
     
-    // TODO although, this failure is already penalized with iter_cost above, is it necessary to penalize it again?
     return false;
   }
   else
@@ -2192,12 +2191,12 @@ set_tidy_config()
   can3_shape.dimensions[0] = B_RADIUS;
   can3_shape.dimensions[1] = B_HEIGHT;
     
-  can3.shapes.push_back(can2_shape);
+  can3.shapes.push_back(can3_shape);
 
   geometry_msgs::Pose can3_tidy_pose;
   
-  can3_tidy_pose.position.x = -0.07; 
-  can3_tidy_pose.position.y = 0.42;
+  can3_tidy_pose.position.x = 0.; 
+  can3_tidy_pose.position.y = 0.49;
   can3_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
   can3_tidy_pose.orientation.x = 0.;    
   can3_tidy_pose.orientation.y = 0.;    
@@ -2208,7 +2207,7 @@ set_tidy_config()
   
   tidy_config_.push_back(can3);
   tidy_cfg_[can3.id] = can3;  
-    //------------------------------------------------------------------------------CAN4
+  //------------------------------------------------------------------------------CAN4
   arm_navigation_msgs::CollisionObject can4;
    
   can4.id = "CAN4"; 
@@ -2241,6 +2240,71 @@ set_tidy_config()
   
   tidy_config_.push_back(can4);
   tidy_cfg_[can4.id] = can4;
+  //------------------------------------------------------------------------------CAN5
+  arm_navigation_msgs::CollisionObject can5;
+   
+  can5.id = "CAN5"; 
+
+  can5.header.seq = 1;
+  can5.header.stamp = ros::Time::now();
+  can5.header.frame_id = "/table";
+  can5.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
+  
+  arm_navigation_msgs::Shape can5_shape;
+  
+  can5_shape.type = arm_navigation_msgs::Shape::CYLINDER;
+  can5_shape.dimensions.resize(2);
+  can5_shape.dimensions[0] = B_RADIUS;
+  can5_shape.dimensions[1] = B_HEIGHT;
+    
+  can5.shapes.push_back(can5_shape);
+
+  geometry_msgs::Pose can5_tidy_pose;
+  
+  can5_tidy_pose.position.x = -0.07; 
+  can5_tidy_pose.position.y = 0.42;
+  can5_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
+  can5_tidy_pose.orientation.x = 0.;    
+  can5_tidy_pose.orientation.y = 0.;    
+  can5_tidy_pose.orientation.z = 0.;    
+  can5_tidy_pose.orientation.w = 1.;    
+      
+  can5.poses.push_back(can5_tidy_pose);
+  tidy_config_.push_back(can5);
+  tidy_cfg_[can5.id] = can5;
+  //------------------------------------------------------------------------------CAN6
+  arm_navigation_msgs::CollisionObject can6;
+   
+  can6.id = "CAN6"; 
+
+  can6.header.seq = 1;
+  can6.header.stamp = ros::Time::now();
+  can6.header.frame_id = "/table";
+  can6.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
+  
+  arm_navigation_msgs::Shape can6_shape;
+  
+  can6_shape.type = arm_navigation_msgs::Shape::CYLINDER;
+  can6_shape.dimensions.resize(2);
+  can6_shape.dimensions[0] = B_RADIUS;
+  can6_shape.dimensions[1] = B_HEIGHT;
+    
+  can6.shapes.push_back(can6_shape);
+
+  geometry_msgs::Pose can6_tidy_pose;
+  
+  can6_tidy_pose.position.x = -0.07; 
+  can6_tidy_pose.position.y = 0.49;
+  can6_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
+  can6_tidy_pose.orientation.x = 0.;    
+  can6_tidy_pose.orientation.y = 0.;    
+  can6_tidy_pose.orientation.z = 0.;    
+  can6_tidy_pose.orientation.w = 1.;    
+      
+  can6.poses.push_back(can6_tidy_pose);
+  
+  tidy_config_.push_back(can6);
+  tidy_cfg_[can6.id] = can6; 
 }
 
 void
