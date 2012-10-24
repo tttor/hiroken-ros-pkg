@@ -1,7 +1,7 @@
 Background\ ColorB=0
 Background\ ColorG=0
 Background\ ColorR=0
-Camera\ Config=0.299797 0.623227 2.62434 -0.697656 -0.380368 0.702225
+Camera\ Config=0.484797 0.408227 4.62498 -0.697656 -0.380368 0.702225
 Camera\ Type=rviz::OrbitViewController
 FilteredPath.Alpha=0.6
 FilteredPath.Collision\ Enabled=0
@@ -19,6 +19,8 @@ Fixed\ Frame=/link_base
 GraspPlan.Enabled=1
 GraspPlan.Marker\ Array\ Topic=/state_validity_markers_array
 GraspPlan.Queue\ Size=100
+GraspPlan.link_chest_yaw+link_rshoulder_pitch=1
+GraspPlan.link_rhand_palm+table=1
 GraspPlan.link_rwrist_yaw+link_rhand_palm=1
 GraspPlan.rarm=1
 Grid.Alpha=1
