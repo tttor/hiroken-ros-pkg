@@ -117,6 +117,20 @@ static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set
 
 static boost::mt19937 g_rng( static_cast<unsigned int>(std::time(0)) );
 
+static const double PUB_TIME = 1.0;
+
+static const size_t NUM_PLANNING_ATTEMPTS = 1;
+static const double ALLOWED_PLANNING_TIME = 0.2 * 60.;
+static const double ALLOWED_SMOOTHING_TIME = 2.0;
+
+static const double MP_PROCESS_PENALTY = 100.;// guessing
+static const double MP_RESULT_UP = 7.0;// by guessing
+static const double MP_PROCESS_UP = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;
+
+static const double GP_PROCESS_PENALTY = 2.0;// guessing
+static const double GP_RESULT_UP = 1.0;// guessing
+static const double GP_PROCESS_UP = 1.0 + GP_PROCESS_PENALTY;// 1.0 because it is the max value of the ratio, see grasp_planner.cpp
+
 EdgeWeightMap g_edge_weight_map;
 EdgeFlagMap g_edge_flag_map;
 VertexColorMap g_vertex_color_map;
@@ -562,7 +576,7 @@ PlannerManager(ros::NodeHandle& nh):
       
   collision_object_pub_ = nh_.advertise<arm_navigation_msgs::CollisionObject>("collision_object", 10);
   att_collision_object_pub_ = nh_.advertise<arm_navigation_msgs::AttachedCollisionObject>("attached_collision_object", 10);
-  ros::Duration(2.0).sleep();
+  ros::Duration(PUB_TIME).sleep();
 
   set_tidy_config();
   set_hiro_home_joint_state();
@@ -1262,8 +1276,36 @@ plan_task()
                     , boost::vertex_copy(VertexCopier (raw_g, g_))
                     . edge_copy(EdgeCopier(raw_g, g_))
                    );
+
+  // Set the intial value for edge weight here !
+  GeoPlanningCost init_cost;
   
-    // Sync the global copy of edge_weight  
+  graph_traits<Graph>::edge_iterator ei, ei_end;
+  for(boost::tie(ei, ei_end) = edges(g_); ei != ei_end; ++ei)
+  {
+    property_traits<EdgeNameMap>::value_type e_name;
+    e_name = get(edge_name, g_, *ei);
+
+    std::vector<std::string> e_name_parts;  
+    boost::split( e_name_parts, e_name, boost::is_any_of("_") );
+    
+    std::string op = e_name_parts.at(0);
+  
+    if( !strcmp(op.c_str(), "GRASP") or !strcmp(op.c_str(), "UNGRASP") )
+    {
+      init_cost.process = GP_PROCESS_UP;
+      init_cost.result = GP_RESULT_UP;
+    }
+    else if( !strcmp(op.c_str(), "TRANSFER") or !strcmp(op.c_str(), "TRANSIT") )
+    {
+      init_cost.process = MP_PROCESS_UP;
+      init_cost.result = MP_RESULT_UP;
+    }
+    
+    put(edge_weight, g_, *ei, init_cost.total_2());
+  }
+
+  // Sync the global copy of edge_weight  
   g_edge_weight_map = get(edge_weight, g_);
   g_edge_flag_map = get(edge_flag, g_);
   g_vertex_color_map = get(vertex_color, g_);
@@ -1285,9 +1327,6 @@ plan_task()
 bool
 plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::JointState& goal_state, arm_navigation_msgs::RobotTrajectory* motion_path, GeoPlanningCost* cost=0)
 {
-  const size_t NUM_PLANNING_ATTEMPTS = 1;
-  const double ALLOWED_PLANNING_TIME = 0.2*60.;
-  
   while(!ros::service::waitForService("ompl_planning/plan_kinematic_path", ros::Duration(1.0))) 
     ROS_INFO_STREAM("Waiting for requested service " << "ompl_planning/plan_kinematic_path");
   
@@ -1336,9 +1375,9 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
       ROS_DEBUG("Motion planner was unable to plan a path to goal");
       
       // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
-      cost->result += 0.;// Ensure the length is exactly 0 + the initial value
+      cost->result = 0.;// Ensure the length cost is exactly 0
       
-      cost->process += NUM_PLANNING_ATTEMPTS * ALLOWED_PLANNING_TIME;// Incremented, instead of just assignment because we want to preserve the base/default value.
+      cost->process = MP_PROCESS_UP;
 
       return false;// No feasible motion plan must indicate that the call to this function is unsuccesful.
     }
@@ -1372,13 +1411,14 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
         ROS_DEBUG("BenchmarkPath succeeded");
         
         // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
-        cost->result += benchmark_path_res.length;// Incremented, instead of just assignment because we want to preserve the base/default value.
+        cost->result = benchmark_path_res.length;
         
-        cost->process += (planning_time + smoothing_time);// Incremented, instead of just assignment because we want to preserve the base/default value.
+        cost->process = (planning_time + smoothing_time);
       }
       else
       {
         ROS_ERROR("BenchmarkPath service failed on %s",benchmark_path_client.getService().c_str());
+        //TODO what happen with the cost?
         return false;// Although not truly appropriate, this must indicate that the call to this function is unsuccessful.
       }
       
@@ -1392,6 +1432,7 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
   else
   {
     ROS_ERROR("Motion planning service failed on %s",planning_client.getService().c_str());
+    //TODO what happen with the cost?
     return false;// Although not truly appropriate, this must indicate that the call to this function is unsuccessful.
   }
 }
@@ -1408,16 +1449,16 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
 bool
 plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std::vector<sensor_msgs::JointState>& goal_states, arm_navigation_msgs::RobotTrajectory* best_motion_path, GeoPlanningCost* best_cost=0)
 {
-  // For suppressing the number of motion planning trials.
-  const size_t min_n_success = 1;
-  
-  best_cost->result = 10.;// Initialize with a very long path because it serves as a base for comparison
-  best_cost->process = 10.;// Initialize with a very long path because it serves as a base for comparison
+  best_cost->result = MP_RESULT_UP;// Initialize with a high value because it serves as a base for comparison
+  best_cost->process = MP_PROCESS_UP;// Initialize with a high value because it serves as a base for comparison
   
   size_t n_success = 0;
   size_t n_failure = 0;// For computing motion planning process cost
   size_t n_attempt = 0;
-  
+
+  // For suppressing the number of motion planning trials.
+  const size_t expected_n_success = 1;
+    
   for(std::vector<sensor_msgs::JointState>::const_iterator start_state_it=start_states.begin(); start_state_it!=start_states.end(); ++start_state_it)
   {
     for(std::vector<sensor_msgs::JointState>::const_iterator goal_state_it=goal_states.begin(); goal_state_it!=goal_states.end(); ++goal_state_it)
@@ -1443,19 +1484,25 @@ plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std:
   
       ++n_success;
       
-      if(n_success >= min_n_success) break;
+      if(n_success >= expected_n_success) break;
     }
-    if(n_success >= min_n_success) break;
+    if(n_success >= expected_n_success) break;
   } 
   
-  //Compute the process cost of iterating through all possibel starts/goals pairings;
-  double iter_cost;
-  iter_cost = (double) n_failure / n_attempt;
-  best_cost->process += iter_cost;// Note it is intentionally incremented! Ask why?
+//  //Compute the process cost of iterating through all possible starts/goals pairings;
+//  double iter_cost;
+//  iter_cost = (double) n_failure / n_attempt;// what if n_attempt = 0. It is handled above, impossible to arrive at this point
+//  best_cost->process += iter_cost;// Note it is intentionally incremented! Ask why?
 
   if( best_motion_path->joint_trajectory.points.empty() )
   {
-    ROS_WARN("All motion planing attempts on all start-goal-state pairs: FAILED");
+    if( start_states.empty() or goal_states.empty() )
+      ROS_WARN("No start-goal-state pairs: No Motion Planning");
+    else
+      ROS_WARN("All motion planing attempts on all start-goal-state pairs: FAILED");
+    
+    best_cost->result = 0.;
+    best_cost->process = MP_PROCESS_UP;
     
     return false;
   }
@@ -1480,7 +1527,7 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs
   // Set or reset the object in the planning_environment
   object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
   collision_object_pub_.publish(object);
-  ros::Duration(2.0).sleep();
+  ros::Duration(PUB_TIME).sleep();
 
   if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
     ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -1510,8 +1557,12 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs
     }
     else
     {
-      ROS_WARN("plan_grasp srv: FAILED");
-      return false;    
+      ROS_WARN("No grasp plan.");
+      
+      cost->result = 0.;
+      cost->process = plan_grasp_res.process_cost + GP_PROCESS_PENALTY;
+      
+      return false;
     }
   }
   else
@@ -1550,7 +1601,7 @@ plan_ungrasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_ms
 //      
 //  object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
 //  collision_object_pub_.publish(object);
-//  ros::Duration(2.0).sleep();
+//  ros::Duration(PUB_TIME).sleep();
 
 //  if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
 //    ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -1635,7 +1686,7 @@ plan_geometrically(const Edge& e)
         
       object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
       collision_object_pub_.publish(object);
-      ros::Duration(2.0).sleep();
+      ros::Duration(PUB_TIME).sleep();
 
       if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
         ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -1718,7 +1769,7 @@ plan_geometrically(const Edge& e)
         
       object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
       collision_object_pub_.publish(object);
-      ros::Duration(2.0).sleep();
+      ros::Duration(PUB_TIME).sleep();
 
       if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
         ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -1736,7 +1787,7 @@ plan_geometrically(const Edge& e)
         
       object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
       collision_object_pub_.publish(object);
-      ros::Duration(2.0).sleep();
+      ros::Duration(PUB_TIME).sleep();
 
       if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
         ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -1754,7 +1805,7 @@ plan_geometrically(const Edge& e)
       att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ATTACH_AND_REMOVE_AS_OBJECT;    
       
       att_collision_object_pub_.publish(att_object);
-      ros::Duration(2.0).sleep();
+      ros::Duration(PUB_TIME).sleep();
       
       ROS_INFO("waitForService(SET_PLANNING_SCENE_DIFF_NAME)");
       ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
@@ -1853,7 +1904,7 @@ commit_grasp(const arm_navigation_msgs::CollisionObject& object)
   att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ATTACH_AND_REMOVE_AS_OBJECT;    
   
   att_collision_object_pub_.publish(att_object);
-  ros::Duration(2.0).sleep();
+  ros::Duration(PUB_TIME).sleep();
   
   ROS_INFO("waitForService(SET_PLANNING_SCENE_DIFF_NAME)");
   ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
@@ -1911,7 +1962,7 @@ commit_ungrasp(const arm_navigation_msgs::CollisionObject& object)
   att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::DETACH_AND_ADD_AS_OBJECT;    
   
   att_collision_object_pub_.publish(att_object);
-  ros::Duration(2.0).sleep();
+  ros::Duration(PUB_TIME).sleep();
   
   ROS_INFO("waitForService(SET_PLANNING_SCENE_DIFF_NAME)");
   ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
@@ -2013,7 +2064,7 @@ filter_path(const trajectory_msgs::JointTrajectory& trajectory_in, const arm_nav
   req.start_state =get_motion_plan_req.motion_plan_request.start_state;
   req.path_constraints = get_motion_plan_req.motion_plan_request.path_constraints;
   req.goal_constraints = get_motion_plan_req.motion_plan_request.goal_constraints;
-  req.allowed_time = ros::Duration(2.0);
+  req.allowed_time = ros::Duration(ALLOWED_SMOOTHING_TIME);
 
   if(filter_trajectory_client_.call(req,res))
   {
@@ -2039,7 +2090,7 @@ reset_collision_space()
   {
     messy_config_.at(i).header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     collision_object_pub_.publish( messy_config_.at(i) );
-    ros::Duration(2.0).sleep();
+    ros::Duration(PUB_TIME).sleep();
     
     if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
     {
@@ -2063,7 +2114,7 @@ reset_collision_space()
     att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::DETACH_AND_ADD_AS_OBJECT;
     
     att_collision_object_pub_.publish(att_object);
-    ros::Duration(2.0).sleep();
+    ros::Duration(PUB_TIME).sleep();
     
     ROS_INFO("waitForService(SET_PLANNING_SCENE_DIFF_NAME)");
     ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
