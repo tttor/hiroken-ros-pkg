@@ -78,7 +78,7 @@ sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Respo
   // Hardcode the sensed_objects_----------------------------------------------------------------------
   sense_static_object();
    
-  get_messy_config(3, false);
+  get_messy_config(1, true);
 
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
@@ -407,13 +407,13 @@ get_messy_config(const size_t& n, bool random=true)
 
   cv::circle( img, rbt_p, rbt_r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA );  
 
-//  const double vase_r = VASE_R;
-//  
-//  cv::Point vase_p;
-//  vase_p.x = (VASE_X*PIXEL_PER_M) + (rows/2);
-//  vase_p.y = (VASE_Y*PIXEL_PER_M) + (rows/2);
+  const double vase_r = VASE_R;
+  
+  cv::Point vase_p;
+  vase_p.x = (VASE_X*PIXEL_PER_M) + (rows/2);
+  vase_p.y = (VASE_Y*PIXEL_PER_M) + (rows/2);
 
-//  cv::circle( img, vase_p, vase_r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA );
+  cv::circle( img, vase_p, vase_r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA );
   
   for(std::vector<std::string>::const_iterator i=ids.begin(); i!=ids.end(); ++i)
   {
@@ -484,6 +484,7 @@ get_messy_config(const size_t& n, bool random=true)
 //  cv::imshow("img", img);
 //  cv::waitKey(0);
 }
+
 void
 hardcode_messy_cfg(const size_t& n)
 {
