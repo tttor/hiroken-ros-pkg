@@ -2659,7 +2659,7 @@ main(int argc, char **argv)
   sense_see_client = nh.serviceClient<hiro_sensor::Sense> ("/sense_see");
 
   // Loop for collecting data
-  const size_t n = 2;
+  const size_t n = 50;
   for(size_t i=0; (i<n) and ros::ok(); ++i)
   {
     PlannerManager pm(nh);
