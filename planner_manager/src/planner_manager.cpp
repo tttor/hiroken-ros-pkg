@@ -70,6 +70,12 @@ namespace boost
   BOOST_INSTALL_PROPERTY(edge, solnums);
 }
 
+enum edge_pathnums_t { edge_pathnums };
+namespace boost 
+{
+  BOOST_INSTALL_PROPERTY(edge, pathnums);
+}
+
 //TODO is it possible to make a variable with more than one possible type. Yes, generic programming, but how exactly to apply to this case
 struct HLAImplementation
 {
@@ -87,7 +93,8 @@ enum {NOT_YET=0, PLANNED, PLANNED_BUT_FAILURE, BEST_SOLUTION};// for edge_flags
 enum {MessyHome=0, TidyHome};// sync with the task_planner.cpp
 
 typedef boost::property< edge_weight_t, double, property<edge_flag_t, size_t, property<edge_name_t, std::string> > > RawEdgeProperty;
-typedef boost::property< edge_weight_t, double, property<edge_flag_t, size_t, property<edge_name_t, std::string, property<edge_impl_t, HLAImplementation, property<edge_color_t, default_color_type, property< edge_solnums_t, std::vector<size_t> > > > > > > EdgeProperty;
+typedef boost::property< edge_weight_t, double, property<edge_flag_t, size_t, property<edge_name_t, std::string, property<edge_impl_t, HLAImplementation, property<edge_color_t, default_color_type, property< edge_solnums_t, std::vector<size_t>, property<edge_pathnums_t, std::vector<size_t> > > > > > > > EdgeProperty;
+
 
 typedef boost::property<vertex_name_t, std::string> RawVertexProperty;
 typedef boost::property<vertex_name_t, std::string, property<vertex_color_t, default_color_type> > VertexProperty; // Conflict with read() from adjacency_list_io.hpp
@@ -104,6 +111,7 @@ typedef property_map<Graph, edge_weight_t>::type EdgeWeightMap;
 typedef property_map<Graph, edge_flag_t>::type EdgeFlagMap;
 typedef property_map<Graph, edge_impl_t>::type EdgeImplMap;
 typedef property_map<Graph, edge_solnums_t>::type EdgeSolnumsMap;
+typedef property_map<Graph, edge_pathnums_t>::type EdgePathnumsMap;
 
 typedef property_map<Graph, vertex_color_t>::type VertexColorMap;
 typedef property_map<Graph, vertex_name_t>::type VertexNameMap;
@@ -116,6 +124,20 @@ static const std::string TRAJECTORY_FILTER = "/trajectory_filter_server/filter_t
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 
 static boost::mt19937 g_rng( static_cast<unsigned int>(std::time(0)) );
+
+static const double PUB_TIME = 1.0;
+
+static const size_t NUM_PLANNING_ATTEMPTS = 1;
+static const double ALLOWED_PLANNING_TIME = 1. * 60.;
+static const double ALLOWED_SMOOTHING_TIME = 2.0;
+
+static const double MP_PROCESS_PENALTY = 100.;// a guess
+static const double MP_RESULT_UP = 10.0;// a guess
+static const double MP_PROCESS_UP = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;
+
+//static const double GP_PROCESS_PENALTY = 2.0;// guessing
+//static const double GP_RESULT_UP = 1.0;// guessing
+//static const double GP_PROCESS_UP = 1.0 + GP_PROCESS_PENALTY;// 1.0 because it is the max value of the ratio, see grasp_planner.cpp
 
 EdgeWeightMap g_edge_weight_map;
 EdgeFlagMap g_edge_flag_map;
@@ -176,6 +198,57 @@ private:
   size_t solnum_;
 };
 
+template <typename EdgePathnumsMap>
+class PathnumEdgeFilter
+{
+public:
+  PathnumEdgeFilter() 
+  { }
+    
+  PathnumEdgeFilter(EdgePathnumsMap edge_pathnums_map, size_t pathnum)
+    : edge_pathnums_map_(edge_pathnums_map), pathnum_(pathnum) 
+  { }
+  
+  template <typename Edge>
+  bool 
+  operator()(const Edge& e) const 
+  {
+    std::vector<size_t>::iterator it;
+    
+    it = std::find(edge_pathnums_map_[e].begin(), edge_pathnums_map_[e].end(), pathnum_);
+    
+    if( it!=edge_pathnums_map_[e].end() )
+      return true;
+    else
+      return false;
+  }
+  
+private:
+  EdgePathnumsMap edge_pathnums_map_;
+  size_t pathnum_;
+};
+template <typename EdgeFlagMap>
+class SuccesfullyPlannedEdgeFilter
+{
+public:
+  SuccesfullyPlannedEdgeFilter()
+  { }
+  
+  SuccesfullyPlannedEdgeFilter(EdgeFlagMap edge_flag_map)
+    : edge_flag_map_(edge_flag_map) 
+  { }
+  
+  template <typename Edge>
+  bool 
+  operator()(const Edge& e) const 
+  {
+    return (edge_flag_map_[e]==PLANNED) or (edge_flag_map_[e]==BEST_SOLUTION);
+  }
+
+private:
+  EdgeFlagMap edge_flag_map_;  
+};
+
 template <typename EdgeFlagMap>
 class PlannedEdgeFilter
 {
@@ -191,7 +264,7 @@ public:
   bool 
   operator()(const Edge& e) const 
   {
-    return (edge_flag_map_[e]==PLANNED) or (edge_flag_map_[e]==BEST_SOLUTION);
+    return (edge_flag_map_[e]==PLANNED) or (edge_flag_map_[e]==BEST_SOLUTION) or (edge_flag_map_[e]==PLANNED_BUT_FAILURE);
   }
 
 private:
@@ -345,6 +418,50 @@ private:
   EdgeFlagMap edge_flag_map_;
 };
 
+class PlannedEdgeExtractor: public default_dfs_visitor
+{
+public:
+  PlannedEdgeExtractor(std::vector< std::list<Edge> >* edge_lists)
+    :edge_lists_(edge_lists)
+  {}
+  
+  template < typename Edge, typename Graph >
+  void 
+  examine_edge(Edge e, const Graph& g) //const
+  {
+//    std::cout << "examine_edge( (" << boost::source(e, g) << "," << boost::target(e, g) << ") )" << std::endl;
+  
+    std::list<typename Graph::edge_descriptor> sol_edges;
+
+    if( out_degree(target(e,g), g)==0 )// If this is the last planned edge in this path
+    {
+      Edge e_loop = e;
+      for( ; ; )
+      {
+        sol_edges.push_front(e_loop);
+              
+        typename Graph::vertex_descriptor s = source(e_loop,g);
+        
+        if(s==MessyHome)
+        {
+          break;
+        }
+        else
+        {
+          typename graph_traits<Graph>::in_edge_iterator i,j;
+          tie(i,j) =  in_edges(s, g);
+          e_loop = *i;
+        }
+      }
+//      cout << "sol_edges.size()= " << sol_edges.size() << endl;
+
+      edge_lists_->push_back(sol_edges);
+     }
+   }
+  private:  
+  std::vector< std::list<Edge> >* edge_lists_;
+};
+
 template <typename OutGraphType>
 class DfsVisitor: public default_dfs_visitor
 {
@@ -353,7 +470,7 @@ public:
     :sol_edge_lists_(sol_edge_lists)
   {}
   
-  template < typename Edge, typename Graph >
+ template < typename Edge, typename Graph >
   void 
   examine_edge(Edge e, const Graph& g) //const
   {
@@ -562,7 +679,7 @@ PlannerManager(ros::NodeHandle& nh):
       
   collision_object_pub_ = nh_.advertise<arm_navigation_msgs::CollisionObject>("collision_object", 10);
   att_collision_object_pub_ = nh_.advertise<arm_navigation_msgs::AttachedCollisionObject>("attached_collision_object", 10);
-  ros::Duration(2.0).sleep();
+  ros::Duration(PUB_TIME).sleep();
 
   set_tidy_config();
   set_hiro_home_joint_state();
@@ -629,12 +746,6 @@ collision_object_cb(const arm_navigation_msgs::CollisionObject::ConstPtr& msg)
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////------CORE PUBLIC INTERFACE--------////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void
-clear_messy_config()
-{
-  messy_config_.clear();
-}
 //! Extract the true geometric planning cost of a node in a solution graph
 /*!
   Note the the gpl here means the forward cost, from this node to the goal node.
@@ -645,14 +756,14 @@ clear_messy_config()
 */
 template<typename GraphType>
 bool
-extract_gpl(const typename GraphType::vertex_descriptor& v, const GraphType& g, Output* out)
+extract_true_cost(const typename GraphType::vertex_descriptor& v, const GraphType& g, Output* out)
 {
   // Initialize
   *out = 0.;
   
-  // From this vertices get the out_edge till the target of the out_edge is the goal
+  // From this vertices get the out_edge till the target of the out_edge has out_degree 0, which for example the goal node
   typename graph_traits<GraphType>::out_edge_iterator oe_i,oe_j;
-  tie(oe_i,oe_j) =  out_edges(v, g);// Assume that oe_i=oe_j
+  tie(oe_i,oe_j) =  out_edges(v, g);// 
   
   typename GraphType::edge_descriptor e;
   e = *oe_i;  
@@ -664,13 +775,13 @@ extract_gpl(const typename GraphType::vertex_descriptor& v, const GraphType& g, 
     typename GraphType::vertex_descriptor t;
     t = target(e, g);
     
-    if(t!=TidyHome)
+    if( out_degree(t, g)>0 )// This edge is the last planned edge in this path
     {
-      tie(oe_i,oe_j) =  out_edges(t, g);// Assume that oe_i=oe_j
+      tie(oe_i,oe_j) =  out_edges(t, g);
       
       e = *oe_i;
     }
-    else
+    else// This edge is the last planned edge in this path
     {
       break;
     }
@@ -691,9 +802,9 @@ bool
 extract_features(const typename GraphType::vertex_descriptor& v, const GraphType& g, Input* f)
 {
   // Symbolic Feature::
-  // From this vertices get the out_edge till the target of the out_edge is the goal
+  // From this vertices get the out_edge till the target of the out_edge has out_degree 0, which for example the goal node
   typename graph_traits<GraphType>::out_edge_iterator oe_i,oe_j;
-  tie(oe_i,oe_j) =  out_edges(v, g);// Assume that oe_i=oe_j
+  tie(oe_i,oe_j) =  out_edges(v, g); 
   
   typename GraphType::edge_descriptor e;
   e = *oe_i;  
@@ -711,13 +822,13 @@ extract_features(const typename GraphType::vertex_descriptor& v, const GraphType
     typename GraphType::vertex_descriptor t;
     t = target(e, g);
     
-    if(t!=TidyHome)
+    if( out_degree(t, g)>0 )
     {
-      tie(oe_i,oe_j) =  out_edges(t, g);// Assume that oe_i=oe_j
+      tie(oe_i,oe_j) =  out_edges(t, g);
       
       e = *oe_i;
     }
-    else
+    else // This edge is the last planned edge in this path
     {
       break;
     }
@@ -784,16 +895,14 @@ collect()
   // Holds all training data
   std::map< Input, Output> data;
 
-  // Extract all solutions!
-  if( !extract_solutions() )
+  if( !mark_path() )
     return false;
   
-  // Iterate all solutions, the index start from 1
-  for(size_t solnum=1; ros::ok() ; ++solnum)
+  // Iterate all paths, the index start from 1
+  for(size_t pathnum=1; ros::ok() ; ++pathnum)
   {
-    // Filter only edges that are flagged PLANNED
-    SolnumEdgeFilter<EdgeSolnumsMap> edge_filter( get(edge_solnums, g_), solnum );
-    typedef filtered_graph< Graph, SolnumEdgeFilter<EdgeSolnumsMap> > FilteredGraph;
+    PathnumEdgeFilter<EdgePathnumsMap> edge_filter( get(edge_pathnums, g_), pathnum );
+    typedef filtered_graph< Graph, PathnumEdgeFilter<EdgePathnumsMap> > FilteredGraph;
 
     FilteredGraph filtered_g(g_, edge_filter);
    
@@ -801,10 +910,9 @@ collect()
     boost::graph_traits<FilteredGraph>::edge_iterator ei, ei_end;
     boost::tie(ei,ei_end) = edges(filtered_g);
     
-    if(ei == ei_end)
-      break;
+    if(ei == ei_end) break;// If the filtered_g is empty, then it means that this patnum number and the subsequent ones are not valid, then break;
       
-    for( ; ei!=ei_end; ++ei)// Excluding the last vertex, this will be done in the extract_feature()
+    for( ; ei!=ei_end; ++ei)
     {
       FilteredGraph::vertex_descriptor s;
       s = source(*ei, filtered_g);
@@ -813,14 +921,13 @@ collect()
       extract_features<FilteredGraph>(s, filtered_g, in);
       
       Output* out = new Output();
-      extract_gpl<FilteredGraph>(s, filtered_g, out);
+      extract_true_cost<FilteredGraph>(s, filtered_g, out);
       
       data[*in] = *out;
     }
   }
   
-  // TODO make length of input data uniform! mainly beacause HLA/sym features; By putting zero if actually that certain feature does not exist
-  // Gather all feature ids
+  // Gather all feature ids from this data collection
   std::set<std::string> feature_ids;
   for(std::map<Input, Output>::const_iterator data_it=data.begin(); data_it!=data.end(); ++data_it)
   {
@@ -830,7 +937,7 @@ collect()
     }
   }
   
-  // Convert the set be converted to a vector to ensure the ordering, chek the metadata whether it already has the ordering
+  // Convert the set to a vector to ensure the ordering, chek the metadata whether it already has the ordering
   std::string metadata_file_path = planner_manager_path_ + "/data/metadata.csv";// Note that the metadata must only contain 1 line at most.
   std::ifstream metadata_file_in(metadata_file_path.c_str());
   
@@ -852,7 +959,7 @@ collect()
   boost::split( feature_ids_vec, metadata, boost::is_any_of(",") );
   feature_ids_vec.erase(feature_ids_vec.begin());// Note that eventhough there is no ",", the resulted vector still has 1 element which is an empty string.
   
-  if( feature_ids_vec.empty() )
+  if( feature_ids_vec.empty() )//TODO what if the existing metadata only contains a subset of feature_ids from this data collection
   {
     for(std::set<std::string>::iterator it=feature_ids.begin(); it!=feature_ids.end(); ++it)
       feature_ids_vec.push_back(*it);
@@ -938,7 +1045,7 @@ plan()
   vector<double> d(num_vertices(g_));
 
   bool path_found = false;
-  while(ros::ok())
+  while( ros::ok() )
   {
     try 
     {
@@ -1087,17 +1194,8 @@ commit()
     }
     else if( !strcmp(e_name_parts.at(0).c_str(), "GRASP") )
     {
-      std::vector<arm_navigation_msgs::CollisionObject>::const_iterator object_it;
-      object_it = get_object(e_name_parts.at(2), messy_config_);
-      
-      if(object_it == messy_config_.end())
-      {
-        ROS_ERROR_STREAM("Can not find " << e_name_parts.at(2) << " from the messy_config_");
-        return false;
-      }
-      
       arm_navigation_msgs::CollisionObject object;
-      object = *object_it;
+      object = messy_cfg_[e_name_parts.at(2)];
       
       success = commit_grasp( object );
     }
@@ -1262,8 +1360,8 @@ plan_task()
                     , boost::vertex_copy(VertexCopier (raw_g, g_))
                     . edge_copy(EdgeCopier(raw_g, g_))
                    );
-  
-    // Sync the global copy of edge_weight  
+
+  // Sync the global copy of edge_weight  
   g_edge_weight_map = get(edge_weight, g_);
   g_edge_flag_map = get(edge_flag, g_);
   g_vertex_color_map = get(vertex_color, g_);
@@ -1285,9 +1383,6 @@ plan_task()
 bool
 plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::JointState& goal_state, arm_navigation_msgs::RobotTrajectory* motion_path, GeoPlanningCost* cost=0)
 {
-  const size_t NUM_PLANNING_ATTEMPTS = 1;
-  const double ALLOWED_PLANNING_TIME = 0.2*60.;
-  
   while(!ros::service::waitForService("ompl_planning/plan_kinematic_path", ros::Duration(1.0))) 
     ROS_INFO_STREAM("Waiting for requested service " << "ompl_planning/plan_kinematic_path");
   
@@ -1336,23 +1431,20 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
       ROS_DEBUG("Motion planner was unable to plan a path to goal");
       
       // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
-      cost->result += 0.;// Ensure the length is exactly 0 + the initial value
+      cost->result = 0.;// Ensure the length cost is exactly 0
+      cost->process = MP_PROCESS_UP;
       
-      cost->process += NUM_PLANNING_ATTEMPTS * ALLOWED_PLANNING_TIME;// Incremented, instead of just assignment because we want to preserve the base/default value.
-
       return false;// No feasible motion plan must indicate that the call to this function is unsuccesful.
     }
     else
     {
       ROS_DEBUG("Motion planning succeeded");
-    
+      
       trajectory_msgs::JointTrajectory filtered_trajectory;
       
       ros::Time smoothing_begin = ros::Time::now();
-
       filter_path(res.trajectory.joint_trajectory, req, &filtered_trajectory);
-
-      double smoothing_time = (ros::Time::now()-smoothing_begin).toSec();
+      double smoothing_time = (ros::Time::now()-smoothing_begin).toSec();      
       
       // Visualize the path
       motion_plan_pub_.publish(filtered_trajectory);
@@ -1372,13 +1464,13 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
         ROS_DEBUG("BenchmarkPath succeeded");
         
         // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
-        cost->result += benchmark_path_res.length;// Incremented, instead of just assignment because we want to preserve the base/default value.
-        
-        cost->process += (planning_time + smoothing_time);// Incremented, instead of just assignment because we want to preserve the base/default value.
+        cost->result = benchmark_path_res.length;
+        cost->process = (planning_time + smoothing_time);
       }
       else
       {
         ROS_ERROR("BenchmarkPath service failed on %s",benchmark_path_client.getService().c_str());
+        //TODO what happen with the cost?
         return false;// Although not truly appropriate, this must indicate that the call to this function is unsuccessful.
       }
       
@@ -1392,6 +1484,7 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
   else
   {
     ROS_ERROR("Motion planning service failed on %s",planning_client.getService().c_str());
+    //TODO what happen with the cost?
     return false;// Although not truly appropriate, this must indicate that the call to this function is unsuccessful.
   }
 }
@@ -1408,16 +1501,26 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
 bool
 plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std::vector<sensor_msgs::JointState>& goal_states, arm_navigation_msgs::RobotTrajectory* best_motion_path, GeoPlanningCost* best_cost=0)
 {
-  // For suppressing the number of motion planning trials.
-  const size_t min_n_success = 1;
-  
-  best_cost->result = 10.;// Initialize with a very long path because it serves as a base for comparison
-  best_cost->process = 10.;// Initialize with a very long path because it serves as a base for comparison
+  if( start_states.empty() or goal_states.empty() )
+  {
+    ROS_WARN("No start-goal pair: No Motion Planning");
+    
+    best_cost->result = 0.;
+    best_cost->process = MP_PROCESS_UP;// TODO solve this contradiction
+
+    return false;  
+  }
+
+  best_cost->result = MP_RESULT_UP;// Initialize with a high value because it serves as a base for comparison
+  best_cost->process = MP_PROCESS_UP;// Initialize with a high value because it serves as a base for comparison
   
   size_t n_success = 0;
   size_t n_failure = 0;// For computing motion planning process cost
   size_t n_attempt = 0;
-  
+
+  // For suppressing the number of motion planning trials.
+  const size_t expected_n_success = 10;
+    
   for(std::vector<sensor_msgs::JointState>::const_iterator start_state_it=start_states.begin(); start_state_it!=start_states.end(); ++start_state_it)
   {
     for(std::vector<sensor_msgs::JointState>::const_iterator goal_state_it=goal_states.begin(); goal_state_it!=goal_states.end(); ++goal_state_it)
@@ -1443,19 +1546,23 @@ plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std:
   
       ++n_success;
       
-      if(n_success >= min_n_success) break;
+      if(n_success >= expected_n_success) break;
     }
-    if(n_success >= min_n_success) break;
+    if(n_success >= expected_n_success) break;
   } 
   
-  //Compute the process cost of iterating through all possibel starts/goals pairings;
-  double iter_cost;
-  iter_cost = (double) n_failure / n_attempt;
-  best_cost->process += iter_cost;// Note it is intentionally incremented! Ask why?
+//  //Compute the process cost of iterating through all possible starts/goals pairings;
+//  double iter_cost;
+//  iter_cost = (double) n_failure / n_attempt;// what if n_attempt = 0. It is handled above, impossible to arrive at this point
+//  best_cost->process += iter_cost;// Note it is intentionally incremented! Ask why?
+//  best_cost->process += (n_failure * best_cost->process);
 
   if( best_motion_path->joint_trajectory.points.empty() )
   {
     ROS_WARN("All motion planing attempts on all start-goal-state pairs: FAILED");
+
+    best_cost->result = 0.;
+    best_cost->process = MP_PROCESS_UP;
     
     return false;
   }
@@ -1480,7 +1587,7 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs
   // Set or reset the object in the planning_environment
   object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
   collision_object_pub_.publish(object);
-  ros::Duration(2.0).sleep();
+  ros::Duration(PUB_TIME).sleep();
 
   if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
     ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -1503,15 +1610,27 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs
     {
       *grasp_poses = plan_grasp_res.grasp_plans;
       
-      cost->process = plan_grasp_res.process_cost;
-      cost->result = 1.;// TODO fix this value
+//      cost->process = plan_grasp_res.process_cost;
+//      cost->result = 1.;// TODO fix this value
+      
+      // Ignore grasp planning cost
+      cost->process = 0.;
+      cost->result = 0.;
 
       return true;
     }
     else
     {
-      ROS_WARN("plan_grasp srv: FAILED");
-      return false;    
+      ROS_WARN("No grasp plan.");
+      
+//      cost->result = 0.;
+//      cost->process = plan_grasp_res.process_cost + GP_PROCESS_PENALTY;
+      
+      // Ignore grasp planning cost
+      cost->process = 0.;
+      cost->result = 0.;
+      
+      return false;
     }
   }
   else
@@ -1550,7 +1669,7 @@ plan_ungrasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_ms
 //      
 //  object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
 //  collision_object_pub_.publish(object);
-//  ros::Duration(2.0).sleep();
+//  ros::Duration(PUB_TIME).sleep();
 
 //  if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
 //    ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -1635,7 +1754,7 @@ plan_geometrically(const Edge& e)
         
       object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
       collision_object_pub_.publish(object);
-      ros::Duration(2.0).sleep();
+      ros::Duration(PUB_TIME).sleep();
 
       if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
         ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -1643,7 +1762,7 @@ plan_geometrically(const Edge& e)
      
      // Call grasp planner or ungrasp planner depending on out_edge of target vertex operator then UPDATE its edge implementation
     graph_traits<Graph>::out_edge_iterator oe_i,oe_j;// Note that oe stands for out_edge of the target vertex of edge e
-    tie(oe_i,oe_j) =  out_edges(t, g_);// Assume that oe_i=oe_j
+    tie(oe_i,oe_j) =  out_edges(t, g_);// 
     
     property_traits<EdgeNameMap>::value_type out_edge_name;
     out_edge_name = get(edge_name, g_, *oe_i);
@@ -1718,7 +1837,7 @@ plan_geometrically(const Edge& e)
         
       object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
       collision_object_pub_.publish(object);
-      ros::Duration(2.0).sleep();
+      ros::Duration(PUB_TIME).sleep();
 
       if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
         ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -1736,7 +1855,7 @@ plan_geometrically(const Edge& e)
         
       object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
       collision_object_pub_.publish(object);
-      ros::Duration(2.0).sleep();
+      ros::Duration(PUB_TIME).sleep();
 
       if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
         ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -1754,7 +1873,7 @@ plan_geometrically(const Edge& e)
       att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ATTACH_AND_REMOVE_AS_OBJECT;    
       
       att_collision_object_pub_.publish(att_object);
-      ros::Duration(2.0).sleep();
+      ros::Duration(PUB_TIME).sleep();
       
       ROS_INFO("waitForService(SET_PLANNING_SCENE_DIFF_NAME)");
       ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
@@ -1853,7 +1972,7 @@ commit_grasp(const arm_navigation_msgs::CollisionObject& object)
   att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ATTACH_AND_REMOVE_AS_OBJECT;    
   
   att_collision_object_pub_.publish(att_object);
-  ros::Duration(2.0).sleep();
+  ros::Duration(PUB_TIME).sleep();
   
   ROS_INFO("waitForService(SET_PLANNING_SCENE_DIFF_NAME)");
   ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
@@ -1911,7 +2030,7 @@ commit_ungrasp(const arm_navigation_msgs::CollisionObject& object)
   att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::DETACH_AND_ADD_AS_OBJECT;    
   
   att_collision_object_pub_.publish(att_object);
-  ros::Duration(2.0).sleep();
+  ros::Duration(PUB_TIME).sleep();
   
   ROS_INFO("waitForService(SET_PLANNING_SCENE_DIFF_NAME)");
   ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
@@ -1957,11 +2076,10 @@ commit_ungrasp(const arm_navigation_msgs::CollisionObject& object)
   \return whether successful
 */
 bool
-extract_solutions()
+mark_sol_path()
 {
-  // Filter only edges that are flagged PLANNED
-  PlannedEdgeFilter<EdgeFlagMap> edge_filter(get(edge_flag, g_));
-  typedef filtered_graph< Graph, PlannedEdgeFilter<EdgeFlagMap> > FilteredGraph;
+  SuccesfullyPlannedEdgeFilter<EdgeFlagMap> edge_filter(get(edge_flag, g_));
+  typedef filtered_graph< Graph, SuccesfullyPlannedEdgeFilter<EdgeFlagMap> > FilteredGraph;
 
   FilteredGraph filtered_g(g_, edge_filter);
   
@@ -1994,6 +2112,44 @@ extract_solutions()
   
   return true;
 }
+
+bool
+mark_path()
+{
+  PlannedEdgeFilter<EdgeFlagMap> edge_filter( get(edge_flag, g_) );
+  typedef filtered_graph< Graph, PlannedEdgeFilter<EdgeFlagMap> > FilteredGraph;
+
+  FilteredGraph filtered_g(g_, edge_filter);
+  
+  //Extract the deepest path using DFS, list the edges
+  std::vector< std::list<Edge> > edge_lists;
+  
+  PlannedEdgeExtractor vis(&edge_lists);
+  depth_first_search(filtered_g, visitor(vis));
+  
+  if( edge_lists.empty() )
+    return false;
+
+  // Mark the pathnums property of the graph g_
+  for(std::vector< std::list<Edge> >::const_iterator i=edge_lists.begin(); i!=edge_lists.end(); ++i)
+  {
+    for(std::list<Edge>::const_iterator j=i->begin(); j!=i->end(); ++j)
+    {
+      size_t pathnum = i-edge_lists.begin()+1; // Plus one because sol_num = 0 is reserved to the best path
+      
+      std::vector<size_t> pathnums;
+      
+      // Get the current solnums
+      pathnums = get(edge_pathnums, g_, *j);
+      
+      // Update the solnums
+      pathnums.push_back(pathnum);
+      put(edge_pathnums, g_, *j, pathnums);
+    }
+  }
+  
+  return true;
+}
 //! Filter the motion path
 /*!
   More ...
@@ -2013,7 +2169,7 @@ filter_path(const trajectory_msgs::JointTrajectory& trajectory_in, const arm_nav
   req.start_state =get_motion_plan_req.motion_plan_request.start_state;
   req.path_constraints = get_motion_plan_req.motion_plan_request.path_constraints;
   req.goal_constraints = get_motion_plan_req.motion_plan_request.goal_constraints;
-  req.allowed_time = ros::Duration(2.0);
+  req.allowed_time = ros::Duration(ALLOWED_SMOOTHING_TIME);
 
   if(filter_trajectory_client_.call(req,res))
   {
@@ -2023,6 +2179,7 @@ filter_path(const trajectory_msgs::JointTrajectory& trajectory_in, const arm_nav
   else
   {
     ROS_ERROR("Service call to filter trajectory failed.");
+    *trajectory_out = trajectory_in;
     return false;
   }
 }
@@ -2039,7 +2196,7 @@ reset_collision_space()
   {
     messy_config_.at(i).header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     collision_object_pub_.publish( messy_config_.at(i) );
-    ros::Duration(2.0).sleep();
+    ros::Duration(PUB_TIME).sleep();
     
     if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
     {
@@ -2063,7 +2220,7 @@ reset_collision_space()
     att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::DETACH_AND_ADD_AS_OBJECT;
     
     att_collision_object_pub_.publish(att_object);
-    ros::Duration(2.0).sleep();
+    ros::Duration(PUB_TIME).sleep();
     
     ROS_INFO("waitForService(SET_PLANNING_SCENE_DIFF_NAME)");
     ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
@@ -2500,77 +2657,45 @@ main(int argc, char **argv)
     
   ros::ServiceClient sense_see_client;
   sense_see_client = nh.serviceClient<hiro_sensor::Sense> ("/sense_see");
-             
-//  const size_t n = 100;
-//  for(size_t i=0; i<n and ros::ok(); ++i)
-//  {
-////    pm.clear_messy_config();
-//    
-//    PlannerManager pm(nh);
-//  
-//    ros::Subscriber collision_object_sub;
-//    collision_object_sub = nh.subscribe("collision_object", 10, &PlannerManager::collision_object_cb, &pm);
-//  
-//    ROS_INFO("Waiting for any object on the table.");
-//    ros::Rate waiting_rate(30.);
-//    while( !pm.is_messy_config_set() and ros::ok() )
-//    {
-//      //TODO why do we have to call this srv in the loop?
-//      // It seems that this pm cannot get the collision obj igf it is called only once.
-//      // At least, it takes 3 calls
-//      // TODO make it efficient, e.g. a call to sense_see srv should return the collision objects immediately
-//      
-//      hiro_sensor::Sense::Request sense_see_req;
-//      hiro_sensor::Sense::Response sense_see_res;
-//      
-//      sense_see_req.sensor_type = 1;
-//      
-//      if( !sense_see_client.call(sense_see_req, sense_see_res) ) 
-//      {
-//        ROS_WARN("Can't sense to see!");
-//      }
-//    
-//      ros::spinOnce();
-//      waiting_rate.sleep();
-//    }
-//   
-//    pm.plan();
-//    pm.extract();
-//  }
 
-  PlannerManager pm(nh);
-
-  ros::Subscriber collision_object_sub;
-  collision_object_sub = nh.subscribe("collision_object", 10, &PlannerManager::collision_object_cb, &pm);
-
-  ROS_INFO("Waiting for sensing job to finish ...");// TODO make this is_finished checking elegant
-  ros::Rate waiting_rate(30.);
-
-  while( !pm.is_messy_config_set() and ros::ok() )
+  // Loop for collecting data
+  const size_t n = 50;
+  for(size_t i=0; (i<n) and ros::ok(); ++i)
   {
-    //TODO why do we have to call this srv in the loop?
-    // It seems that this pm cannot get the collision obj igf it is called only once.
-    // At least, it takes 3 calls
-    // TODO make it efficient, e.g. a call to sense_see srv should return the collision objects immediately
-    
-    hiro_sensor::Sense::Request sense_see_req;
-    hiro_sensor::Sense::Response sense_see_res;
-    
-    sense_see_req.sensor_type = 1;
-    
-    if( !sense_see_client.call(sense_see_req, sense_see_res) ) 
+    PlannerManager pm(nh);
+
+    ros::Subscriber collision_object_sub;
+    collision_object_sub = nh.subscribe("collision_object", 10, &PlannerManager::collision_object_cb, &pm);
+
+    ROS_INFO("Waiting for sensing job to finish ...");// TODO make this is_finished checking elegant
+    ros::Rate waiting_rate(30.);
+
+    while( !pm.is_messy_config_set() and ros::ok() )
     {
-      ROS_WARN("Can't sense to see!");
+      //TODO why do we have to call this srv in the loop?
+      // It seems that this pm cannot get the collision obj igf it is called only once.
+      // At least, it takes 3 calls
+      // TODO make it efficient, e.g. a call to sense_see srv should return the collision objects immediately
+      
+      hiro_sensor::Sense::Request sense_see_req;
+      hiro_sensor::Sense::Response sense_see_res;
+      
+      sense_see_req.sensor_type = 1;
+      
+      if( !sense_see_client.call(sense_see_req, sense_see_res) ) 
+      {
+        ROS_WARN("Can't sense to see!");
+      }
+    
+      ros::spinOnce();
+      waiting_rate.sleep();
     }
-  
-    ros::spinOnce();
-    waiting_rate.sleep();
+    ROS_INFO("sensing: finished");
+    
+    pm.plan();
+    pm.collect();
+  //  pm.commit();
   }
-  ROS_INFO("sensing: finished");
-  
-  pm.plan();
-  pm.collect();
-//  pm.commit();
 
   ROS_INFO("Spinning...");
   ros::spin();

@@ -325,7 +325,7 @@ plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
       }
       
 //      e.w = boost::lexical_cast<double>(i->w);
-      e.w = 10.;// Assume we do not care about task plan weights and we put a _big_ geometric cost planning.
+      e.w = 0.;// Assume we do not care about task plan weights.
       
       e.flag = 0;
       
