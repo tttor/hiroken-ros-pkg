@@ -212,8 +212,15 @@ plan_grasp_cb(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp:
     }
     rate.sleep();
   } // End of for(size_t i=0; i<yaw_step;++i)
+
+  // Commented because there will be no significant diff. between failure and successful  
+  const double failure_w = 10.;
+  const size_t n_failure = yaw_step - num_grasp_plan;
+  res.process_cost = failure_w * (double) pow( (double)n_failure/yaw_step, 2 );
   
-  res.process_cost = (double) (yaw_step-num_grasp_plan);// / yaw_step;// * 100.;
+  const double failure_penalty = 100.;
+  if(num_grasp_plan==0)
+    res.process_cost += failure_penalty;
   
   ROS_DEBUG_STREAM("Grasp planning: DONE with " << num_grasp_plan << " grasp plan(s)");
   return true;

@@ -324,11 +324,8 @@ plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
         released_objects.push_back(".");// Put a delimiter to make parsing easier.
       }
       
-//      e.w = boost::lexical_cast<double>(i->w);
-      e.w = 0.;// Assume we do not care about task plan weights.
-      
+      e.w = boost::lexical_cast<double>(i->w);// Put initial weights = 1.0
       e.flag = 0;
-      
       e.name = i->id();
           
       std::vector<Edge>::iterator e_it;

@@ -80,7 +80,7 @@
 )
 (defproblem after-party-problem tidy-up
   ( 
-    (in can1 messy-spot); (in can2 messy-spot); (in can3 messy-spot) (in can4 messy-spot); (in can5 messy-spot); the initial state of p1 with 2 cans
+    (in can1 messy-spot) (in can2 messy-spot) (in can3 messy-spot) (in can4 messy-spot) (in can5 messy-spot) (in can6 messy-spot); the initial state of p1 with 2 cans
     
     (); for now, we do not care with the initial state of p2 (the tidy spot)
     
