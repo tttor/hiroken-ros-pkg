@@ -802,40 +802,96 @@ extract_true_cost(const typename GraphType::vertex_descriptor& v, const GraphTyp
 
 template<typename GraphType>
 bool
-extract_features(const typename GraphType::vertex_descriptor& v, const GraphType& g, std::vector<Input>* fs)
+extract_training_data(const typename GraphType::vertex_descriptor& v, const GraphType& g, Data* data)
 {
-//  // Symbolic Feature::
-//  // From this vertices get the out_edge till the target of the out_edge has out_degree 0, which for example the goal node
-//  typename graph_traits<GraphType>::out_edge_iterator oe_i,oe_j;
-//  tie(oe_i,oe_j) = out_edges(v, g); 
-//  
-//  typename GraphType::edge_descriptor e;
-//  e = *oe_i;  
-//  
-//  double idx = 0.;
-//  for( ; ros::ok(); )// TODO make this recursive or use dfs_visit()
-//  {
-//    idx = idx + 1.;// Note that the zero (double) value is reserved for a situation when a certain HLA name is not there.  
-//    
-//    std::string label;
-//    label = get(edge_name, g, e);
-//    
-//    (*f)[label] = idx;
-//    
-//    typename GraphType::vertex_descriptor t;
-//    t = target(e, g);
-//    
-//    if( out_degree(t, g)>0 )
-//    {
-//      tie(oe_i,oe_j) =  out_edges(t, g);
-//      
-//      e = *oe_i;
-//    }
-//    else // This edge is the last planned edge in this path
-//    {
-//      break;
-//    }
-//  }
+  // Geometric Feature:: pose
+  // Determine which object are in messy_spot or messy_spot by parsing the vertex name
+  typedef typename property_map<GraphType, vertex_name_t>::type VertexNameMapHere;
+  typename property_traits< VertexNameMapHere >::value_type v_name;
+  v_name = get(vertex_name, g, v);// e.g CAN1[CAN2.CAN3.]
+
+  std::vector<std::string> v_name_parts;
+  boost::split( v_name_parts, v_name, boost::is_any_of("[") );// e.g from "CAN1[CAN2.CAN3.]" to "CAN1" and "CAN2.CAN3.]"
+
+  std::vector<std::string> tidied_obj_ids;
+  if( v_name_parts.size() > 1 )// DO not do this if v_name="MessyHome". Note that v_name="MessyHome" yields v_name_parts.size() = 1
+  {
+    boost::split( tidied_obj_ids, v_name_parts.at(1), boost::is_any_of(".") );// e.g. from "CAN2.CAN3.]" to CAN2 and CAN3 and ]
+    tidied_obj_ids.erase(tidied_obj_ids.end()-1);//remove a "]"
+  }
+  
+  Input geo_feature_in;
+  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::const_iterator i=messy_cfg_.begin(); i!=messy_cfg_.end(); ++i)
+  {
+    std::vector<std::string>::iterator found_it;
+    found_it = std::find(tidied_obj_ids.begin(), tidied_obj_ids.end(), i->first);
+
+    arm_navigation_msgs::CollisionObject obj;    
+
+    if(found_it==tidied_obj_ids.end())
+      obj = tidy_cfg_[i->first];
+    else
+      obj = messy_cfg_[i->first];
+    
+    geo_feature_in[std::string(i->first+".x")] = obj.poses.at(0).position.x;
+    geo_feature_in[std::string(i->first+".y")] = obj.poses.at(0).position.y;
+    geo_feature_in[std::string(i->first+".z")] = obj.poses.at(0).position.z;
+    geo_feature_in[std::string(i->first+".qx")] = obj.poses.at(0).orientation.x;
+    geo_feature_in[std::string(i->first+".qy")] = obj.poses.at(0).orientation.y;
+    geo_feature_in[std::string(i->first+".qz")] = obj.poses.at(0).orientation.z;
+    geo_feature_in[std::string(i->first+".qw")] = obj.poses.at(0).orientation.w;
+  }
+  
+  // Symbolic Feature and the observed/true geo. planning cost
+  size_t depth = 0;// The depth from this vertex v to the target node of the last planned edge in this graph
+  for( typename GraphType::vertex_descriptor v_in=v; ; )
+  {
+    typename graph_traits<GraphType>::out_edge_iterator oe_i,oe_j;
+    tie(oe_i,oe_j) = out_edges(v_in, g); 
+    
+    if(oe_i==oe_j)
+    {
+      break;
+    }
+    else
+    {
+      ++depth;
+      v_in = target(*oe_i, g);
+    }
+  }
+  
+  for(size_t target_depth=1; target_depth <= depth; ++target_depth)
+  {
+    Input in;
+    in.insert( geo_feature_in.begin(), geo_feature_in.end() );
+    
+    Output out = 0.;
+    
+    typename GraphType::vertex_descriptor v_in;
+    v_in = v;
+    
+    for(size_t curr_depth=1; curr_depth<=target_depth; ++curr_depth)
+    {
+      typename graph_traits<GraphType>::out_edge_iterator oe_i,oe_j;
+      tie(oe_i,oe_j) = out_edges(v_in, g); 
+    
+      typename GraphType::edge_descriptor e;
+      e = *oe_i; 
+    
+      std::string label;
+      label = get(edge_name, g, e);
+
+      in[label] = curr_depth;
+
+      out += get(edge_weight, g, e);
+      
+      v_in = target(e, g);
+    }
+    
+    (*data)[in] = out;
+  }
+  
+  return true;
 }
 //! Extract the feature of a node in a solution graph
 /*!
@@ -936,13 +992,13 @@ extract_features(const typename GraphType::vertex_descriptor& v, const GraphType
 bool
 collect()
 {
-  // Holds all training data
-  std::map< Input, Output> data;
-
   if( !mark_path() )
     return false;
-  
-  // Iterate all paths, the index start from 1
+
+  // Holds all training data
+  Data data;
+    
+  // Iterate all planned paths, the index start from 1
   for(size_t pathnum=1; ros::ok() ; ++pathnum)
   {
     PathnumEdgeFilter<EdgePathnumsMap> edge_filter( get(edge_pathnums, g_), pathnum );
@@ -956,52 +1012,62 @@ collect()
     
     if(ei == ei_end) break;// If the filtered_g is empty, then it means that this patnum number and the subsequent ones are not valid, then break;
       
-    for( ; ei!=ei_end and ros::ok() ; ++ei)
+    for( ; ei!=ei_end and ros::ok() ; ++ei)//for each node in this graph
     {
       FilteredGraph::vertex_descriptor s;
       s = source(*ei, filtered_g);
       
-      Input* in = new Input();
-      extract_features<FilteredGraph>(s, filtered_g, in);
+      extract_training_data(s, filtered_g, &data);
       
-      Output* out = new Output();
-      extract_true_cost<FilteredGraph>(s, filtered_g, out);
-      
-      data[*in] = *out;
+//      Input* in = new Input();
+//      extract_features<FilteredGraph>(s, filtered_g, in);
+//      
+//      Output* out = new Output();
+//      extract_true_cost<FilteredGraph>(s, filtered_g, out);
+//      
+//      data[*in] = *out;
     }
   }
+
+  std::set<std::string> feature_ids;  
+//  // Gather all feature ids from this data collection
+//  for(std::map<Input, Output>::const_iterator data_it=data.begin(); data_it!=data.end(); ++data_it)
+//    for(Input::const_iterator j=data_it->first.begin(); j!=data_it->first.end(); ++j )
+//      feature_ids.insert(j->first);
+
+  // NOTE This is hardcode for 3 objects
+  graph_traits<Graph>::edge_iterator ei, ei_end;
+  for (boost::tie(ei, ei_end) = edges(g_); ei != ei_end; ++ei)
+    feature_ids.insert( get(edge_name, g_, *ei) );
+
+  feature_ids.insert("CAN1.x");feature_ids.insert("CAN1.y");feature_ids.insert("CAN1.z");feature_ids.insert("CAN1.qx");feature_ids.insert("CAN1.qy");feature_ids.insert("CAN1.qz");feature_ids.insert("CAN1.qw");
+  feature_ids.insert("CAN2.x");feature_ids.insert("CAN2.y");feature_ids.insert("CAN2.z");feature_ids.insert("CAN2.qx");feature_ids.insert("CAN2.qy");feature_ids.insert("CAN2.qz");feature_ids.insert("CAN2.qw");
+  feature_ids.insert("CAN3.x");feature_ids.insert("CAN3.y");feature_ids.insert("CAN3.z");feature_ids.insert("CAN3.qx");feature_ids.insert("CAN3.qy");feature_ids.insert("CAN3.qz");feature_ids.insert("CAN3.qw");
+
+  // Convert the set to a vector to ensure the ordering, 
+  std::vector<std::string> feature_ids_vec;
   
-  // Gather all feature ids from this data collection
-  std::set<std::string> feature_ids;
-  for(std::map<Input, Output>::const_iterator data_it=data.begin(); data_it!=data.end(); ++data_it)
-    for(Input::const_iterator j=data_it->first.begin(); j!=data_it->first.end(); ++j )
-      feature_ids.insert(j->first);
-  
-  // Convert the set to a vector to ensure the ordering, chek the metadata whether it already has the ordering
-  std::string metadata_file_path = planner_manager_path_ + "/data/metadata.csv";// Note that the metadata must only contain 1 line at most.
+  // Check the metadata whether it already has the ordering
+  std::string metadata_file_path = planner_manager_path_ + "/data/metadata.csv"; // Note that the metadata must only contain 1 line at most.
   std::ifstream metadata_file_in(metadata_file_path.c_str());
   
-  std::string metadata;  
   if (metadata_file_in.is_open())
   {
+    std::string metadata;
+    
     getline(metadata_file_in, metadata);// Read only the first line
     metadata_file_in.close();
+    
+    // Parse the metadata, put into a vector
+    boost::split( feature_ids_vec, metadata, boost::is_any_of(",") );
+    feature_ids_vec.erase(feature_ids_vec.begin());// Note that eventhough there is no ",", the resulted vector still has 1 element which is an empty string.
   }
   else 
   {
-    ROS_ERROR("Unable to open metadata file");
-    return false;
+    ROS_WARN("Unable to open metadata file");
   }
-
-  // Parse the existing metadata, put into a vector
-  std::vector<std::string> feature_ids_vec;
-  for(std::set<std::string>::const_iterator i=feature_ids.begin(); i!=feature_ids.end(); ++i)
-    feature_ids_vec.push_back(*i);
-    
-  boost::split( feature_ids_vec, metadata, boost::is_any_of(",") );
-  feature_ids_vec.erase(feature_ids_vec.begin());// Note that eventhough there is no ",", the resulted vector still has 1 element which is an empty string.
   
-  // Sync with the feature_ids set. TODO if the former metadata is shorter that this one, we should fill the addition metadata with zero.
+  // Sync with the feature_ids set. Push if this is new feature label.
   for(std::set<std::string>::iterator it=feature_ids.begin(); it!=feature_ids.end(); ++it)
   {
     std::vector<std::string>::iterator vec_it;
@@ -1010,15 +1076,15 @@ collect()
     if( vec_it==feature_ids_vec.end() )
       feature_ids_vec.push_back(*it);
   }
-    
+
   // Write the metadata_file
   std::ofstream metadata_file_out;
-  metadata_file_out.open(metadata_file_path.c_str());
+  metadata_file_out.open(metadata_file_path.c_str());// Will overwrite!
 
   for(std::vector<std::string>::iterator feature_ids_it=feature_ids_vec.begin(); feature_ids_it!=feature_ids_vec.end(); ++feature_ids_it)
     metadata_file_out << *feature_ids_it << ",";
   metadata_file_out << "OUT";
-  
+
   // Write. Note that which feature value that is written depends on the metadata!
   std::string data_file_path = planner_manager_path_ + "/data/data.csv";
   
@@ -1163,13 +1229,6 @@ plan()
 
       tie(e, connected) = edge(*i, *(i+1), g_);
       
-//      if( get(edge_flag, g_, e)==PLANNED_BUT_FAILURE )
-//      {
-//        cerr << "Found path: CANCELED" << endl;
-//        path_found = false;
-//        break;
-//      }
-
       property_traits<EdgeFlagMap>::value_type e_flag;
       e_flag = BEST_SOLUTION;
       
@@ -1485,7 +1544,7 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
       
       // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
       cost->result = 0.;// Ensure the length cost is exactly 0
-      cost->process = MP_PROCESS_UP;
+      cost->process = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;// The penalty is to make a significant diff. with any expensive yet feasible plan.
       
       return false;// No feasible motion plan must indicate that the call to this function is unsuccesful.
     }
@@ -1498,7 +1557,7 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
       
       ros::Time smoothing_begin = ros::Time::now();
       filter_path(res.trajectory.joint_trajectory, req, &filtered_trajectory);// Note that whenever filter_path() returns false, it means that the trajectory pass in is not changed
-      double smoothing_time = (ros::Time::now()-smoothing_begin).toSec();      
+      double smoothing_time = (ros::Time::now()-smoothing_begin).toSec();
       
       // Visualize the path
       motion_plan_pub_.publish(filtered_trajectory);
@@ -1562,13 +1621,14 @@ plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std:
     ROS_WARN("No start-goal pair: No Motion Planning");
     
     best_cost->result = 0.;
-    best_cost->process = MP_PROCESS_UP;
+    best_cost->process = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;//This is the cost we have to pay because grasp planning is actually before any motion planning, same as planning the motion but failed
 
     return false;  
   }
 
+  // Initialize both with high values
   best_cost->result = MP_RESULT_UP;// Initialize with a high value because it serves as a base for comparison
-  best_cost->process = MP_PROCESS_UP;// Initialize with a high value because it serves as a base for comparison
+  best_cost->process = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;// Initialize with a high value because it serves as a base for comparison
   
   size_t n_success = 0;
   size_t n_failure = 0;// For computing motion planning process cost
@@ -1614,18 +1674,15 @@ plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std:
   } 
   
   //Compute the process cost of iterating through all possible starts/goals pairings;
-  const double failure_w = 10.0;
+  // This is to differentiate feasible plans
+  const double iter_cost_w = 10.0;// The iter_cost is in the range [0,iter_cost_w]
   double iter_cost;
-  iter_cost = failure_w * (double) pow(n_failure / n_attempt, 2);// what if n_attempt = 0. It is handled above, impossible to arrive at this point
+  iter_cost = iter_cost_w * (double) pow(n_failure / n_attempt, 2);// what if n_attempt = 0. It is handled above, impossible to arrive at this point
   best_cost->process += iter_cost;// Note it is intentionally incremented! Ask why?
 
   if( best_motion_path->joint_trajectory.points.empty() )
   {
     ROS_WARN("All motion planing attempts on all start-goal-state pairs: FAILED");
-
-    // This is to make sure, although it has been done in plan_motion(start_state, goal_state, ...)
-//    best_cost->result = 0.;
-//    best_cost->process = MP_PROCESS_UP;
     
     return false;
   }
@@ -1669,35 +1726,17 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs
   {
     ROS_DEBUG("Succeeded to call plan_grasp service");
     
-    if( !plan_grasp_res.grasp_plans.empty() )
-    {
-      *grasp_poses = plan_grasp_res.grasp_plans;
-      
-      cost->process = plan_grasp_res.process_cost;
-      cost->result = 0.;// TODO fix this value,  e.g 1.0 for good grasp, 0. otherwise.
-      
-//      // Ignore grasp planning cost
-//      cost->process = 0.;
-//      cost->result = 0.;
-
-      return true;
-    }
-    else
-    {
-      ROS_WARN("No grasp plan.");
-      
-      cost->result = 0.;
-      cost->process = plan_grasp_res.process_cost;
-      
-//      // Ignore grasp planning cost
-//      cost->process = 0.;
-//      cost->result = 0.;
-      
-      return false;
-    }
+    if( plan_grasp_res.grasp_plans.empty() )
+      ROS_WARN("Although done successfully, but _no_ grasp plan.");
+    
+    *grasp_poses = plan_grasp_res.grasp_plans;// This may be empty
+    
+    cost->process = plan_grasp_res.process_cost;
+    cost->result = 0.;// TODO fix this value,  e.g 1.0 for good grasp, 0. otherwise.
   }
   else
   {
+    // TODO what happens with the cost.
     ROS_WARN("Failed to call plan_grasp service");
     return false;
   }
@@ -1872,7 +1911,7 @@ plan_geometrically(const Edge& e)
      
     put(edge_impl, g_, *oe_i, oe_impl);
     put(edge_flag, g_, *oe_i, oe_flag);
-    put( edge_weight, g_, *oe_i, get(edge_weight, g_, *oe_i)+grasp_planning_cost.total_2() );
+    put( edge_weight, g_, *oe_i, get(edge_weight, g_, *oe_i)+grasp_planning_cost.total_2() );// Preserving the initial value for the edge cost.
     
     // It is a must to reset_collision_space()
     reset_collision_space();
@@ -1966,7 +2005,7 @@ plan_geometrically(const Edge& e)
   }
   
   e_impl.motion_path = best_motion_path; 
-  e_weight = best_motion_planning_cost.total_2() + get(edge_weight, g_, e);
+  e_weight = get(edge_weight, g_, e) + best_motion_planning_cost.total_2();// Preserving the initial value for the edge cost.
   
   put(edge_weight, g_, e, e_weight);
   put(edge_impl, g_, e, e_impl);

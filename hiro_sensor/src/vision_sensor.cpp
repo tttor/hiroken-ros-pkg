@@ -78,7 +78,7 @@ sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Respo
   // Hardcode the sensed_objects_----------------------------------------------------------------------
   sense_static_object();
    
-  get_messy_config(5, true);
+  get_messy_config(3, true);
 
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
