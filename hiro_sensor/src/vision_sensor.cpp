@@ -499,21 +499,35 @@ hardcode_messy_cfg(const size_t& n)
     case 3:
           sense_movable_object( "CAN3",
                                 B_RADIUS, B_HEIGHT,
-                                0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
-                                0.,sqrt(0.5),0.,sqrt(0.5)
-                              );
+                                0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                                0.,0.,0.,1.
+                              ); 
+//          sense_movable_object( "CAN3",
+//                                B_RADIUS, B_HEIGHT,
+//                                0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+//                                0.,sqrt(0.5),0.,sqrt(0.5)
+//                              );                                 
+
     case 2:
           sense_movable_object( "CAN2",
                                 B_RADIUS, B_HEIGHT,
-                                0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                                0.,0.,0.,1.
+                                0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+                                0.,sqrt(0.5),0.,sqrt(0.5)
                               );
+//          sense_movable_object( "CAN2",
+//                                B_RADIUS, B_HEIGHT,
+//                                0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+//                                0.,0.,0.,1.
+//                              );                              
     case 1:
           sense_movable_object( "CAN1",
                                 B_RADIUS, B_HEIGHT,
                                 0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
                                 0.,0.,0.,1.
                               );
+           break;
+    default:
+          ROS_WARN("No this number here.");
   }
   
   if(n==0) ROS_WARN("There is no sensed object.");
