@@ -1733,6 +1733,8 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, std::vector<sensor_msgs
     
     cost->process = plan_grasp_res.process_cost;
     cost->result = 0.;// TODO fix this value,  e.g 1.0 for good grasp, 0. otherwise.
+    
+    return true;
   }
   else
   {
@@ -2774,7 +2776,7 @@ main(int argc, char **argv)
   sense_see_client = nh.serviceClient<hiro_sensor::Sense> ("/sense_see");
 
   // Loop for collecting data
-  const size_t n = 1;
+  const size_t n = 10;
   for(size_t i=0; (i<n) and ros::ok(); ++i)
   {
     PlannerManager pm(nh);
