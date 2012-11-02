@@ -1,0 +1,16 @@
+<package>
+  <description brief="nn_machine">
+
+     nn_machine
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/nn_machine</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+
+</package>
+
+
