@@ -54,6 +54,8 @@
 #include "hiro_control/ControlHand.h"
 #include "hiro_control/MoveArm.h"
 #include "hiro_common/BenchmarkPath.h"
+#include "nn_machine/RunNet.h"
+#include "nn_machine/TrainNet.h"
 
 using namespace boost;
 using namespace std;
@@ -134,6 +136,8 @@ static const double ALLOWED_SMOOTHING_TIME = 2.0;
 static const double MP_PROCESS_PENALTY = 100.;// a guess
 static const double MP_RESULT_UP = 10.0;// a guess
 static const double MP_PROCESS_UP = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;
+
+static bool g_testing = false;
 
 EdgeWeightMap g_edge_weight_map;
 EdgeFlagMap g_edge_flag_map;
@@ -524,20 +528,52 @@ class GeoCostHeuristic: public astar_heuristic<Graph, CostType>
 {
 public:
 typedef typename graph_traits<Graph>::vertex_descriptor Vertex;
-GeoCostHeuristic(Vertex goal, std::map<std::string, arm_navigation_msgs::CollisionObject> messy_cfg, std::map<std::string, arm_navigation_msgs::CollisionObject> tidy_cfg, Graph g)
-  : goal_(goal), g_(g), messy_cfg_(messy_cfg), tidy_cfg_(tidy_cfg)
-{}
+
+GeoCostHeuristic(Vertex goal, std::map<std::string, arm_navigation_msgs::CollisionObject> messy_cfg, std::map<std::string, arm_navigation_msgs::CollisionObject> tidy_cfg, Graph g, ros::NodeHandle nh)
+  : goal_(goal), g_(g), messy_cfg_(messy_cfg), tidy_cfg_(tidy_cfg), nh_(nh)
+{ }
 
 CostType 
 operator()(Vertex u)
 {
+  if( !g_testing )
+    return 0.;
+    
+  if(u == TidyHome)
+    return 0.;
+    
   // Extract feature 
-//  extract_features(u);
+  extract_features(u);
   
   // Fire up the NN machine
+  nn_machine::RunNet::Request req;
+  nn_machine::RunNet::Response res;
   
-//    cout << "in h()" << endl;
-  return 0;
+  // Fill the req 
+  for(Input::const_iterator i=in_.begin(); i!=in_.end(); ++i)
+  {
+    nn_machine::Feature f;
+    f.key = i->first;
+    f.val = i->second;
+    
+    req.input.push_back(f);
+  }
+  
+  ros::service::waitForService("/run_net");
+  ros::ServiceClient run_net_client;
+  run_net_client = nh_.serviceClient<nn_machine::RunNet> ("/run_net");
+  
+  run_net_client.call(req, res);
+  //run_net_client.call(req, res); // Always returns false TODO why?
+  
+  double h = 0.;
+  h = res.output;
+    
+  // Scaling up
+  h *= 100.;
+  cerr << "h= " << h << endl;
+  
+  return h;
 }
 
 private:
@@ -546,6 +582,7 @@ Input in_;
 Graph g_;
 std::map<std::string, arm_navigation_msgs::CollisionObject> messy_cfg_;
 std::map<std::string, arm_navigation_msgs::CollisionObject> tidy_cfg_;
+ros::NodeHandle nh_;
   
 //! Extract the feature of a node in the graph g
 /*!
@@ -559,7 +596,6 @@ extract_features(Vertex v)
 {
   // Symbolic Feature::
   // From this vertices get the out_edge till the target of the out_edge has out_degree 0, which is the goal node
-  
   in_.clear();
     
   typename Graph::vertex_descriptor v_in = v;
@@ -569,7 +605,7 @@ extract_features(Vertex v)
     tie(oe_i,oe_j) = out_edges(v_in, g_); 
   
     typename Graph::edge_descriptor e;
-    e = *oe_i;  
+    e = *oe_i;// always the first out edge
     
     std::string label;
     label = get(edge_name, g_, e);
@@ -605,7 +641,7 @@ extract_features(Vertex v)
 
     arm_navigation_msgs::CollisionObject obj;    
 
-    if(found_it==tidied_obj_ids.end())
+    if( found_it != tidied_obj_ids.end() )
       obj = tidy_cfg_[i->first];
     else
       obj = messy_cfg_[i->first];
@@ -619,10 +655,6 @@ extract_features(Vertex v)
     in_[std::string(i->first+".qw")] = obj.poses.at(0).orientation.w;
   }
   
-//  cout << "--------------" << endl;
-//  for(Input::const_iterator j=f->begin(); j!=f->end(); ++j )
-//    cout << (*j).first << "= " << (*j).second << endl;
-//  cout << endl;
   return true;
 }
 };
@@ -890,7 +922,7 @@ bool
 extract_training_data(const typename GraphType::vertex_descriptor& v, const GraphType& g, Data* data)
 {
   // Geometric Feature:: pose
-  // Determine which object are in messy_spot or messy_spot by parsing the vertex name
+  // Determine which object are in messy_spot or tidy_spot by parsing the vertex name
   typedef typename property_map<GraphType, vertex_name_t>::type VertexNameMapHere;
   typename property_traits< VertexNameMapHere >::value_type v_name;
   v_name = get(vertex_name, g, v);// e.g CAN1[CAN2.CAN3.]
@@ -911,9 +943,9 @@ extract_training_data(const typename GraphType::vertex_descriptor& v, const Grap
     std::vector<std::string>::iterator found_it;
     found_it = std::find(tidied_obj_ids.begin(), tidied_obj_ids.end(), i->first);
 
-    arm_navigation_msgs::CollisionObject obj;    
+    arm_navigation_msgs::CollisionObject obj;
 
-    if(found_it==tidied_obj_ids.end())
+    if(found_it!=tidied_obj_ids.end())
       obj = tidy_cfg_[i->first];
     else
       obj = messy_cfg_[i->first];
@@ -928,13 +960,13 @@ extract_training_data(const typename GraphType::vertex_descriptor& v, const Grap
   }
   
   // Symbolic Feature and the observed/true geo. planning cost
-  size_t depth = 0;// The depth from this vertex v to the target node of the last planned edge in this graph
+  size_t depth = 0;// The depth from this vertex v to the target node of the last planned edge in this planned path
   for( typename GraphType::vertex_descriptor v_in=v; ; )
   {
     typename graph_traits<GraphType>::out_edge_iterator oe_i,oe_j;
     tie(oe_i,oe_j) = out_edges(v_in, g); 
     
-    if(oe_i==oe_j)
+    if(oe_i==oe_j)// No out_edge 
     {
       break;
     }
@@ -1157,7 +1189,7 @@ plan()
     {
       astar_search(g_, 
                    start,
-                   GeoCostHeuristic<Graph, double>(goal, messy_cfg_, tidy_cfg_, g_),
+                   GeoCostHeuristic<Graph, double>(goal, messy_cfg_, tidy_cfg_, g_, nh_),
                    predecessor_map(&p[0]).distance_map(&d[0]).visitor(AstarVisitor<Vertex, Edge>(goal))
                   );
     }
@@ -2781,7 +2813,7 @@ main(int argc, char **argv)
   data_file_out.close();
 
   // Loop for collecting data
-  const size_t n = 1;
+  const size_t n = 50;
   for(size_t i=0; (i<n) and ros::ok(); ++i)
   {
     PlannerManager pm(nh);

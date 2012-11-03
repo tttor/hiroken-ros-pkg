@@ -5,6 +5,9 @@
 #include <fstream>
 #include <vector>
 
+#include "nn_machine/RunNet.h"
+#include "nn_machine/TrainNet.h"
+
 #include "floatfann.h"
 #include "fann_cpp.h"
 
@@ -29,9 +32,11 @@ public:
 NnMachine(ros::NodeHandle& nh)
   :nh_(nh)
 {
-  training_data_path_ = "/home/vektor/hiroken-ros-pkg/planner_manager/data/hot/training.data";
-  csv_file_path_ = "/home/vektor/hiroken-ros-pkg/planner_manager/data/hot/data.csv";
-  metadata_path_ = "/home/vektor/hiroken-ros-pkg/planner_manager/data/hot/metadata.csv";
+  training_data_path_ = "/home/vektor/hiroken-ros-pkg/planner_manager/data/for_training/training.data";
+  csv_file_path_ = "/home/vektor/hiroken-ros-pkg/planner_manager/data/for_training/data.csv";
+  metadata_path_ = "/home/vektor/hiroken-ros-pkg/planner_manager/data/for_training/metadata.csv";
+  
+  trained_net_path_ = "/home/vektor/hiroken-ros-pkg/nn_machine/net/trained.net";
   
   init();
 }
@@ -40,66 +45,45 @@ NnMachine(ros::NodeHandle& nh)
 { }
 
 bool
-train()
+run_net_srv_handle(nn_machine::RunNet::Request& req, nn_machine::RunNet::Response& res)
 {
-  const float desired_error = 0.1f;
-  const unsigned int max_iterations = 300000;
-  const unsigned int iterations_between_reports = 1000;  
+  std::vector<double> feature_vals;
 
-  if ( !convert_csv_fann() )
-    return false;
-  
-  cout << endl << "Training ..." << endl;
-
-  FANN::training_data data;
-  if (data.read_train_from_file(training_data_path_.c_str()))
+  for(std::vector<std::string>::const_iterator i=feature_ids_.begin(); i!=feature_ids_.end(); ++i)
   {
-    // Initialize and train the network with the data
-    net_.init_weights(data);
-
-//    cout << "Max Epochs " << setw(8) << max_iterations << ". "
-//        << "Desired Error: " << left << desired_error << right << endl;
-//      net_.set_callback(print_callback, NULL);
-
-    net_.train_on_data(data, max_iterations, iterations_between_reports, desired_error);
-
-//    cout << endl << "Testing network." << endl;
-
-//    for (unsigned int i = 0; i < data.length_train_data(); ++i)
-//    {
-//        // Run the network on the test data
-//        fann_type *calc_out = net_.run(data.get_input()[i]);
-
-//        cout << "XOR test (" << showpos << data.get_input()[i][0] << ", " 
-//             << data.get_input()[i][1] << ") -> " << *calc_out
-//             << ", should be " << data.get_output()[i][0] << ", "
-//             << "difference = " << noshowpos
-//             << fann_abs(*calc_out - data.get_output()[i][0]) << endl;
-//    }
-    
-    cout << endl << "Saving network." << endl;
-
-    // Save the network in floating point and fixed point
-    net_.save("/home/vektor/hiroken-ros-pkg/nn_machine/net/trained.net");
-
-    cout << endl << "Training: completed." << endl;
+    bool found = false;
+    for(std::vector<nn_machine::Feature>::const_iterator j=req.input.begin(); j!=req.input.end(); ++j)
+    {
+      if( !strcmp(i->c_str(), j->key.c_str()) )
+      {
+        feature_vals.push_back(j->val);
+        found = true;
+        break;
+      }
+    }
+    if(!found)
+      feature_vals.push_back(0.);
   }
+  
+  return run(feature_vals, &res);
 }
 
 bool
-run()
+train_net_srv_handle(nn_machine::TrainNet::Request& req, nn_machine::TrainNet::Response& res)
 {
-//  fann_type *calc_out;
-//  fann_type input[2];
-
-//  FANN::neural_net trained_net;
-//  trained_net.create_from_file("/home/vektor/hiroken-ros-pkg/nn_machine/net/trained.net");
-
-//  input[0] = -1;
-//  input[1] = 1;
-//  calc_out = net.run(input);
-
-//  printf("xor test (%f,%f) -> %f\n", input[0], input[1], calc_out[0]);
+//  if( train() )
+//  {
+//    res.msg = "Training: DONE";
+//    return true;
+//  }
+//  else
+//  {
+//    res.msg = "Training: FAILED";
+//    return false;
+//  }
+  cerr << "run_net: Get a call" << endl;
+  res.msg = "in train";
+  return true;
 }
 
 private:
@@ -114,6 +98,7 @@ FANN::neural_net net_;
 std::string training_data_path_;
 std::string csv_file_path_;
 std::string metadata_path_;
+std::string trained_net_path_;
 
 std::vector<std::string> feature_ids_;
 
@@ -128,7 +113,6 @@ init()
   const unsigned int num_output = 1;
 
   const unsigned int num_hidden = 20;
-
   
   net_.create_standard(num_layers, num_input, num_hidden, num_output);
 
@@ -141,6 +125,55 @@ init()
   net_.set_activation_function_output(FANN::SIGMOID_SYMMETRIC_STEPWISE);
   
   net_.print_parameters();
+}
+
+bool
+train()
+{
+  const float desired_error = 0.1f;
+  const unsigned int max_iterations = 100000;
+  const unsigned int iterations_between_reports = 1000;  
+
+  if ( !convert_csv_fann() )
+    return false;
+  
+  cout << endl << "Training ..." << endl;
+
+  FANN::training_data data;
+  if ( data.read_train_from_file(training_data_path_.c_str()) )
+  {
+    net_.init_weights(data);
+
+    net_.train_on_data(data, max_iterations, iterations_between_reports, desired_error);
+
+    cout << endl << "Saving network." << endl;
+    net_.save( trained_net_path_.c_str() );
+
+    cout << endl << "Training: completed." << endl;
+  }
+}
+
+bool
+run(const std::vector<double>& feature_vals, nn_machine::RunNet::Response* res)
+{
+  //TODO check whether the trained_net file exists
+  
+  FANN::neural_net trained_net;
+  trained_net.create_from_file( trained_net_path_.c_str() );
+
+  fann_type in[feature_vals.size()];
+  
+  for(std::vector<double>::const_iterator i=feature_vals.begin(); i!=feature_vals.end(); ++i)
+  {
+    in[i-feature_vals.begin()] = *i;
+  }
+
+  fann_type *out;
+  out = trained_net.run(in);
+
+  res->output = out[0];
+  
+  return true;
 }
 
 bool
@@ -249,15 +282,17 @@ main(int argc, char **argv)
     
     NnMachine net(nh);
     
-    net.train();
+    ros::ServiceServer run_net_srv = nh.advertiseService("/run_net", &NnMachine::run_net_srv_handle, &net);
+    ros::ServiceServer train_net_srv = nh.advertiseService("/train_net", &NnMachine::train_net_srv_handle, &net);    
     
     ROS_INFO("Spinning...");
     ros::spin();
   }
   catch (...)
   {
-      cerr << endl << "Abnormal exception." << endl;
+    cerr << endl << "Abnormal exception." << endl;
   }
   
+  ros::shutdown();
   return 0;
 }

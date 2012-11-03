@@ -78,7 +78,8 @@ sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Respo
   // Hardcode the sensed_objects_----------------------------------------------------------------------
   sense_static_object();
    
-  get_messy_config(3, false);
+  get_messy_config(3, true);
+//  get_messy_cfg_tb_1();
 
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
@@ -531,6 +532,28 @@ hardcode_messy_cfg(const size_t& n)
   }
   
   if(n==0) ROS_WARN("There is no sensed object.");
+}
+
+void
+get_messy_cfg_tb_1()
+{
+  sense_movable_object( "CAN1",
+                        B_RADIUS, B_HEIGHT,
+                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN2",
+                        B_RADIUS, B_HEIGHT,
+                        0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+                        0.,sqrt(0.5),0.,sqrt(0.5)
+                      );
+                      
+  sense_movable_object( "CAN3",
+                        B_RADIUS, B_HEIGHT,
+                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
 }
 };// enf of: class VisionSensor
 

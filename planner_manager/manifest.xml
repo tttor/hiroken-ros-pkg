@@ -14,6 +14,8 @@
   <depend package="hiro_sensor"/>  
   <depend package="hiro_control"/> 
   <depend package="hiro_common"/> 
+  <depend package="nn_machine"/> 
+    
 </package>
 
 
