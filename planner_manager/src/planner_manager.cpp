@@ -54,6 +54,8 @@
 #include "hiro_control/ControlHand.h"
 #include "hiro_control/MoveArm.h"
 #include "hiro_common/BenchmarkPath.h"
+#include "nn_machine/RunNet.h"
+#include "nn_machine/TrainNet.h"
 
 using namespace boost;
 using namespace std;
@@ -135,9 +137,7 @@ static const double MP_PROCESS_PENALTY = 100.;// a guess
 static const double MP_RESULT_UP = 10.0;// a guess
 static const double MP_PROCESS_UP = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;
 
-//static const double GP_PROCESS_PENALTY = 2.0;// guessing
-//static const double GP_RESULT_UP = 1.0;// guessing
-//static const double GP_PROCESS_UP = 1.0 + GP_PROCESS_PENALTY;// 1.0 because it is the max value of the ratio, see grasp_planner.cpp
+static bool g_testing = false;
 
 EdgeWeightMap g_edge_weight_map;
 EdgeFlagMap g_edge_flag_map;
@@ -524,22 +524,139 @@ struct FoundGoalSignal {}; // exception for termination
 struct NoGeoPlanningSignal{};// for if there is no symbollically and geometrically feasible manipulation plan.
 
 template <class Graph, class CostType>
-class GeoCostHeuristic:public astar_heuristic<Graph, CostType>
+class GeoCostHeuristic: public astar_heuristic<Graph, CostType>
 {
 public:
-  typedef typename graph_traits<Graph>::vertex_descriptor Vertex;
-  GeoCostHeuristic(Vertex goal)
-    :goal_(goal)
-  {}
+typedef typename graph_traits<Graph>::vertex_descriptor Vertex;
+
+GeoCostHeuristic(Vertex goal, std::map<std::string, arm_navigation_msgs::CollisionObject> messy_cfg, std::map<std::string, arm_navigation_msgs::CollisionObject> tidy_cfg, Graph g, ros::NodeHandle nh)
+  : goal_(goal), g_(g), messy_cfg_(messy_cfg), tidy_cfg_(tidy_cfg), nh_(nh)
+{ }
+
+CostType 
+operator()(Vertex u)
+{
+  if( !g_testing )
+    return 0.;
+    
+  if(u == TidyHome)
+    return 0.;
+    
+  // Extract feature 
+  extract_features(u);
   
-  CostType 
-  operator()(Vertex u)
+  // Fire up the NN machine
+  nn_machine::RunNet::Request req;
+  nn_machine::RunNet::Response res;
+  
+  // Fill the req 
+  for(Input::const_iterator i=in_.begin(); i!=in_.end(); ++i)
   {
-//    cout << "in h()" << endl;
-    return 0;
+    nn_machine::Feature f;
+    f.key = i->first;
+    f.val = i->second;
+    
+    req.input.push_back(f);
   }
+  
+  ros::service::waitForService("/run_net");
+  ros::ServiceClient run_net_client;
+  run_net_client = nh_.serviceClient<nn_machine::RunNet> ("/run_net");
+  
+  run_net_client.call(req, res);
+  //run_net_client.call(req, res); // Always returns false TODO why?
+  
+  double h = 0.;
+  h = res.output;
+    
+  // Scaling up
+  h *= 100.;
+  cerr << "h= " << h << endl;
+  
+  return h;
+}
+
 private:
-  Vertex goal_;
+Vertex goal_;
+Input in_;
+Graph g_;
+std::map<std::string, arm_navigation_msgs::CollisionObject> messy_cfg_;
+std::map<std::string, arm_navigation_msgs::CollisionObject> tidy_cfg_;
+ros::NodeHandle nh_;
+  
+//! Extract the feature of a node in the graph g
+/*!
+  This is for the heuristics computation
+
+  \param &v the input vertex
+  \param *f a map that maps feature name and its value
+*/
+bool
+extract_features(Vertex v)
+{
+  // Symbolic Feature::
+  // From this vertices get the out_edge till the target of the out_edge has out_degree 0, which is the goal node
+  in_.clear();
+    
+  typename Graph::vertex_descriptor v_in = v;
+  for(size_t idx=1; ros::ok(); ++idx)// TODO make this recursive or use dfs_visit()
+  {
+    typename graph_traits<Graph>::out_edge_iterator oe_i,oe_j;
+    tie(oe_i,oe_j) = out_edges(v_in, g_); 
+  
+    typename Graph::edge_descriptor e;
+    e = *oe_i;// always the first out edge
+    
+    std::string label;
+    label = get(edge_name, g_, e);
+    
+    in_[label] = idx;
+
+    v_in = target(e, g_);
+    
+    if( out_degree(v_in, g_)==0 )
+      break;
+  }
+  
+  // Geometric Feature:: pose
+  // Determine which object are in messy_spot or messy_spot by parsing the vertex name
+  typedef typename property_map<Graph, vertex_name_t>::type VertexNameMapHere;
+  typename property_traits< VertexNameMapHere >::value_type v_name;
+  v_name = get(vertex_name, g_, v);// e.g CAN1[CAN2.CAN3.]
+
+  std::vector<std::string> v_name_parts;
+  boost::split( v_name_parts, v_name, boost::is_any_of("[") );// e.g from "CAN1[CAN2.CAN3.]" to "CAN1" and "CAN2.CAN3.]"
+
+  std::vector<std::string> tidied_obj_ids;
+  if( v_name_parts.size() > 1 )// DO not do this if v_name="MessyHome". Note that v_name="MessyHome" yields v_name_parts.size() = 1
+  {
+    boost::split( tidied_obj_ids, v_name_parts.at(1), boost::is_any_of(".") );// e.g. from "CAN2.CAN3.]" to CAN2 and CAN3 and ]
+    tidied_obj_ids.erase(tidied_obj_ids.end()-1);//remove a "]"
+  }
+  
+  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::const_iterator i=messy_cfg_.begin(); i!=messy_cfg_.end(); ++i)
+  {
+    std::vector<std::string>::iterator found_it;
+    found_it = std::find(tidied_obj_ids.begin(), tidied_obj_ids.end(), i->first);
+
+    arm_navigation_msgs::CollisionObject obj;    
+
+    if( found_it != tidied_obj_ids.end() )
+      obj = tidy_cfg_[i->first];
+    else
+      obj = messy_cfg_[i->first];
+    
+    in_[std::string(i->first+".x")] = obj.poses.at(0).position.x;
+    in_[std::string(i->first+".y")] = obj.poses.at(0).position.y;
+    in_[std::string(i->first+".z")] = obj.poses.at(0).position.z;
+    in_[std::string(i->first+".qx")] = obj.poses.at(0).orientation.x;
+    in_[std::string(i->first+".qy")] = obj.poses.at(0).orientation.y;
+    in_[std::string(i->first+".qz")] = obj.poses.at(0).orientation.z;
+    in_[std::string(i->first+".qw")] = obj.poses.at(0).orientation.w;
+  }
+  
+  return true;
+}
 };
 
 template <typename Edge>
@@ -805,7 +922,7 @@ bool
 extract_training_data(const typename GraphType::vertex_descriptor& v, const GraphType& g, Data* data)
 {
   // Geometric Feature:: pose
-  // Determine which object are in messy_spot or messy_spot by parsing the vertex name
+  // Determine which object are in messy_spot or tidy_spot by parsing the vertex name
   typedef typename property_map<GraphType, vertex_name_t>::type VertexNameMapHere;
   typename property_traits< VertexNameMapHere >::value_type v_name;
   v_name = get(vertex_name, g, v);// e.g CAN1[CAN2.CAN3.]
@@ -826,9 +943,9 @@ extract_training_data(const typename GraphType::vertex_descriptor& v, const Grap
     std::vector<std::string>::iterator found_it;
     found_it = std::find(tidied_obj_ids.begin(), tidied_obj_ids.end(), i->first);
 
-    arm_navigation_msgs::CollisionObject obj;    
+    arm_navigation_msgs::CollisionObject obj;
 
-    if(found_it==tidied_obj_ids.end())
+    if(found_it!=tidied_obj_ids.end())
       obj = tidy_cfg_[i->first];
     else
       obj = messy_cfg_[i->first];
@@ -843,13 +960,13 @@ extract_training_data(const typename GraphType::vertex_descriptor& v, const Grap
   }
   
   // Symbolic Feature and the observed/true geo. planning cost
-  size_t depth = 0;// The depth from this vertex v to the target node of the last planned edge in this graph
+  size_t depth = 0;// The depth from this vertex v to the target node of the last planned edge in this planned path
   for( typename GraphType::vertex_descriptor v_in=v; ; )
   {
     typename graph_traits<GraphType>::out_edge_iterator oe_i,oe_j;
     tie(oe_i,oe_j) = out_edges(v_in, g); 
     
-    if(oe_i==oe_j)
+    if(oe_i==oe_j)// No out_edge 
     {
       break;
     }
@@ -893,95 +1010,7 @@ extract_training_data(const typename GraphType::vertex_descriptor& v, const Grap
   
   return true;
 }
-//! Extract the feature of a node in a solution graph
-/*!
-  More ...
 
-  \param &v the input vertex
-  \param &g the solution graph
-  \param *f a map that maps feature name and its value
-*/
-template<typename GraphType>
-bool
-extract_features(const typename GraphType::vertex_descriptor& v, const GraphType& g, Input* f)
-{
-  // Symbolic Feature::
-  // From this vertices get the out_edge till the target of the out_edge has out_degree 0, which for example the goal node
-  typename graph_traits<GraphType>::out_edge_iterator oe_i,oe_j;
-  tie(oe_i,oe_j) = out_edges(v, g); 
-  
-  typename GraphType::edge_descriptor e;
-  e = *oe_i;  
-  
-  double idx = 0.;
-  for( ; ros::ok(); )// TODO make this recursive or use dfs_visit()
-  {
-    idx = idx + 1.;// Note that the zero (double) value is reserved for a situation when a certain HLA name is not there.  
-    
-    std::string label;
-    label = get(edge_name, g, e);
-    
-    (*f)[label] = idx;
-    
-    typename GraphType::vertex_descriptor t;
-    t = target(e, g);
-    
-    if( out_degree(t, g)>0 )
-    {
-      tie(oe_i,oe_j) =  out_edges(t, g);
-      
-      e = *oe_i;
-    }
-    else // This edge is the last planned edge in this path
-    {
-      break;
-    }
-  }
-  
-  // Geometric Feature:: pose
-  // Determine which object are in messy_spot or messy_spot by parsing the vertex name
-  typedef typename property_map<GraphType, vertex_name_t>::type VertexNameMapHere;
-  typename property_traits< VertexNameMapHere >::value_type v_name;
-  v_name = get(vertex_name, g, v);// e.g CAN1[CAN2.CAN3.]
-
-  std::vector<std::string> v_name_parts;
-  boost::split( v_name_parts, v_name, boost::is_any_of("[") );// e.g from "CAN1[CAN2.CAN3.]" to "CAN1" and "CAN2.CAN3.]"
-
-  std::vector<std::string> tidied_obj_ids;
-  if( v_name_parts.size() > 1 )// DO not do this if v_name="MessyHome". Note that v_name="MessyHome" yields v_name_parts.size() = 1
-  {
-    boost::split( tidied_obj_ids, v_name_parts.at(1), boost::is_any_of(".") );// e.g. from "CAN2.CAN3.]" to CAN2 and CAN3 and ]
-    tidied_obj_ids.erase(tidied_obj_ids.end()-1);//remove a "]"
-  }
-  
-  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::const_iterator i=messy_cfg_.begin(); i!=messy_cfg_.end(); ++i)
-  {
-    std::vector<std::string>::iterator found_it;
-    found_it = std::find(tidied_obj_ids.begin(), tidied_obj_ids.end(), i->first);
-
-    arm_navigation_msgs::CollisionObject obj;    
-
-    if(found_it==tidied_obj_ids.end())
-      obj = tidy_cfg_[i->first];
-    else
-      obj = messy_cfg_[i->first];
-    
-    (*f)[std::string(i->first+".x")] = obj.poses.at(0).position.x;
-    (*f)[std::string(i->first+".y")] = obj.poses.at(0).position.y;
-    (*f)[std::string(i->first+".z")] = obj.poses.at(0).position.z;
-    (*f)[std::string(i->first+".qx")] = obj.poses.at(0).orientation.x;
-    (*f)[std::string(i->first+".qy")] = obj.poses.at(0).orientation.y;
-    (*f)[std::string(i->first+".qz")] = obj.poses.at(0).orientation.z;
-    (*f)[std::string(i->first+".qw")] = obj.poses.at(0).orientation.w;
-  }
-  
-//  cout << "--------------" << endl;
-//  for(Input::const_iterator j=f->begin(); j!=f->end(); ++j )
-//    cout << (*j).first << "= " << (*j).second << endl;
-//  cout << endl;
-  
-  return true;
-}
 //! Collect the learning(training) data from all feasible path
 /*!
   May use dfs.
@@ -1018,14 +1047,6 @@ collect()
       s = source(*ei, filtered_g);
       
       extract_training_data(s, filtered_g, &data);
-      
-//      Input* in = new Input();
-//      extract_features<FilteredGraph>(s, filtered_g, in);
-//      
-//      Output* out = new Output();
-//      extract_true_cost<FilteredGraph>(s, filtered_g, out);
-//      
-//      data[*in] = *out;
     }
   }
 
@@ -1048,7 +1069,7 @@ collect()
   std::vector<std::string> feature_ids_vec;
   
   // Check the metadata whether it already has the ordering
-  std::string metadata_file_path = planner_manager_path_ + "/data/metadata.csv"; // Note that the metadata must only contain 1 line at most.
+  std::string metadata_file_path = planner_manager_path_ + "/data/hot/metadata.csv"; // Note that the metadata must only contain 1 line at most.
   std::ifstream metadata_file_in(metadata_file_path.c_str());
   
   if (metadata_file_in.is_open())
@@ -1060,20 +1081,28 @@ collect()
     
     // Parse the metadata, put into a vector
     boost::split( feature_ids_vec, metadata, boost::is_any_of(",") );
-    feature_ids_vec.erase(feature_ids_vec.begin());// Note that eventhough there is no ",", the resulted vector still has 1 element which is an empty string.
+
+    if( !strcmp(feature_ids_vec.at(0).c_str(), std::string("").c_str())  )
+      feature_ids_vec.erase(feature_ids_vec.begin());// Note that eventhough there is no "," or the metadata is empty, the resulted vector still has 1 element which is an empty string.
+
+    // Remove the OUT label
+    std::vector<std::string>::iterator OUT_it;
+    OUT_it = std::find(feature_ids_vec.begin(), feature_ids_vec.end(), "OUT");
+    if(OUT_it!=feature_ids_vec.end())
+      feature_ids_vec.erase(OUT_it);
   }
   else 
   {
     ROS_WARN("Unable to open metadata file");
   }
   
-  // Sync with the feature_ids set. Push if this is new feature label.
+  // Sync with the feature_ids set. Push if this is new feature label. The ordering refers to what is in metadata if exists.
   for(std::set<std::string>::iterator it=feature_ids.begin(); it!=feature_ids.end(); ++it)
   {
     std::vector<std::string>::iterator vec_it;
     vec_it = std::find(feature_ids_vec.begin(), feature_ids_vec.end(), *it);
     
-    if( vec_it==feature_ids_vec.end() )
+    if( vec_it==feature_ids_vec.end() )// new feature id
       feature_ids_vec.push_back(*it);
   }
 
@@ -1083,22 +1112,19 @@ collect()
 
   for(std::vector<std::string>::iterator feature_ids_it=feature_ids_vec.begin(); feature_ids_it!=feature_ids_vec.end(); ++feature_ids_it)
     metadata_file_out << *feature_ids_it << ",";
-  metadata_file_out << "OUT";
+  metadata_file_out << "OUT" << endl;
+  
+  metadata_file_out.close();
 
   // Write. Note that which feature value that is written depends on the metadata!
-  std::string data_file_path = planner_manager_path_ + "/data/data.csv";
+  std::string data_file_path = planner_manager_path_ + "/data/hot/data.csv";
   
   std::ofstream data_file;
   data_file.open(data_file_path.c_str(), std::ios_base::app);
 
   for(std::map<Input, Output>::const_iterator data_it=data.begin(); data_it!=data.end(); ++data_it)
   {
-//    cerr << "=========================================================" << endl;
-//    for(Input::const_iterator j=data_it->first.begin(); j!=data_it->first.end(); ++j )
-//      cout << (*j).first << "= " << (*j).second << "," << endl;
-//    cout << endl;
-      
-    // Write the input
+    // Write the input based on the order in feature_ids_vec.
     for(std::vector<std::string>::iterator feature_ids_it=feature_ids_vec.begin(); feature_ids_it!=feature_ids_vec.end(); ++feature_ids_it)
     {
       // Find whether this feature exists (has value >0)
@@ -1119,7 +1145,7 @@ collect()
         data_file << it->second << ",";
       }
     }
-    
+        
     // Write the output
     cout << data_it->second;
     data_file << data_it->second;
@@ -1163,7 +1189,7 @@ plan()
     {
       astar_search(g_, 
                    start,
-                   GeoCostHeuristic<Graph, double>(goal),
+                   GeoCostHeuristic<Graph, double>(goal, messy_cfg_, tidy_cfg_, g_, nh_),
                    predecessor_map(&p[0]).distance_map(&d[0]).visitor(AstarVisitor<Vertex, Edge>(goal))
                   );
     }
@@ -2774,9 +2800,20 @@ main(int argc, char **argv)
     
   ros::ServiceClient sense_see_client;
   sense_see_client = nh.serviceClient<hiro_sensor::Sense> ("/sense_see");
+  
+  // reset data.csv and metadata.csv
+  std::ofstream metadata_file_out;
+  metadata_file_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/hot/metadata.csv");// Will overwrite!
+  metadata_file_out << "";
+  metadata_file_out.close();
+  
+  std::ofstream data_file_out;
+  data_file_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/hot/data.csv");// Will overwrite!
+  data_file_out << "";
+  data_file_out.close();
 
   // Loop for collecting data
-  const size_t n = 10;
+  const size_t n = 50;
   for(size_t i=0; (i<n) and ros::ok(); ++i)
   {
     PlannerManager pm(nh);
