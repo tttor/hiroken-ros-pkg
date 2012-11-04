@@ -1,13 +1,13 @@
 digraph G {
 0[label="MessyHome",fontsize="10",color="green"];
-1[label="TidyHome",fontsize="10",color="green"];
-2[label="CanGrasp_CAN1[]",fontsize="10",color="green"];
-3[label="Grasped_CAN1[]",fontsize="10",color="green"];
-4[label="CanRelease_CAN1[]",fontsize="10",color="green"];
-5[label="Released_CAN1[]",fontsize="10",color="green"];
-0->2 [label="TRANSIT_R_HOME_MESSY-SPOT\n4.76771",fontsize="10",color="blue"];
-2->3 [label="GRASP_R_CAN1_MESSY-SPOT\n4.40278",fontsize="10",color="blue"];
-3->4 [label="TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT\n4.88593",fontsize="10",color="blue"];
-4->5 [label="UNGRASP_R_CAN1_TIDY-SPOT\n8.41512",fontsize="10",color="blue"];
-5->1 [label="TRANSIT_R_TIDY-SPOT_HOME\n4.42641",fontsize="10",color="blue"];
+1[label="TidyHome",fontsize="10"];
+2[label="CanGrasp_CAN1[]",fontsize="10",color="magenta"];
+3[label="Grasped_CAN1[]",fontsize="10"];
+4[label="CanRelease_CAN1[]",fontsize="10"];
+5[label="Released_CAN1[]",fontsize="10"];
+0->2 [label="TRANSIT_R_HOME_MESSY-SPOT\n163",fontsize="10",color="red"];
+2->3 [label="GRASP_R_CAN1_MESSY-SPOT\n1",fontsize="10",color="red"];
+3->4 [label="TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT",fontsize="10"];
+4->5 [label="UNGRASP_R_CAN1_TIDY-SPOT",fontsize="10"];
+5->1 [label="TRANSIT_R_TIDY-SPOT_HOME",fontsize="10"];
 }
