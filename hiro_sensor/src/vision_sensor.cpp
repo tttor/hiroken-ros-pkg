@@ -9,6 +9,10 @@
 #include <arm_navigation_msgs/SetPlanningSceneDiff.h>
 #include <arm_navigation_msgs/PlanningScene.h>
 
+#include "planning_environment/models/collision_models.h"
+#include "planning_environment/models/model_utils.h"
+#include "planning_environment/util/construct_object.h"
+
 // This uses Boost 1.46.1 Library
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_real.hpp>
@@ -78,8 +82,8 @@ sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Respo
   // Hardcode the sensed_objects_----------------------------------------------------------------------
   sense_static_object();
    
-  get_messy_config(3, true);
-//  get_messy_cfg_tb_1();
+//  get_messy_config(3, true);
+  get_messy_cfg_tb_2();
 
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
@@ -550,6 +554,44 @@ get_messy_cfg_tb_1()
                       );
                       
   sense_movable_object( "CAN3",
+                        B_RADIUS, B_HEIGHT,
+                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+}
+
+void
+get_messy_cfg_tb_2()
+{
+  sense_movable_object( "CAN1",
+                        B_RADIUS, B_HEIGHT,
+                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN2",
+                        B_RADIUS, B_HEIGHT,
+                        0.20, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN3",
+                        B_RADIUS, B_HEIGHT,
+                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+}
+
+void
+get_messy_cfg_tb_3()
+{
+  sense_movable_object( "CAN1",
+                        B_RADIUS, B_HEIGHT,
+                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN2",
                         B_RADIUS, B_HEIGHT,
                         0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
                         0.,0.,0.,1.
