@@ -27,14 +27,19 @@ struct RunNetRequest_ {
   typedef RunNetRequest_<ContainerAllocator> Type;
 
   RunNetRequest_()
-  : input()
+  : vertex(0)
+  , input()
   {
   }
 
   RunNetRequest_(const ContainerAllocator& _alloc)
-  : input(_alloc)
+  : vertex(0)
+  , input(_alloc)
   {
   }
+
+  typedef uint64_t _vertex_type;
+  uint64_t vertex;
 
   typedef std::vector< ::nn_machine::Feature_<ContainerAllocator> , typename ContainerAllocator::template rebind< ::nn_machine::Feature_<ContainerAllocator> >::other >  _input_type;
   std::vector< ::nn_machine::Feature_<ContainerAllocator> , typename ContainerAllocator::template rebind< ::nn_machine::Feature_<ContainerAllocator> >::other >  input;
@@ -100,12 +105,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::nn_machine::RunNetRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d615c3a6b45b80516358d2ed6c0cad21";
+    return "3e45028b773753249cc9b9cb7c190c25";
   }
 
   static const char* value(const  ::nn_machine::RunNetRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0xd615c3a6b45b8051ULL;
-  static const uint64_t static_value2 = 0x6358d2ed6c0cad21ULL;
+  static const uint64_t static_value1 = 0x3e45028b77375324ULL;
+  static const uint64_t static_value2 = 0x9cc9b9cb7c190c25ULL;
 };
 
 template<class ContainerAllocator>
@@ -122,7 +127,8 @@ template<class ContainerAllocator>
 struct Definition< ::nn_machine::RunNetRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "nn_machine/Feature[] input\n\
+    return "uint64 vertex\n\
+nn_machine/Feature[] input\n\
 \n\
 ================================================================================\n\
 MSG: nn_machine/Feature\n\
@@ -193,6 +199,7 @@ template<class ContainerAllocator> struct Serializer< ::nn_machine::RunNetReques
 {
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
+    stream.next(m.vertex);
     stream.next(m.input);
   }
 
@@ -227,7 +234,7 @@ template<>
 struct MD5Sum<nn_machine::RunNet> {
   static const char* value() 
   {
-    return "8ab244ff7e826903d7f666bab8196504";
+    return "e5b39e8960885f1263450c980af81c94";
   }
 
   static const char* value(const nn_machine::RunNet&) { return value(); } 
@@ -247,7 +254,7 @@ template<class ContainerAllocator>
 struct MD5Sum<nn_machine::RunNetRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "8ab244ff7e826903d7f666bab8196504";
+    return "e5b39e8960885f1263450c980af81c94";
   }
 
   static const char* value(const nn_machine::RunNetRequest_<ContainerAllocator> &) { return value(); } 
@@ -267,7 +274,7 @@ template<class ContainerAllocator>
 struct MD5Sum<nn_machine::RunNetResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "8ab244ff7e826903d7f666bab8196504";
+    return "e5b39e8960885f1263450c980af81c94";
   }
 
   static const char* value(const nn_machine::RunNetResponse_<ContainerAllocator> &) { return value(); } 

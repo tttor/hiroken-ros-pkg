@@ -7,7 +7,12 @@
 ;//! \htmlinclude RunNet-request.msg.html
 
 (cl:defclass <RunNet-request> (roslisp-msg-protocol:ros-message)
-  ((input
+  ((vertex
+    :reader vertex
+    :initarg :vertex
+    :type cl:integer
+    :initform 0)
+   (input
     :reader input
     :initarg :input
     :type (cl:vector nn_machine-msg:Feature)
@@ -22,12 +27,25 @@
   (cl:unless (cl:typep m 'RunNet-request)
     (roslisp-msg-protocol:msg-deprecation-warning "using old message class name nn_machine-srv:<RunNet-request> is deprecated: use nn_machine-srv:RunNet-request instead.")))
 
+(cl:ensure-generic-function 'vertex-val :lambda-list '(m))
+(cl:defmethod vertex-val ((m <RunNet-request>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader nn_machine-srv:vertex-val is deprecated.  Use nn_machine-srv:vertex instead.")
+  (vertex m))
+
 (cl:ensure-generic-function 'input-val :lambda-list '(m))
 (cl:defmethod input-val ((m <RunNet-request>))
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader nn_machine-srv:input-val is deprecated.  Use nn_machine-srv:input instead.")
   (input m))
 (cl:defmethod roslisp-msg-protocol:serialize ((msg <RunNet-request>) ostream)
   "Serializes a message object of type '<RunNet-request>"
+  (cl:write-byte (cl:ldb (cl:byte 8 0) (cl:slot-value msg 'vertex)) ostream)
+  (cl:write-byte (cl:ldb (cl:byte 8 8) (cl:slot-value msg 'vertex)) ostream)
+  (cl:write-byte (cl:ldb (cl:byte 8 16) (cl:slot-value msg 'vertex)) ostream)
+  (cl:write-byte (cl:ldb (cl:byte 8 24) (cl:slot-value msg 'vertex)) ostream)
+  (cl:write-byte (cl:ldb (cl:byte 8 32) (cl:slot-value msg 'vertex)) ostream)
+  (cl:write-byte (cl:ldb (cl:byte 8 40) (cl:slot-value msg 'vertex)) ostream)
+  (cl:write-byte (cl:ldb (cl:byte 8 48) (cl:slot-value msg 'vertex)) ostream)
+  (cl:write-byte (cl:ldb (cl:byte 8 56) (cl:slot-value msg 'vertex)) ostream)
   (cl:let ((__ros_arr_len (cl:length (cl:slot-value msg 'input))))
     (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_arr_len) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 8) __ros_arr_len) ostream)
@@ -38,6 +56,14 @@
 )
 (cl:defmethod roslisp-msg-protocol:deserialize ((msg <RunNet-request>) istream)
   "Deserializes a message object of type '<RunNet-request>"
+    (cl:setf (cl:ldb (cl:byte 8 0) (cl:slot-value msg 'vertex)) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 8) (cl:slot-value msg 'vertex)) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 16) (cl:slot-value msg 'vertex)) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 24) (cl:slot-value msg 'vertex)) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 32) (cl:slot-value msg 'vertex)) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 40) (cl:slot-value msg 'vertex)) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 48) (cl:slot-value msg 'vertex)) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 56) (cl:slot-value msg 'vertex)) (cl:read-byte istream))
   (cl:let ((__ros_arr_len 0))
     (cl:setf (cl:ldb (cl:byte 8 0) __ros_arr_len) (cl:read-byte istream))
     (cl:setf (cl:ldb (cl:byte 8 8) __ros_arr_len) (cl:read-byte istream))
@@ -58,23 +84,25 @@
   "nn_machine/RunNetRequest")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<RunNet-request>)))
   "Returns md5sum for a message object of type '<RunNet-request>"
-  "8ab244ff7e826903d7f666bab8196504")
+  "e5b39e8960885f1263450c980af81c94")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'RunNet-request)))
   "Returns md5sum for a message object of type 'RunNet-request"
-  "8ab244ff7e826903d7f666bab8196504")
+  "e5b39e8960885f1263450c980af81c94")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<RunNet-request>)))
   "Returns full string definition for message of type '<RunNet-request>"
-  (cl:format cl:nil "nn_machine/Feature[] input~%~%================================================================================~%MSG: nn_machine/Feature~%string key~%float64 val~%~%~%"))
+  (cl:format cl:nil "uint64 vertex~%nn_machine/Feature[] input~%~%================================================================================~%MSG: nn_machine/Feature~%string key~%float64 val~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'RunNet-request)))
   "Returns full string definition for message of type 'RunNet-request"
-  (cl:format cl:nil "nn_machine/Feature[] input~%~%================================================================================~%MSG: nn_machine/Feature~%string key~%float64 val~%~%~%"))
+  (cl:format cl:nil "uint64 vertex~%nn_machine/Feature[] input~%~%================================================================================~%MSG: nn_machine/Feature~%string key~%float64 val~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <RunNet-request>))
   (cl:+ 0
+     8
      4 (cl:reduce #'cl:+ (cl:slot-value msg 'input) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ (roslisp-msg-protocol:serialization-length ele))))
 ))
 (cl:defmethod roslisp-msg-protocol:ros-message-to-list ((msg <RunNet-request>))
   "Converts a ROS message object to a list"
   (cl:list 'RunNet-request
+    (cl:cons ':vertex (vertex msg))
     (cl:cons ':input (input msg))
 ))
 ;//! \htmlinclude RunNet-response.msg.html
@@ -133,10 +161,10 @@
   "nn_machine/RunNetResponse")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<RunNet-response>)))
   "Returns md5sum for a message object of type '<RunNet-response>"
-  "8ab244ff7e826903d7f666bab8196504")
+  "e5b39e8960885f1263450c980af81c94")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'RunNet-response)))
   "Returns md5sum for a message object of type 'RunNet-response"
-  "8ab244ff7e826903d7f666bab8196504")
+  "e5b39e8960885f1263450c980af81c94")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<RunNet-response>)))
   "Returns full string definition for message of type '<RunNet-response>"
   (cl:format cl:nil "float64 output~%~%~%~%"))
