@@ -78,6 +78,13 @@ namespace boost
   BOOST_INSTALL_PROPERTY(edge, pathnums);
 }
 
+// TODO solve this. Why can I not install this prop?
+//enum vertex_heuristics_t { vertex_heuristics };
+//namespace boost 
+//{
+//  BOOST_INSTALL_PROPERTY(vertex, heuristics);
+//}
+
 //TODO is it possible to make a variable with more than one possible type. Yes, generic programming, but how exactly to apply to this case
 struct HLAImplementation
 {
@@ -97,9 +104,9 @@ enum {MessyHome=0, TidyHome};// sync with the task_planner.cpp
 typedef boost::property< edge_weight_t, double, property<edge_flag_t, size_t, property<edge_name_t, std::string> > > RawEdgeProperty;
 typedef boost::property< edge_weight_t, double, property<edge_flag_t, size_t, property<edge_name_t, std::string, property<edge_impl_t, HLAImplementation, property<edge_color_t, default_color_type, property< edge_solnums_t, std::vector<size_t>, property<edge_pathnums_t, std::vector<size_t> > > > > > > > EdgeProperty;
 
-
 typedef boost::property<vertex_name_t, std::string> RawVertexProperty;
 typedef boost::property<vertex_name_t, std::string, property<vertex_color_t, default_color_type> > VertexProperty; // Conflict with read() from adjacency_list_io.hpp
+//typedef boost::property<vertex_name_t, std::string, property<vertex_color_t, default_color_type, property<vertex_heuristics_t, double> > > VertexProperty; // Conflict with read() from adjacency_list_io.hpp
 
 //TODO Consider alternatives; note that using bidirectionalS costs us the space twice of using directedS, is it worth it ?
 typedef boost::adjacency_list<listS, vecS, bidirectionalS, RawVertexProperty, RawEdgeProperty > RawGraph;  
@@ -117,6 +124,7 @@ typedef property_map<Graph, edge_pathnums_t>::type EdgePathnumsMap;
 
 typedef property_map<Graph, vertex_color_t>::type VertexColorMap;
 typedef property_map<Graph, vertex_name_t>::type VertexNameMap;
+//typedef property_map<Graph, vertex_heuristics_t>::type VertexHeuristicsMap;
   
 typedef double Output;// which is the true geometric cost
 typedef std::map<std::string, double> Input;// which consists of features
@@ -126,6 +134,9 @@ static const std::string TRAJECTORY_FILTER = "/trajectory_filter_server/filter_t
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 
 static boost::mt19937 g_rng( static_cast<unsigned int>(std::time(0)) );
+
+//static VertexHeuristicsMap g_h_map;
+static std::map<Vertex, double> g_h_map;
 
 static const double PUB_TIME = 1.0;
 
@@ -137,7 +148,7 @@ static const double MP_PROCESS_PENALTY = 100.;// a guess
 static const double MP_RESULT_UP = 10.0;// a guess
 static const double MP_PROCESS_UP = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;
 
-static bool g_testing = false;
+static const bool TESTING = true;// When not-testing, search is done using h=0 (UCS), otherwise h is obtained from the learning machine
 
 EdgeWeightMap g_edge_weight_map;
 EdgeFlagMap g_edge_flag_map;
@@ -352,17 +363,29 @@ public:
     std::string color_str = "";
     if(color_map_[v]==color_traits<boost::default_color_type>::black())
     {
-      color_str = ",color=\"green\"";
+      color_str = ",color=\"red\"";
+      
+      out << "["
+        << "label=\"" << name_[v] << "\\" << "n" << g_h_map[v] << "\",fontsize=\"10\""
+        << color_str 
+        << "]";
     }
     else if(color_map_[v]==color_traits<boost::default_color_type>::gray())
     {
-      color_str = ",color=\"magenta\"";
-    }
-    
-    out << "["
-        << "label=\"" << name_[v] << "\",fontsize=\"10\"" 
+      color_str = ",color=\"blue\"";
+      
+      out << "["
+        << "label=\"" << name_[v] << "\\" << "n" << g_h_map[v] << "\",fontsize=\"10\""
         << color_str 
         << "]";
+    }
+    else
+    {
+      out << "["
+          << "label=\"" << name_[v] << "\",fontsize=\"10\"" 
+          << color_str 
+          << "]";
+    }
   }
 private:
   Name name_;
@@ -394,18 +417,18 @@ public:
   operator()(ostream &out, const Edge& e) const 
   {
     std::string color_str = "";
-    if(edge_flag_map_[e]==PLANNED)
-    {
-      color_str = ",color=\"green\"";
-    }
-    else if(edge_flag_map_[e]==PLANNED_BUT_FAILURE)
-    {
-      color_str = ",color=\"red\"";
-    }
-    else if(edge_flag_map_[e]==BEST_SOLUTION)
-    {
-      color_str = ",color=\"blue\"";
-    }
+//    if(edge_flag_map_[e]==PLANNED)
+//    {
+//      color_str = ",color=\"green\"";
+//    }
+//    else if(edge_flag_map_[e]==PLANNED_BUT_FAILURE)
+//    {
+//      color_str = ",color=\"red\"";
+//    }
+//    else if(edge_flag_map_[e]==BEST_SOLUTION)
+//    {
+//      color_str = ",color=\"blue\"";
+//    }
 
     if(edge_flag_map_[e]==NOT_YET)
     {
@@ -536,7 +559,7 @@ GeoCostHeuristic(Vertex goal, std::map<std::string, arm_navigation_msgs::Collisi
 CostType 
 operator()(Vertex u)
 {
-  if( !g_testing )
+  if( !TESTING )
     return 0.;
     
   if(u == TidyHome)
@@ -558,6 +581,7 @@ operator()(Vertex u)
     
     req.input.push_back(f);
   }
+  req.vertex = u;
   
   ros::service::waitForService("/run_net");
   ros::ServiceClient run_net_client;
@@ -568,11 +592,11 @@ operator()(Vertex u)
   
   double h = 0.;
   h = res.output;
-    
-  // Scaling up
-  h *= 100.;
-  cerr << "h= " << h << endl;
   
+  // Write in the vertex property
+//  put(vertex_heuristics, *g_ptr_, u, h);
+  g_h_map[u] = h;
+
   return h;
 }
 
@@ -611,7 +635,7 @@ extract_features(Vertex v)
     label = get(edge_name, g_, e);
     
     in_[label] = idx;
-
+    
     v_in = target(e, g_);
     
     if( out_degree(v_in, g_)==0 )
@@ -1181,8 +1205,10 @@ plan()
   // Start searching
   vector<Graph::vertex_descriptor> p(num_vertices(g_));
   vector<double> d(num_vertices(g_));
-
+//  VertexHeuristicsMap h_map;
+  
   bool path_found = false;
+  ros::Time planning_begin = ros::Time::now();
   while( ros::ok() )
   {
     try 
@@ -1221,7 +1247,15 @@ plan()
       break;
     }
   }// End of:  while(true)
+  double planning_time = (ros::Time::now()-planning_begin).toSec();
+      
+  // Benchmark this STAMP
+  std::ofstream bm_stamp_out;
+  bm_stamp_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/bm/bm.csv");
 
+  std::ofstream bm_stamp_out_2;
+  bm_stamp_out_2.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/bm/r.tb1.bm.csv");
+  
   if(path_found)  
   {
     list<Vertex> man_plan_vertices_tmp;
@@ -1238,14 +1272,16 @@ plan()
     
     list<Vertex>::iterator mpv_i = man_plan_vertices_tmp.begin();
     cout << "Manipulation plan (Vertices)= " << vertex_name_map[start];
+    bm_stamp_out << "Manipulation plan (Vertices)= " << vertex_name_map[start]; 
     for(++mpv_i; mpv_i != man_plan_vertices_tmp.end(); ++mpv_i)
     {
       man_plan_vertices.push_back(*mpv_i);
+      
       cout << " -> " << vertex_name_map[*mpv_i];
+      bm_stamp_out << " -> " << vertex_name_map[*mpv_i];
     }
-    cout << endl;
-    
-    cout << "ManipulationPlanCost= " << d[goal] << endl;
+    cout << endl << endl;
+    bm_stamp_out << endl << endl;
         
     std::vector<Edge> man_plan_edges;
     for(std::vector<Vertex>::const_iterator i=man_plan_vertices.begin(); i!=man_plan_vertices.end()-1; ++i)
@@ -1263,28 +1299,56 @@ plan()
       man_plan_edges.push_back(e);
     }
     
-    cout << "Manipulation plan (Edges)= ";
+    cout << "Manipulation plan (Edges)= " << endl;
+    bm_stamp_out << "Manipulation plan (Edges)= " << endl;
     for(std::vector<Edge>::const_iterator i=man_plan_edges.begin(); i!=man_plan_edges.end(); ++i)
     {
-      cout << edge_name_map[*i] << " -> ";
+      cout << edge_name_map[*i] << endl;
+      bm_stamp_out << edge_name_map[*i] << endl;
     }
     cout << endl;
+    bm_stamp_out << endl;
+    
+    cout << "TotalCost= " << d[goal] << endl;
+    bm_stamp_out << "TotalCost= " << d[goal] << endl;
+    bm_stamp_out_2 << d[goal] << ",";// 1st field
   }
   else
   {
-    cout << "NO path" << endl;  
+    cout << "NO path" << endl << endl;
+    bm_stamp_out << "NO path" << endl << endl;
+    bm_stamp_out_2 << 0. << ",";// 1st field  
   }
+  
+  size_t n_expanded_nodes = 0;
+  boost::graph_traits<Graph>::vertex_iterator vi, viend;
+  for(boost::tie(vi,viend) = vertices(g_); vi != viend; ++vi)
+  {
+    if(get(vertex_color, g_, *vi)==color_traits<boost::default_color_type>::black())
+      ++n_expanded_nodes;
+  }
+  
+  cout << "#expanded nodes= " << n_expanded_nodes << endl;
+  bm_stamp_out << "#expanded nodes= " << n_expanded_nodes << endl;
+  bm_stamp_out_2 << n_expanded_nodes << ","; // 2nd field
+  bm_stamp_out_2 << planning_time;// 3rd field (last)
+    
+  bm_stamp_out.close();
+  bm_stamp_out_2.close();
   
   // Write dot file final
   property_map<Graph, vertex_color_t>::type color_map;
   color_map = get(vertex_color, g_);// TODO have no idea why this can capture vertex_color value, while actually it should be obtained from g_vertex_color_map
+  
+//  VertexHeuristicsMap vertex_h_map;
+//  vertex_h_map = get(vertex_heuristics, g_);
   
   std::string dot_path = planner_manager_path_ + "/tmg/tmg.dot";
   
   ofstream dotfile_final;
   dotfile_final.open(dot_path.c_str());
   write_graphviz( dotfile_final, g_
-                , VertexPropWriter< property_map<Graph, vertex_name_t>::type,property_map<Graph, vertex_color_t>::type >(vertex_name_map, color_map)
+                , VertexPropWriter< property_map<Graph, vertex_name_t>::type, property_map<Graph, vertex_color_t>::type >(vertex_name_map, color_map)
                 , EdgePropWriter<EdgeWeightMap, EdgeNameMap, EdgeFlagMap>(g_edge_weight_map, edge_name_map, g_edge_flag_map)
                 , GraphPropWriter()
                 );  
@@ -1661,7 +1725,7 @@ plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std:
   size_t n_attempt = 0;
 
   // For suppressing the number of motion planning trials.
-  const size_t expected_n_success = 1;
+  const size_t expected_n_success = 3;
   const size_t n_max_failure = 3;
     
   for(std::vector<sensor_msgs::JointState>::const_iterator start_state_it=start_states.begin(); start_state_it!=start_states.end(); ++start_state_it)
@@ -2813,7 +2877,7 @@ main(int argc, char **argv)
   data_file_out.close();
 
   // Loop for collecting data
-  const size_t n = 50;
+  const size_t n = 1;
   for(size_t i=0; (i<n) and ros::ok(); ++i)
   {
     PlannerManager pm(nh);

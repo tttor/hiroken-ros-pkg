@@ -1,5 +1,7 @@
 (cl:in-package nn_machine-srv)
-(cl:export '(INPUT-VAL
+(cl:export '(VERTEX-VAL
+          VERTEX
+          INPUT-VAL
           INPUT
           OUTPUT-VAL
           OUTPUT
