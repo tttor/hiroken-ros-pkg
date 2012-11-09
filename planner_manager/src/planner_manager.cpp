@@ -148,7 +148,7 @@ static const double MP_PROCESS_PENALTY = 100.;// a guess
 static const double MP_RESULT_UP = 10.0;// a guess
 static const double MP_PROCESS_UP = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;
 
-static const bool TESTING = true;
+static const bool TESTING = true;// When not-testing, search is done using h=0 (UCS), otherwise h is obtained from the learning machine
 
 EdgeWeightMap g_edge_weight_map;
 EdgeFlagMap g_edge_flag_map;
@@ -363,7 +363,7 @@ public:
     std::string color_str = "";
     if(color_map_[v]==color_traits<boost::default_color_type>::black())
     {
-      color_str = ",color=\"green\"";
+      color_str = ",color=\"red\"";
       
       out << "["
         << "label=\"" << name_[v] << "\\" << "n" << g_h_map[v] << "\",fontsize=\"10\""
@@ -372,7 +372,7 @@ public:
     }
     else if(color_map_[v]==color_traits<boost::default_color_type>::gray())
     {
-      color_str = ",color=\"magenta\"";
+      color_str = ",color=\"blue\"";
       
       out << "["
         << "label=\"" << name_[v] << "\\" << "n" << g_h_map[v] << "\",fontsize=\"10\""
@@ -417,18 +417,18 @@ public:
   operator()(ostream &out, const Edge& e) const 
   {
     std::string color_str = "";
-    if(edge_flag_map_[e]==PLANNED)
-    {
-      color_str = ",color=\"green\"";
-    }
-    else if(edge_flag_map_[e]==PLANNED_BUT_FAILURE)
-    {
-      color_str = ",color=\"red\"";
-    }
-    else if(edge_flag_map_[e]==BEST_SOLUTION)
-    {
-      color_str = ",color=\"blue\"";
-    }
+//    if(edge_flag_map_[e]==PLANNED)
+//    {
+//      color_str = ",color=\"green\"";
+//    }
+//    else if(edge_flag_map_[e]==PLANNED_BUT_FAILURE)
+//    {
+//      color_str = ",color=\"red\"";
+//    }
+//    else if(edge_flag_map_[e]==BEST_SOLUTION)
+//    {
+//      color_str = ",color=\"blue\"";
+//    }
 
     if(edge_flag_map_[e]==NOT_YET)
     {
@@ -1208,6 +1208,7 @@ plan()
 //  VertexHeuristicsMap h_map;
   
   bool path_found = false;
+  ros::Time planning_begin = ros::Time::now();
   while( ros::ok() )
   {
     try 
@@ -1246,11 +1247,15 @@ plan()
       break;
     }
   }// End of:  while(true)
-
+  double planning_time = (ros::Time::now()-planning_begin).toSec();
+      
   // Benchmark this STAMP
   std::ofstream bm_stamp_out;
   bm_stamp_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/bm/bm.csv");
 
+  std::ofstream bm_stamp_out_2;
+  bm_stamp_out_2.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/bm/r.tb1.bm.csv");
+  
   if(path_found)  
   {
     list<Vertex> man_plan_vertices_tmp;
@@ -1306,12 +1311,13 @@ plan()
     
     cout << "TotalCost= " << d[goal] << endl;
     bm_stamp_out << "TotalCost= " << d[goal] << endl;
-    
+    bm_stamp_out_2 << d[goal] << ",";// 1st field
   }
   else
   {
     cout << "NO path" << endl << endl;
-    bm_stamp_out << "NO path" << endl << endl;    
+    bm_stamp_out << "NO path" << endl << endl;
+    bm_stamp_out_2 << 0. << ",";// 1st field  
   }
   
   size_t n_expanded_nodes = 0;
@@ -1324,9 +1330,12 @@ plan()
   
   cout << "#expanded nodes= " << n_expanded_nodes << endl;
   bm_stamp_out << "#expanded nodes= " << n_expanded_nodes << endl;
+  bm_stamp_out_2 << n_expanded_nodes << ","; // 2nd field
+  bm_stamp_out_2 << planning_time;// 3rd field (last)
     
   bm_stamp_out.close();
-    
+  bm_stamp_out_2.close();
+  
   // Write dot file final
   property_map<Graph, vertex_color_t>::type color_map;
   color_map = get(vertex_color, g_);// TODO have no idea why this can capture vertex_color value, while actually it should be obtained from g_vertex_color_map
@@ -1716,7 +1725,7 @@ plan_motion(const std::vector<sensor_msgs::JointState>& start_states, const std:
   size_t n_attempt = 0;
 
   // For suppressing the number of motion planning trials.
-  const size_t expected_n_success = 1;
+  const size_t expected_n_success = 3;
   const size_t n_max_failure = 3;
     
   for(std::vector<sensor_msgs::JointState>::const_iterator start_state_it=start_states.begin(); start_state_it!=start_states.end(); ++start_state_it)

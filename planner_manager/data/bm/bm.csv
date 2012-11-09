@@ -1,18 +1,19 @@
-Manipulation plan (Vertices)= MessyHome -> CanGrasp_CAN2[] -> Grasped_CAN2[] -> CanRelease_CAN2[] -> Released_CAN2[] -> CanGrasp_CAN1[CAN2.] -> Grasped_CAN1[CAN2.] -> CanRelease_CAN1[CAN2.] -> Released_CAN1[CAN2.] -> CanGrasp_CAN3[CAN2.CAN1.] -> Grasped_CAN3[CAN2.CAN1.] -> CanRelease_CAN3[CAN2.CAN1.] -> Released_CAN3[CAN2.CAN1.] -> TidyHome
+Manipulation plan (Vertices)= MessyHome -> CanGrasp_CAN1[] -> Grasped_CAN1[] -> CanRelease_CAN1[] -> Released_CAN1[] -> CanGrasp_CAN2[CAN1.] -> Grasped_CAN2[CAN1.] -> CanRelease_CAN2[CAN1.] -> Released_CAN2[CAN1.] -> CanGrasp_CAN3[CAN1.CAN2.] -> Grasped_CAN3[CAN1.CAN2.] -> CanRelease_CAN3[CAN1.CAN2.] -> Released_CAN3[CAN1.CAN2.] -> TidyHome
 
-Manipulation plan (Edges)= TRANSIT_R_HOME_MESSY-SPOT
-GRASP_R_CAN2_MESSY-SPOT
-TRANSFER_R_CAN2_MESSY-SPOT_TIDY-SPOT
-UNGRASP_R_CAN2_TIDY-SPOT
-TRANSIT_R_TIDY-SPOT_MESSY-SPOT
+Manipulation plan (Edges)= 
+TRANSIT_R_HOME_MESSY-SPOT
 GRASP_R_CAN1_MESSY-SPOT
 TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT
 UNGRASP_R_CAN1_TIDY-SPOT
+TRANSIT_R_TIDY-SPOT_MESSY-SPOT
+GRASP_R_CAN2_MESSY-SPOT
+TRANSFER_R_CAN2_MESSY-SPOT_TIDY-SPOT
+UNGRASP_R_CAN2_TIDY-SPOT
 TRANSIT_R_TIDY-SPOT_MESSY-SPOT
 GRASP_R_CAN3_MESSY-SPOT
 TRANSFER_R_CAN3_MESSY-SPOT_TIDY-SPOT
 UNGRASP_R_CAN3_TIDY-SPOT
 TRANSIT_R_TIDY-SPOT_HOME
 
-TotalCost= 86.7808
-#expanded nodes= 22
+TotalCost= 83.1699
+#expanded nodes= 14

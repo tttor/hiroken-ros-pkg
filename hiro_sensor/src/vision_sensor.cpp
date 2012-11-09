@@ -82,7 +82,7 @@ sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Respo
   // Hardcode the sensed_objects_----------------------------------------------------------------------
   sense_static_object();
    
-//  get_messy_config(3, true);
+//  get_messy_config(1, true);
   get_messy_cfg_tb_2();
 
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
@@ -538,8 +538,12 @@ hardcode_messy_cfg(const size_t& n)
   if(n==0) ROS_WARN("There is no sensed object.");
 }
 
+//! Generate a messy config for test bed
+/*!
+  Consists of 2 upright objects and 1 falling-down objects.
+*/
 void
-get_messy_cfg_tb_1()
+get_messy_cfg_tb_3()
 {
   sense_movable_object( "CAN1",
                         B_RADIUS, B_HEIGHT,
@@ -560,30 +564,34 @@ get_messy_cfg_tb_1()
                       );
 }
 
-void
-get_messy_cfg_tb_2()
-{
-  sense_movable_object( "CAN1",
-                        B_RADIUS, B_HEIGHT,
-                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN2",
-                        B_RADIUS, B_HEIGHT,
-                        0.20, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN3",
-                        B_RADIUS, B_HEIGHT,
-                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-}
+////! Generate a messy config for test bed
+///*!
+//  Consists of 3 upright objects, one on the right and two on the left
+//*/
+//void
+//get_messy_cfg_tb_2()
+//{
+//  sense_movable_object( "CAN1",
+//                        B_RADIUS, B_HEIGHT,
+//                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+//                        0.,0.,0.,1.
+//                      );
+//                      
+//  sense_movable_object( "CAN2",
+//                        B_RADIUS, B_HEIGHT,
+//                        0.20, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+//                        0.,0.,0.,1.
+//                      );
+//                      
+//  sense_movable_object( "CAN3",
+//                        B_RADIUS, B_HEIGHT,
+//                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+//                        0.,0.,0.,1.
+//                      );
+//}
 
 void
-get_messy_cfg_tb_3()
+get_messy_cfg_tb_2()
 {
   sense_movable_object( "CAN1",
                         B_RADIUS, B_HEIGHT,

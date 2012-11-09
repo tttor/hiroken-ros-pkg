@@ -84,6 +84,7 @@ run_net_srv_handle(nn_machine::RunNet::Request& req, nn_machine::RunNet::Respons
       feature_vals.push_back(0.);
   }
   
+  // Extract features for test bed config
 //  // Write, only if this is new vertex
 //  pair< set<size_t>::iterator,bool > inserted;
 //  inserted = vertices_.insert(req.vertex);
@@ -110,11 +111,9 @@ bool
 fill_h_lookup()
 {
   // Read the lookup table file, put into a map
-//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_plsregress.tb2.csv");
-//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_plsregress.tb3.csv");  
-  
-  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_nn.tb1.csv");
-  
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_plsregress8.tb3.csv");
+  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_regress.tb3.csv");
+    
   if ( h_lookup_in.is_open() )
   {
     while ( h_lookup_in.good() )
