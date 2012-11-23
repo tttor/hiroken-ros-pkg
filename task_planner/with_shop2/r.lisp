@@ -7,39 +7,11 @@
 
 (defun plan-found-hook (state which plan cost depth)
   (
-    with-open-file (str "state.shop2"
-                     :direction :output
-                     :if-exists :append
-                     :if-does-not-exist :create)
-    (format str "~A ~%" state)
-  )
-  (
-    with-open-file (str "which.shop2"
-                     :direction :output
-                     :if-exists :append
-                     :if-does-not-exist :create)
-    (format str "~A ~%" which)
-  )
-  (
     with-open-file (str "plan.shop2"
                      :direction :output
                      :if-exists :append
                      :if-does-not-exist :create)
     (format str "~A ~%" plan)
-  )
-  (
-    with-open-file (str "cost.shop2"
-                     :direction :output
-                     :if-exists :append
-                     :if-does-not-exist :create)
-    (format str "~5,2F ~%" cost)
-  )
-  (
-    with-open-file (str "depth.shop2"
-                     :direction :output
-                     :if-exists :append
-                     :if-does-not-exist :create)
-    (format str "~5,2F ~%" depth)
   )
 )
 
@@ -88,7 +60,8 @@
   ) 
   ( (tidy messy-spot tidy-spot r home) )
 )
+
 ;(shop-trace :methods)
-(shop-trace :all)
+;(shop-trace :all)
 (find-plans 'after-party-problem :verbose :long-plans :which :all)
 ;(find-plans 'after-party-problem :verbose :long-plans :which :first :plan-tree :true)

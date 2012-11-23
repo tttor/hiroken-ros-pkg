@@ -560,7 +560,7 @@ CostType
 operator()(Vertex u)
 {
   if( !TESTING )
-    return 0.;
+    return 0.;// force to do UCS for collecting training data
     
   if(u == TidyHome)
     return 0.;
@@ -582,6 +582,8 @@ operator()(Vertex u)
     req.input.push_back(f);
   }
   req.vertex = u;
+  
+  cerr << "PM: req.input.size()= " << req.input.size() << endl;
   
   ros::service::waitForService("/run_net");
   ros::ServiceClient run_net_client;
@@ -1048,8 +1050,11 @@ collect()
   if( !mark_path() )
     return false;
 
+  if( !mark_sol_path() )
+    return false;
+    
   // Holds all training data
-  Data data;
+  Data data;// from all planned path
     
   // Iterate all planned paths, the index start from 1
   for(size_t pathnum=1; ros::ok() ; ++pathnum)
@@ -1073,6 +1078,32 @@ collect()
       extract_training_data(s, filtered_g, &data);
     }
   }
+  
+  Data data_2;// this is only for solution paths, in which the true geo planning cost from start to goal is computed
+  
+  // Iterate all solutions, the index start from 1
+  for(size_t solnum=1; ros::ok() ; ++solnum)
+  {
+    // Filter only edges that are flagged PLANNED
+    SolnumEdgeFilter<EdgeSolnumsMap> edge_filter( get(edge_solnums, g_), solnum );
+    typedef filtered_graph< Graph, SolnumEdgeFilter<EdgeSolnumsMap> > FilteredGraph;
+
+    FilteredGraph filtered_g(g_, edge_filter);
+   
+    // Extract Feature for all vertices in the filtered graph but the last one
+    boost::graph_traits<FilteredGraph>::edge_iterator ei, ei_end;
+    boost::tie(ei,ei_end) = edges(filtered_g);
+    
+    if(ei == ei_end) break;
+      
+    for( ; ei!=ei_end and ros::ok(); ++ei)// Excluding the last vertex, this will be done in the extract_feature()
+    {
+      FilteredGraph::vertex_descriptor s;
+      s = source(*ei, filtered_g);
+      
+      extract_training_data(s, filtered_g, &data_2);
+    }
+  }
 
   std::set<std::string> feature_ids;  
 //  // Gather all feature ids from this data collection
@@ -1080,7 +1111,7 @@ collect()
 //    for(Input::const_iterator j=data_it->first.begin(); j!=data_it->first.end(); ++j )
 //      feature_ids.insert(j->first);
 
-  // NOTE This is hardcode for 3 objects
+  // NOTE This is hardcode for 6 objects
   graph_traits<Graph>::edge_iterator ei, ei_end;
   for (boost::tie(ei, ei_end) = edges(g_); ei != ei_end; ++ei)
     feature_ids.insert( get(edge_name, g_, *ei) );
@@ -1088,7 +1119,10 @@ collect()
   feature_ids.insert("CAN1.x");feature_ids.insert("CAN1.y");feature_ids.insert("CAN1.z");feature_ids.insert("CAN1.qx");feature_ids.insert("CAN1.qy");feature_ids.insert("CAN1.qz");feature_ids.insert("CAN1.qw");
   feature_ids.insert("CAN2.x");feature_ids.insert("CAN2.y");feature_ids.insert("CAN2.z");feature_ids.insert("CAN2.qx");feature_ids.insert("CAN2.qy");feature_ids.insert("CAN2.qz");feature_ids.insert("CAN2.qw");
   feature_ids.insert("CAN3.x");feature_ids.insert("CAN3.y");feature_ids.insert("CAN3.z");feature_ids.insert("CAN3.qx");feature_ids.insert("CAN3.qy");feature_ids.insert("CAN3.qz");feature_ids.insert("CAN3.qw");
-
+  feature_ids.insert("CAN4.x");feature_ids.insert("CAN4.y");feature_ids.insert("CAN4.z");feature_ids.insert("CAN4.qx");feature_ids.insert("CAN4.qy");feature_ids.insert("CAN4.qz");feature_ids.insert("CAN4.qw");
+  feature_ids.insert("CAN5.x");feature_ids.insert("CAN5.y");feature_ids.insert("CAN5.z");feature_ids.insert("CAN5.qx");feature_ids.insert("CAN5.qy");feature_ids.insert("CAN5.qz");feature_ids.insert("CAN5.qw");
+  feature_ids.insert("CAN6.x");feature_ids.insert("CAN6.y");feature_ids.insert("CAN6.z");feature_ids.insert("CAN6.qx");feature_ids.insert("CAN6.qy");feature_ids.insert("CAN6.qz");feature_ids.insert("CAN6.qw");
+  
   // Convert the set to a vector to ensure the ordering, 
   std::vector<std::string> feature_ids_vec;
   
@@ -1179,6 +1213,46 @@ collect()
   
   data_file.close();
   
+  // FOR SOLUTION PATHS
+  // Write. Note that which feature value that is written depends on the metadata!
+  std::string data_2_file_path = planner_manager_path_ + "/data/hot/data_2.csv";
+
+  std::ofstream data_2_file;
+  data_2_file.open(data_2_file_path.c_str(), std::ios_base::app);
+  
+  for(std::map<Input, Output>::const_iterator data_it=data_2.begin(); data_it!=data_2.end(); ++data_it)
+  {
+    // Write the input based on the order in feature_ids_vec.
+    for(std::vector<std::string>::iterator feature_ids_it=feature_ids_vec.begin(); feature_ids_it!=feature_ids_vec.end(); ++feature_ids_it)
+    {
+      // Find whether this feature exists (has value >0)
+      Input local_in;
+      local_in = data_it->first;
+      
+      Input::iterator it;
+      it = local_in.find(*feature_ids_it);
+      
+      if(it==local_in.end())
+      {
+        cout << 0. << ",";
+        data_2_file << 0. << ",";
+      }
+      else
+      {
+        cout << it->second << ",";
+        data_2_file << it->second << ",";
+      }
+    }
+        
+    // Write the output
+    cout << data_it->second;
+    data_2_file << data_it->second;
+    cout << endl;
+    data_2_file << std::endl;
+  }
+  
+  data_2_file.close();
+  
   return true;
 }
 //! Plan manipulation plans.
@@ -1208,7 +1282,7 @@ plan()
 //  VertexHeuristicsMap h_map;
   
   bool path_found = false;
-  ros::Time planning_begin = ros::Time::now();
+  ros::Time planning_begin = ros::Time::now();// means geometric planning
   while( ros::ok() )
   {
     try 
@@ -1251,10 +1325,10 @@ plan()
       
   // Benchmark this STAMP
   std::ofstream bm_stamp_out;
-  bm_stamp_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/bm/bm.csv");
+  bm_stamp_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/bm/bm");
 
   std::ofstream bm_stamp_out_2;
-  bm_stamp_out_2.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/bm/r.tb1.bm.csv");
+  bm_stamp_out_2.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/bm/bm2.csv");
   
   if(path_found)  
   {
@@ -1353,6 +1427,7 @@ plan()
                 , GraphPropWriter()
                 );  
   dotfile_final.close();
+  cerr << "C2" << endl;
 }
 //! Commit the best manipulation plan
 /*!
@@ -2270,7 +2345,6 @@ commit_ungrasp(const arm_navigation_msgs::CollisionObject& object)
 /*!
   This function updates the edge_solnums properties of edges.
   The index begins at 1, because the value 0 is reserved for the best solution, although this does not check for that up to now.
-  \param *sol_gs A pointer to a vector of solution graphs
   \return whether successful
 */
 bool
@@ -2311,6 +2385,9 @@ mark_sol_path()
   return true;
 }
 
+//! Extract all planned path
+/*!
+*/
 bool
 mark_path()
 {
@@ -2625,7 +2702,7 @@ set_tidy_config()
 
   geometry_msgs::Pose can5_tidy_pose;
   
-  can5_tidy_pose.position.x = -0.07; 
+  can5_tidy_pose.position.x = 0.14; 
   can5_tidy_pose.position.y = 0.42;
   can5_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
   can5_tidy_pose.orientation.x = 0.;    
@@ -2657,7 +2734,7 @@ set_tidy_config()
 
   geometry_msgs::Pose can6_tidy_pose;
   
-  can6_tidy_pose.position.x = -0.07; 
+  can6_tidy_pose.position.x = -0.21; 
   can6_tidy_pose.position.y = 0.49;
   can6_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
   can6_tidy_pose.orientation.x = 0.;    
@@ -2866,10 +2943,10 @@ main(int argc, char **argv)
   sense_see_client = nh.serviceClient<hiro_sensor::Sense> ("/sense_see");
   
   // reset data.csv and metadata.csv
-  std::ofstream metadata_file_out;
-  metadata_file_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/hot/metadata.csv");// Will overwrite!
-  metadata_file_out << "";
-  metadata_file_out.close();
+//  std::ofstream metadata_file_out;
+//  metadata_file_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/hot/metadata.csv");// Will overwrite!
+//  metadata_file_out << "";
+//  metadata_file_out.close();
   
   std::ofstream data_file_out;
   data_file_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/hot/data.csv");// Will overwrite!

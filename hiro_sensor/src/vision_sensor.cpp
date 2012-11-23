@@ -82,8 +82,8 @@ sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Respo
   // Hardcode the sensed_objects_----------------------------------------------------------------------
   sense_static_object();
    
-//  get_messy_config(1, true);
-  get_messy_cfg_tb_2();
+//  get_messy_config(6, true);
+  get_messy_cfg_tb_5();
 
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
@@ -540,6 +540,117 @@ hardcode_messy_cfg(const size_t& n)
 
 //! Generate a messy config for test bed
 /*!
+  More ...
+*/
+void
+get_messy_cfg_tb_6()
+{
+  sense_movable_object( "CAN1",
+                        B_RADIUS, B_HEIGHT,
+                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN2",
+                        B_RADIUS, B_HEIGHT,
+                        0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+                        0.,sqrt(0.5),0.,sqrt(0.5)
+                      );
+                      
+  sense_movable_object( "CAN3",
+                        B_RADIUS, B_HEIGHT,
+                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN4",
+                        B_RADIUS, B_HEIGHT,
+                        0.30, 0.35,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN5",
+                        B_RADIUS, B_HEIGHT,
+                        0.40, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN6",
+                        B_RADIUS, B_HEIGHT,
+                        -0.10, -0.45,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+}
+//! Generate a messy config for test bed
+/*!
+  More ...
+*/
+void
+get_messy_cfg_tb_5()
+{
+  sense_movable_object( "CAN1",
+                        B_RADIUS, B_HEIGHT,
+                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN2",
+                        B_RADIUS, B_HEIGHT,
+                        0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+                        0.,sqrt(0.5),0.,sqrt(0.5)
+                      );
+                      
+  sense_movable_object( "CAN3",
+                        B_RADIUS, B_HEIGHT,
+                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN4",
+                        B_RADIUS, B_HEIGHT,
+                        0.30, 0.35,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN5",
+                        B_RADIUS, B_HEIGHT,
+                        0.40, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+}
+//! Generate a messy config for test bed
+/*!
+  More ...
+*/
+void
+get_messy_cfg_tb_4()
+{
+  sense_movable_object( "CAN1",
+                        B_RADIUS, B_HEIGHT,
+                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN2",
+                        B_RADIUS, B_HEIGHT,
+                        0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+                        0.,sqrt(0.5),0.,sqrt(0.5)
+                      );
+                      
+  sense_movable_object( "CAN3",
+                        B_RADIUS, B_HEIGHT,
+                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+                      
+  sense_movable_object( "CAN4",
+                        B_RADIUS, B_HEIGHT,
+                        0.30, 0.35,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+}
+//! Generate a messy config for test bed
+/*!
   Consists of 2 upright objects and 1 falling-down objects.
 */
 void
@@ -564,32 +675,6 @@ get_messy_cfg_tb_3()
                       );
 }
 
-////! Generate a messy config for test bed
-///*!
-//  Consists of 3 upright objects, one on the right and two on the left
-//*/
-//void
-//get_messy_cfg_tb_2()
-//{
-//  sense_movable_object( "CAN1",
-//                        B_RADIUS, B_HEIGHT,
-//                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-//                        0.,0.,0.,1.
-//                      );
-//                      
-//  sense_movable_object( "CAN2",
-//                        B_RADIUS, B_HEIGHT,
-//                        0.20, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-//                        0.,0.,0.,1.
-//                      );
-//                      
-//  sense_movable_object( "CAN3",
-//                        B_RADIUS, B_HEIGHT,
-//                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-//                        0.,0.,0.,1.
-//                      );
-//}
-
 void
 get_messy_cfg_tb_2()
 {
@@ -605,6 +690,21 @@ get_messy_cfg_tb_2()
                         0.,0.,0.,1.
                       );
 }
+
+//! Generate a messy config for test bed
+/*!
+  More ...
+*/
+void
+get_messy_cfg_tb_1()
+{
+  sense_movable_object( "CAN1",
+                        B_RADIUS, B_HEIGHT,
+                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                        0.,0.,0.,1.
+                      );
+}
+
 };// enf of: class VisionSensor
 
 int 

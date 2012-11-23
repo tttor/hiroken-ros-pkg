@@ -35,11 +35,12 @@ NnMachine(ros::NodeHandle& nh)
   training_data_path_ = "/home/vektor/hiroken-ros-pkg/planner_manager/data/trn/training.data";
   raw_data_path_ = "/home/vektor/hiroken-ros-pkg/planner_manager/data/trn/data.csv";
   metadata_path_ = "/home/vektor/hiroken-ros-pkg/planner_manager/data/trn/metadata.csv";
+  
   prep_data_path_ = "/home/vektor/hiroken-ros-pkg/planner_manager/data/trn/prep_data.csv";
   
   trained_net_path_ = "/home/vektor/hiroken-ros-pkg/nn_machine/net/trained.net";
   
-  std::ifstream metadata_in(metadata_path_.c_str());
+  std::ifstream metadata_in("/home/vektor/hiroken-ros-pkg/planner_manager/data/test/metadata.csv");
   if (metadata_in.is_open())
   {
     std::string line;
@@ -55,9 +56,12 @@ NnMachine(ros::NodeHandle& nh)
     
     feature_ids_.erase(feature_ids_.end());// Erase the label "OUT"
   }
+  else
+  {
+    ROS_ERROR("metadata file for feature_ids_ cannot be opened.");
+  }
   
   init();
-  fill_h_lookup();
 }
 
 ~NnMachine()
@@ -84,36 +88,49 @@ run_net_srv_handle(nn_machine::RunNet::Request& req, nn_machine::RunNet::Respons
       feature_vals.push_back(0.);
   }
   
-  // Extract features for test bed config
+//  // Extract features for test bed config, when we test using UCS
 //  // Write, only if this is new vertex
 //  pair< set<size_t>::iterator,bool > inserted;
 //  inserted = vertices_.insert(req.vertex);
-//  
 //  if(inserted.second)
 //  {
 //    std::ofstream test_data_out;
-//    test_data_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/test/tb.3.csv", std::ios_base::app);
+//    test_data_out.open("/home/vektor/hiroken-ros-pkg/planner_manager/data/test/tb.6.csv", std::ios_base::app);
 //    for(std::vector<double>::const_iterator i=feature_vals.begin(); i!=feature_vals.end()-1; ++i)
 //      test_data_out << *i << ",";
 //    test_data_out << *(feature_vals.end()-1);
-//    test_data_out << "," << req.vertex;
+//    test_data_out << "," << req.vertex;// THe last field is vertex idx
 //    test_data_out << endl;
 //    test_data_out.close();
 //  }
-//  res.output = 0.;
+//  res.output = 0.;// because this is using UCS
 //  return true;
   
+  fill_h_lookup();
   return run(req.vertex, &res);
+  
 //  return run(feature_vals, &res);
-}
+} 
 
 bool
 fill_h_lookup()
 {
   // Read the lookup table file, put into a map
-//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_plsregress8.tb3.csv");
-  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_regress.tb3.csv");
-    
+//    std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_plsr13.tb5.csv");
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_plsr13.tb4.csv");
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_plsr13.tb3.csv");
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_plsr13.tb2.csv");
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_plsr13.tb1.csv");  
+
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_lwpr.tb1.csv");
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_lwpr.tb2.csv");
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_lwpr.tb3.csv");
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_lwpr.tb4.csv");
+  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_lwpr.tb5.csv");  
+
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_nn.tb3.csv");
+//  std::ifstream h_lookup_in("/home/vektor/hiroken-ros-pkg/nn_machine/net/h_lookup_nn.tb4.csv");
+      
   if ( h_lookup_in.is_open() )
   {
     while ( h_lookup_in.good() )
@@ -145,7 +162,13 @@ run(const size_t& vertex, nn_machine::RunNet::Response* res)
   double h;
   
   h = h_lookup_[vertex];
+  
+  // To avoid negative heuristics, especially when use NN
+  if(h<0.)
+    h = 0.;
+    
   post_process_h(&h);
+  cerr << "h= " << h << endl;
   
   res->output = h;
   
