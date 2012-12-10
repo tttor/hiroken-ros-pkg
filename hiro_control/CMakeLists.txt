@@ -30,4 +30,4 @@ rosbuild_gensrv()
 rosbuild_add_executable(hjas src/hiro_joint_action_server.cpp)
 rosbuild_add_executable(hjc src/hiro_joint_controller.cpp)
 
-#target_link_libraries(example ${PROJECT_NAME})
+target_link_libraries(hjc log4cxx)

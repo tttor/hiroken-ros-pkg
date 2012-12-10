@@ -5,6 +5,9 @@ multi_dof_joints:
     child_frame_id: link_base
 groups:
   - name: rarm
+    base_link: link_chest_yaw
+    tip_link: link_rhand_palm
+  - name: rarm_U_chest
     base_link: link_base
     tip_link: link_rhand_palm
 default_collision_operations:
@@ -16,6 +19,27 @@ default_collision_operations:
     operation: disable  # Adjacent in collision
   - object1: link_neck_yaw
     object2: link_neck_pitch
+    operation: disable  # Adjacent in collision
+  - object1: link_chest_yaw
+    object2: link_lshoulder_yaw
+    operation: disable  # Adjacent in collision
+  - object1: link_lshoulder_yaw
+    object2: link_lshoulder_pitch
+    operation: disable  # Adjacent in collision
+  - object1: link_lshoulder_pitch
+    object2: link_lelbow_pitch
+    operation: disable  # Adjacent in collision
+  - object1: link_lelbow_pitch
+    object2: link_lwrist_yaw
+    operation: disable  # Adjacent in collision
+  - object1: link_lwrist_yaw
+    object2: link_lwrist_pitch
+    operation: disable  # Adjacent in collision
+  - object1: link_lwrist_pitch
+    object2: link_lwrist_roll
+    operation: disable  # Adjacent in collision
+  - object1: link_lwrist_roll
+    object2: link_lhand_palm
     operation: disable  # Adjacent in collision
   - object1: link_chest_yaw
     object2: link_rshoulder_yaw
@@ -39,6 +63,18 @@ default_collision_operations:
     object2: link_rhand_palm
     operation: disable  # Adjacent in collision
   - object1: link_base
+    object2: link_lelbow_pitch
+    operation: disable  # Never in collision
+  - object1: link_base
+    object2: link_lshoulder_pitch
+    operation: disable  # Never in collision
+  - object1: link_base
+    object2: link_lshoulder_yaw
+    operation: disable  # Never in collision
+  - object1: link_base
+    object2: link_lwrist_yaw
+    operation: disable  # Never in collision
+  - object1: link_base
     object2: link_neck_pitch
     operation: disable  # Never in collision
   - object1: link_base
@@ -55,6 +91,51 @@ default_collision_operations:
     operation: disable  # Never in collision
   - object1: link_base
     object2: link_rwrist_yaw
+    operation: disable  # Never in collision
+  - object1: link_lelbow_pitch
+    object2: link_lshoulder_yaw
+    operation: disable  # Never in collision
+  - object1: link_lelbow_pitch
+    object2: link_lwrist_pitch
+    operation: disable  # Never in collision
+  - object1: link_lelbow_pitch
+    object2: link_lwrist_roll
+    operation: disable  # Never in collision
+  - object1: link_lelbow_pitch
+    object2: link_rshoulder_yaw
+    operation: disable  # Never in collision
+  - object1: link_lhand_palm
+    object2: link_lwrist_pitch
+    operation: disable  # Never in collision
+  - object1: link_lshoulder_pitch
+    object2: link_lwrist_yaw
+    operation: disable  # Never in collision
+  - object1: link_lshoulder_yaw
+    object2: link_lwrist_yaw
+    operation: disable  # Never in collision
+  - object1: link_lshoulder_yaw
+    object2: link_neck_pitch
+    operation: disable  # Never in collision
+  - object1: link_lshoulder_yaw
+    object2: link_neck_yaw
+    operation: disable  # Never in collision
+  - object1: link_lshoulder_yaw
+    object2: link_relbow_pitch
+    operation: disable  # Never in collision
+  - object1: link_lshoulder_yaw
+    object2: link_rshoulder_yaw
+    operation: disable  # Never in collision
+  - object1: link_lshoulder_yaw
+    object2: link_rwrist_yaw
+    operation: disable  # Never in collision
+  - object1: link_lwrist_roll
+    object2: link_lwrist_yaw
+    operation: disable  # Never in collision
+  - object1: link_lwrist_yaw
+    object2: link_neck_yaw
+    operation: disable  # Never in collision
+  - object1: link_lwrist_yaw
+    object2: link_rshoulder_yaw
     operation: disable  # Never in collision
   - object1: link_neck_pitch
     object2: link_rshoulder_yaw

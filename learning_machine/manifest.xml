@@ -1,0 +1,16 @@
+<package>
+  <description brief="learning_machine">
+
+     learning_machine
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/learning_machine</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+
+</package>
+
+

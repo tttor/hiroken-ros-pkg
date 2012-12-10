@@ -30,14 +30,7 @@ public:
 Helper(ros::NodeHandle nh):
   nh_(nh)
 {
-  ros::service::waitForService("hiro_rarm_kinematics_2/get_fk_solver_info");
-  ros::service::waitForService("hiro_rarm_kinematics_2/get_fk");
-  
-  get_fk_solver_info_client_ = nh.serviceClient<kinematics_msgs::GetKinematicSolverInfo>("hiro_rarm_kinematics_2/get_fk_solver_info");
-  get_fk_client_ = nh.serviceClient<kinematics_msgs::GetPositionFK>("hiro_rarm_kinematics_2/get_fk");
-  
   ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
-  
   set_planning_scene_diff_client_ = nh.serviceClient<arm_navigation_msgs::SetPlanningSceneDiff> (SET_PLANNING_SCENE_DIFF_NAME);
   
   display_filtered_path_pub_ = nh.advertise<arm_navigation_msgs::DisplayTrajectory>("display_filtered_path", 1, true);
@@ -53,76 +46,11 @@ Helper(ros::NodeHandle nh):
 {
   delete[] collision_models_;// why does this: delete collision_models_; w/o [] seems to block the program
 }
-void
-display_path_cb(const  arm_navigation_msgs::DisplayTrajectory::ConstPtr& msg)
-{
-  visualization_msgs::Marker points;
 
-  points.header.frame_id = "/link_base";
-  points.header.stamp = ros::Time::now();
-  points.ns = "trajectory";
-  points.action = visualization_msgs::Marker::ADD;
-  points.type = visualization_msgs::Marker::POINTS;
-  points.id = 0;    
-  points.scale.x = 0.01;
-  points.scale.y = 0.01;
-  points.color.g = 1.0f;
-  points.color.a = 1.0;
-  points.pose.orientation.w = 1.0;
-  
-  visualization_msgs::Marker edges;
-    
-  edges.header.frame_id = "/link_base";
-  edges.header.stamp  = ros::Time::now();
-  edges.ns = "trajectory";
-  edges.action = visualization_msgs::Marker::ADD;
-  edges.type = visualization_msgs::Marker::LINE_STRIP;
-  edges.id = 1;
-  edges.scale.x = 0.03;
-  edges.color.b = 1.0;
-  edges.color.a = 1.0;
-  edges.pose.orientation.w = 1.0;
-  
-  ROS_INFO_STREAM("msg->trajectory.joint_trajectory.points.size()= " << msg->trajectory.joint_trajectory.points.size());
-  for(size_t i=0; i < msg->trajectory.joint_trajectory.points.size(); ++i)
-  {
-    kinematics_msgs::GetPositionFK::Response fk_response;
-    fk_response = solve_fk(msg->trajectory.joint_trajectory.points.at(i));
-    
-    //ROS_INFO_STREAM("fk_response.pose_stamped.size= " << fk_response.pose_stamped.size());
-    // For now, there actually is only 1 stamp 
-    for(size_t j=0; j< fk_response.pose_stamped.size(); ++j)
-    {
-    /*
-      ROS_INFO_STREAM("Link    : " << fk_response.fk_link_names[j].c_str());
-      ROS_INFO_STREAM("Position: " << 
-        fk_response.pose_stamped[j].pose.position.x << "," <<  
-        fk_response.pose_stamped[j].pose.position.y << "," << 
-        fk_response.pose_stamped[j].pose.position.z);
-      ROS_INFO("Orientation: %f %f %f %f",
-        fk_response.pose_stamped[j].pose.orientation.x,
-        fk_response.pose_stamped[j].pose.orientation.y,
-        fk_response.pose_stamped[j].pose.orientation.z,
-        fk_response.pose_stamped[j].pose.orientation.w);
-    */
-      geometry_msgs::Point p;
-      p.x = fk_response.pose_stamped[j].pose.position.x;
-      p.y = fk_response.pose_stamped[j].pose.position.y;
-      p.z = fk_response.pose_stamped[j].pose.position.z;
-
-      points.points.push_back(p);
-      edges.points.push_back(p);
-    } 
-    //path_marker_pub_.publish(points);
-    path_marker_pub_.publish(edges);
-  }
-}
 void
-display_filtered_path_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
+motion_plan_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
 {
-  ROS_DEBUG_STREAM("filtered_trajectory_msg->trajectory.joint_trajectory.points.size()= " << msg->points.size());
-  
- // Visualize the path of the plan     
+ // Visualize the motion plan     
   visualization_msgs::Marker edges;
   
   edges.header.frame_id = "/link_base";
@@ -136,6 +64,14 @@ display_filtered_path_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
   edges.color.a = 1.0;
   edges.pose.orientation.w = 1.0;
   
+  // Obtain the jspace
+  // This is a simplistic method
+  std::string jspace;
+  if(msg->joint_names.size()==7)
+    jspace = "rarm_U_chest";
+  else if(msg->joint_names.size()==6)
+    jspace = "rarm";
+  
   if( msg->points.empty() )
   { 
     edges.action = visualization_msgs::Marker::DELETE;
@@ -146,7 +82,7 @@ display_filtered_path_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
   for(size_t i=0; i < msg->points.size(); ++i)
   {
     kinematics_msgs::GetPositionFK::Response fk_response;
-    fk_response = solve_fk(msg->points.at(i));
+    fk_response = solve_fk(msg->points.at(i),jspace);
     
     //ROS_INFO_STREAM("fk_response.pose_stamped.size= " << fk_response.pose_stamped.size());
     // For now, there actually is only 1 stamp 
@@ -175,18 +111,26 @@ display_filtered_path_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
   }
   
   // Visualize the plan 
-  visualizePlan(*msg);
+//  visualizePlan(*msg);
 }
 
 std::vector<geometry_msgs::Point>
 convert_to_cartesian(const trajectory_msgs::JointTrajectory& joint_trajectory)
 {
+  // Obtain the jspace
+  // This is a simplistic method
+  std::string jspace;
+  if(joint_trajectory.joint_names.size()==7)
+    jspace = "rarm_U_chest";
+  else if(joint_trajectory.joint_names.size()==6)
+    jspace = "rarm";
+    
   std::vector<geometry_msgs::Point> cartesian_trajectory;
   
   for(size_t i=0; i < joint_trajectory.points.size(); ++i)
   {
     kinematics_msgs::GetPositionFK::Response fk_response;
-    fk_response = solve_fk(joint_trajectory.points.at(i));
+    fk_response = solve_fk(joint_trajectory.points.at(i),jspace);
     
     //ROS_INFO_STREAM("fk_response.pose_stamped.size= " << fk_response.pose_stamped.size());
     // For now, there actually is only 1 stamp 
@@ -270,9 +214,6 @@ ros::Publisher filtered_path_marker_pub_;
 ros::Publisher display_filtered_path_pub_;
 ros::Publisher path_quality_pub_;
 
-ros::ServiceClient get_fk_solver_info_client_;
-ros::ServiceClient get_fk_client_;
-
 ros::ServiceClient set_planning_scene_diff_client_;
 
 planning_environment::CollisionModels* collision_models_;
@@ -324,6 +265,7 @@ smoothness(const std::vector<geometry_msgs::Point>& path)
   }
   return s;
 }
+
 bool 
 revertPlanningScene() 
 {
@@ -333,6 +275,7 @@ revertPlanningScene()
   }
   return true;
 }
+
 void 
 visualizePlan(const trajectory_msgs::JointTrajectory& trajectory)
 {
@@ -342,11 +285,10 @@ visualizePlan(const trajectory_msgs::JointTrajectory& trajectory)
   
   if( !ros::param::get("/hiro_move_rarm/group", group_name) )
   {
-    ROS_WARN("Can not get /hiro_move_rarm/group");
+    ROS_ERROR("Can not get /hiro_move_rarm/group");
     return;
   }
   
-  //d_path.model_id = "rarm";// TODO should be obtained from parameter server
   d_path.model_id = group_name;
   d_path.trajectory.joint_trajectory = trajectory;
   
@@ -372,11 +314,21 @@ visualizePlan(const trajectory_msgs::JointTrajectory& trajectory)
 }
 
 kinematics_msgs::GetPositionFK::Response
-solve_fk(const trajectory_msgs::JointTrajectoryPoint& point){
+solve_fk(const trajectory_msgs::JointTrajectoryPoint& point, const std::string& jspace)
+{
+  std::string get_fk_solver_info_str = "hiro_" + jspace + "_kinematics_2/get_fk_solver_info";
+  std::string get_fk_str = "hiro_" + jspace + "_kinematics_2/get_fk";
+    
+  ros::service::waitForService(get_fk_solver_info_str);
+  ros::service::waitForService(get_fk_str);
+  
+  ros::ServiceClient get_fk_solver_info_client = nh_.serviceClient<kinematics_msgs::GetKinematicSolverInfo>(get_fk_solver_info_str);
+  ros::ServiceClient get_fk_client = nh_.serviceClient<kinematics_msgs::GetPositionFK>(get_fk_str);
+  
   kinematics_msgs::GetKinematicSolverInfo::Request request;
   kinematics_msgs::GetKinematicSolverInfo::Response response;
   
-  if(get_fk_solver_info_client_.call(request,response))
+  if(get_fk_solver_info_client.call(request,response))
   {
     for(unsigned int i=0; i< response.kinematic_solver_info.joint_names.size(); i++)
     {
@@ -406,7 +358,7 @@ solve_fk(const trajectory_msgs::JointTrajectoryPoint& point){
     fk_request.robot_state.joint_state.position.at(j) = point.positions.at(j);
   }
   
-  if(get_fk_client_.call(fk_request, fk_response))
+  if(get_fk_client.call(fk_request, fk_response))
   {
     if(fk_response.error_code.val != fk_response.error_code.SUCCESS)
       ROS_ERROR("Forward kinematics failed");
@@ -426,9 +378,8 @@ main(int argc, char** argv)
 
   Helper helper(nh);
   
-  ros::Subscriber display_path_sub = nh.subscribe("display_path", 1, &Helper::display_path_cb, &helper);
-  ros::Subscriber display_filtered_path_sub = nh.subscribe("rarm_controller/command", 1, &Helper::display_filtered_path_cb, &helper);
-  ros::Subscriber motion_plan_sub = nh.subscribe("motion_plan", 1, &Helper::display_filtered_path_cb, &helper);
+  ros::Subscriber display_filtered_path_sub = nh.subscribe("rarm_controller/command", 1, &Helper::motion_plan_cb, &helper);
+  ros::Subscriber motion_plan_sub = nh.subscribe("motion_plan", 1, &Helper::motion_plan_cb, &helper);
   
   ros::ServiceServer benchmark_path_srv;
   benchmark_path_srv = nh.advertiseService("benchmark_motion_plan", &Helper::benchmark_path_srv_cb, &helper);

@@ -1,0 +1,19 @@
+<package>
+  <description brief="general_manager">
+
+     general_manager
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/general_manager</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  
+  <depend package="hiro_sensor"/>
+  <depend package="hiro_control"/>    
+  <depend package="planner_manager"/>
+</package>
+
+
