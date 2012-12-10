@@ -1,4 +1,4 @@
 <launch>
-    <param name="robot_description" command="$(find xacro)/xacro.py '$(find hiro_common)/urdf/hiro.urdf.xacro'" />
+    <param name="robot_description" textfile="$(find hiro_common)/urdf/hiro.urdf" />
     <rosparam command="load" ns="robot_description_planning" file="$(find hiro_arm_navigation)/config/hiro_planning_description.yaml" />
 </launch>

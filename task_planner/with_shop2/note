@@ -1,0 +1,12 @@
+5 objects
+---------------------------------------------------------------------------
+Problem AFTER-PARTY-PROBLEM with :WHICH = :ALL, :VERBOSE = :LONG-PLANS
+Totals: Plans Mincost Maxcost Expansions Inferences  CPU time  Real time
+         120    21.0    21.0       2072       3902     0.244      0.242
+
+6 objects
+---------------------------------------------------------------------------
+Problem AFTER-PARTY-PROBLEM with :WHICH = :ALL, :VERBOSE = :LONG-PLANS
+Totals: Plans Mincost Maxcost Expansions Inferences  CPU time  Real time
+         720    25.0    25.0      12458      23474     1.472      1.477
+

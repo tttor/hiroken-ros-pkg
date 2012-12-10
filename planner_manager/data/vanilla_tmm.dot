@@ -1,0 +1,12 @@
+digraph G {
+MessyHome;
+"Grasped_CAN1[]";
+"Released_CAN1[]";
+TidyHome;
+MessyHome->"Grasped_CAN1[]"  [jspace=rarm, label="TRANSIT_R_HOME_MESSY-SPOT", weight=0];
+MessyHome->"Grasped_CAN1[]"  [jspace=rarm_U_chest, label="TRANSIT_R_HOME_MESSY-SPOT", weight=0];
+"Grasped_CAN1[]"->"Released_CAN1[]"  [jspace=rarm, label="TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT", weight=0];
+"Grasped_CAN1[]"->"Released_CAN1[]"  [jspace=rarm_U_chest, label="TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT", weight=0];
+"Released_CAN1[]"->TidyHome  [jspace=rarm, label="TRANSIT_R_TIDY-SPOT_HOME", weight=0];
+"Released_CAN1[]"->TidyHome  [jspace=rarm_U_chest, label="TRANSIT_R_TIDY-SPOT_HOME", weight=0];
+}

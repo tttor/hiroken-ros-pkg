@@ -7,39 +7,11 @@
 
 (defun plan-found-hook (state which plan cost depth)
   (
-    with-open-file (str "state.shop2"
-                     :direction :output
-                     :if-exists :append
-                     :if-does-not-exist :create)
-    (format str "~A ~%" state)
-  )
-  (
-    with-open-file (str "which.shop2"
-                     :direction :output
-                     :if-exists :append
-                     :if-does-not-exist :create)
-    (format str "~A ~%" which)
-  )
-  (
     with-open-file (str "plan.shop2"
                      :direction :output
                      :if-exists :append
                      :if-does-not-exist :create)
     (format str "~A ~%" plan)
-  )
-  (
-    with-open-file (str "cost.shop2"
-                     :direction :output
-                     :if-exists :append
-                     :if-does-not-exist :create)
-    (format str "~5,2F ~%" cost)
-  )
-  (
-    with-open-file (str "depth.shop2"
-                     :direction :output
-                     :if-exists :append
-                     :if-does-not-exist :create)
-    (format str "~5,2F ~%" depth)
   )
 )
 
@@ -80,7 +52,7 @@
 )
 (defproblem after-party-problem tidy-up
   ( 
-    (in can1 messy-spot) (in can2 messy-spot) (in can3 messy-spot) (in can4 messy-spot) (in can5 messy-spot) (in can6 messy-spot); the initial state of p1 with 2 cans
+    (in can1 messy-spot) (in can2 messy-spot) (in can3 messy-spot) (in can4 messy-spot) (in can5 messy-spot) (in can6 messy-spot) (in can7 messy-spot); the initial state of p1 with 2 cans
     
     (); for now, we do not care with the initial state of p2 (the tidy spot)
     
@@ -88,7 +60,8 @@
   ) 
   ( (tidy messy-spot tidy-spot r home) )
 )
+
 ;(shop-trace :methods)
-(shop-trace :all)
+;(shop-trace :all)
 (find-plans 'after-party-problem :verbose :long-plans :which :all)
 ;(find-plans 'after-party-problem :verbose :long-plans :which :first :plan-tree :true)

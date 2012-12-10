@@ -1,0 +1,40 @@
+<launch>
+  <arg name="is_online" default="False" />
+	<arg name="joint_gui" default="True" />
+	<arg name="testing" default="False" />
+  
+  <!-- A crucial parameter indicating whether this is online -->
+  <param name="is_online" value="$(arg is_online)"/>
+  <param name="task_planner_path" value="$(find task_planner)"/>
+  <param name="planner_manager_path" value="$(find planner_manager)"/>
+
+  <group if="$(arg is_online)">          
+    <param name="hiro_driver_path" value="$(find hiro_control)/driver/hiro" />
+    <param name="hiro_ip_addr" value="192.168.128.129" />
+    
+    <node name="hiro_machine" pkg="hiro_control" type="hiro_machine.py"/> 
+    
+    <param name="hiro_hand_driver_path" value="$(find hiro_control)/driver/hiro_hand" />
+    <param name="hiro_hand_ip_addr" value="192.168.128.130" />
+    
+    <node name="hiro_hand_machine" pkg="hiro_control" type="hiro_hand_machine.py"/> 
+  </group>
+  
+  <group unless="$(arg is_online)">    
+    <!-- These are parameters for joint_state_publisher -->
+    <param name="use_gui" value="$(arg joint_gui)"/>
+    <param name="rate" value="30"/>
+    <rosparam param="source_list">['rarm_joint_state_cmd']</rosparam>
+  
+    <node name="hiro_machine_sim" pkg="joint_state_publisher" type="joint_state_publisher"/> 
+  </group>
+  
+  <include file="$(find hiro_arm_navigation)/launch/hiro_arm_navigation.launch"/>
+
+  <node name="hiro_tf_gen" pkg="robot_state_publisher" type="state_publisher" />
+
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find hiro_arm_navigation)/config/common_disp.vcg" />
+
+  <node pkg="tf" type="static_transform_publisher" name="table_tf_bc" args="0 0 0.835 0 0 0 /link_base /table 100" />
+  
+</launch>

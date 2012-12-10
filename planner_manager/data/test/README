@@ -1,2 +1,0 @@
-This contains feature extracted from nodes in a certain test bed.
-Collected using uniform cost search, so that it contains the worst case, i.e. max. number of expanded nodes.

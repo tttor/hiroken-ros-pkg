@@ -44,7 +44,7 @@ HiroJointController(ros::NodeHandle nh):
 void
 joint_trajectory_sub_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
 {
-  ROS_INFO_STREAM("Received a trajectory from joint_action_server containing " << msg->points.size() << " waypoints");
+  ROS_DEBUG_STREAM("Received a trajectory from joint_action_server containing " << msg->points.size() << " waypoints");
   
   control_joint(*msg);
 }
@@ -118,12 +118,10 @@ control_joint(const trajectory_msgs::JointTrajectory& path)
           
   ros::Rate joint_control_rate(JOINT_CONTROL_RATE);// NOTE this is likely to affect only in offline mode
   
-  std::ofstream data;
-  data.open("/home/vektor/4/doc/joint_data/joint_states.csv", std::ios_base::app);
-  
   for(size_t i=0; i<path.points.size();++i)
   {
     // For debugging
+    ros::Duration control_duration;
     ros::Duration in_loop_duration;
     ros::Time in_loop_begin = ros::Time::now();
     
@@ -150,7 +148,6 @@ control_joint(const trajectory_msgs::JointTrajectory& path)
       ROS_DEBUG("ros::service::waitForService:control_rarm");
       ros::service::waitForService("control_rarm");
       
-      ros::Duration control_duration;
       ros::Time begin = ros::Time::now();
       
       if( !control_rarm_client_.call(control_rarm_req, control_rarm_res) ) 
@@ -183,10 +180,7 @@ control_joint(const trajectory_msgs::JointTrajectory& path)
         joint_state_cmd.position[j] = path.points.at(i).positions.at(j);
         joint_state_cmd.velocity[j] = 0.;
         joint_state_cmd.effort[j] = 0.;
-        
-        data << path.points.at(i).positions.at(j) << ",";
       }
-      data << std::endl;
       
       joint_states_cmd_pub_.publish(joint_state_cmd);
       
@@ -216,12 +210,10 @@ control_joint(const trajectory_msgs::JointTrajectory& path)
 
     in_loop_duration = ros::Time::now() - in_loop_begin;
     
-//      ROS_INFO_STREAM( "Control Duration= "<< control_duration.toSec() );
-//      ROS_INFO_STREAM( "In loop Duration= "<< in_loop_duration.toSec() );
+    ROS_DEBUG_STREAM( "Control Duration= "<< control_duration.toSec() );
+    ROS_DEBUG_STREAM( "In loop Duration= "<< in_loop_duration.toSec() );
   }// end of: for(size_t i=0; i<path.points.size();++i)  
 
-  data.close();
-  
   ROS_DEBUG_STREAM( "Number of lucky_waypoint= " << n_lucky_waypoint << " of " <<  path.points.size() );
   ROS_DEBUG("Finish controlling joints for a trajectory");
 }
@@ -230,9 +222,12 @@ control_joint(const trajectory_msgs::JointTrajectory& path)
 int 
 main(int argc, char** argv)
 {
-  ros::init(argc, argv, "hiro_joint_controller");
+  ros::init(argc, argv, "hiro_joint_ctrl");
   ros::NodeHandle nh;
-  
+
+//  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
+//  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
+
   HiroJointController hjc(nh);
   
   ros::Subscriber joint_trajectory_sub = nh.subscribe("rarm_controller/command", 1, &HiroJointController::joint_trajectory_sub_cb, &hjc);
