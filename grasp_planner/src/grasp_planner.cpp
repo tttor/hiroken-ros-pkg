@@ -25,47 +25,49 @@ static const size_t YAW_STEP = (360./5.);// It means each step is (2*M_PI)/YAW_S
 class GraspPlanner
 {
 public:
-GraspPlanner(ros::NodeHandle& nh):
-  nh_(nh)
+GraspPlanner(ros::NodeHandle& nh)
+: nh_(nh)
 {
   state_validity_marker_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("state_validity_markers_array", 128);
-  
-  ik_info_client_ = nh_.serviceClient<kinematics_msgs::GetKinematicSolverInfo>("hiro_rarm_kinematics_2/get_ik_solver_info");
-  ik_client_ = nh_.serviceClient<kinematics_msgs::GetPositionIK>("hiro_rarm_kinematics_2/get_ik");
 }
+
 ~GraspPlanner()
-{
-}
+{ }
+
 bool
-plan_grasp_cb(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp::Response &res)
+plan_grasp_srv_cb(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp::Response &res)
 {
-  ROS_DEBUG("receive a srv req whose id is %s", req.object.id.c_str());
+  ROS_DEBUG_STREAM("Grasp planning: BEGIN for " << req.object.id.c_str() << " in " << req.jspace );
   
-  ros::service::waitForService("hiro_rarm_kinematics_2/get_ik_solver_info");
-  ros::service::waitForService("hiro_rarm_kinematics_2/get_ik");
+  // Sanity checks  
+  std::string get_ik_solver_info_str = "hiro_" + req.jspace + "_kinematics_2/get_ik_solver_info";
+  std::string get_ik_str = "hiro_" + req.jspace + "_kinematics_2/get_ik";
+    
+  ros::service::waitForService(get_ik_solver_info_str);
+  ros::service::waitForService(get_ik_str);
   
+  ros::ServiceClient ik_info_client = nh_.serviceClient<kinematics_msgs::GetKinematicSolverInfo>(get_ik_solver_info_str);
+  ros::ServiceClient ik_client = nh_.serviceClient<kinematics_msgs::GetPositionIK>(get_ik_str);
+
   // define the service messages
   kinematics_msgs::GetKinematicSolverInfo::Request gksi_req;
   kinematics_msgs::GetKinematicSolverInfo::Response gksi_res;
 
-  if( !ik_info_client_.call(gksi_req, gksi_res) )
+  if( !ik_info_client.call(gksi_req, gksi_res) )
   {
     ROS_ERROR("Could not call IK info query service");
     return false;
   }
-  
-  ROS_DEBUG("Grasp planning: BEGIN");
    
   const size_t yaw_step = YAW_STEP;
   const double yaw_step_ang = (2*M_PI)/yaw_step;
   size_t num_grasp_plan = 0;
     
 //  tf::TransformListener tf_listener;
-  
   tf::TransformBroadcaster tf_bc;// Must be outside the loop where it is used
-    
-  ros::Rate rate(120.);// Should be higher that object_tf publishing rate (from vision_sensor))
   
+  ROS_DEBUG("Start looping over yaw_steps");
+  ros::Rate rate(120.);// Should be higher that object_tf publishing rate (from vision_sensor))
   for(size_t i=0; i<yaw_step;++i)
   {
 //    tf::StampedTransform object_tf;
@@ -120,12 +122,10 @@ plan_grasp_cb(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp:
       gpik_req.ik_request.ik_seed_state.joint_state.position[j] = (gksi_res.kinematic_solver_info.limits[j].min_position + gksi_res.kinematic_solver_info.limits[j].max_position)/2.0;
     }
   
-    if(ik_client_.call(gpik_req, gpik_res))
+    if(ik_client.call(gpik_req, gpik_res))
     {
       if(gpik_res.error_code.val == gpik_res.error_code.SUCCESS)
       {
-        ROS_DEBUG("Inverse kinematics: SUCCEEDED");
-        
         // Check further
         ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
         get_planning_scene_client_ = nh_.serviceClient<arm_navigation_msgs::GetPlanningScene>(SET_PLANNING_SCENE_DIFF_NAME);
@@ -142,8 +142,8 @@ plan_grasp_cb(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp:
 
         planning_models::KinematicState* state = collision_models.setPlanningScene(planning_scene_res.planning_scene);
         
-        std::vector<std::string> arm_names = collision_models.getKinematicModel()->getModelGroup("rarm")->getUpdatedLinkModelNames();
-        std::vector<std::string> joint_names = collision_models.getKinematicModel()->getModelGroup("rarm")->getJointModelNames();
+        std::vector<std::string> arm_names = collision_models.getKinematicModel()->getModelGroup(req.jspace)->getUpdatedLinkModelNames();
+        std::vector<std::string> joint_names = collision_models.getKinematicModel()->getModelGroup(req.jspace)->getJointModelNames();
         
         std::map<std::string, double> joint_values;
         for(size_t k=0; k<joint_names.size(); ++k)
@@ -195,7 +195,7 @@ plan_grasp_cb(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp:
         collision_models.getRobotMarkersGivenState(*state,
                                                    arr,
                                                    color,
-                                                   "rarm",
+                                                   req.jspace,
                                                    ros::Duration(0.2),
                                                    &arm_names);
         state_validity_marker_array_pub_.publish(arr);
@@ -212,7 +212,8 @@ plan_grasp_cb(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp:
     }
     rate.sleep();
   } // End of for(size_t i=0; i<yaw_step;++i)
-
+  ROS_DEBUG("Finished looping over yaw_steps");
+  
   // Commented because there will be no significant diff. between failure and successful  
   const double failure_w = 10.;
   const size_t n_failure = yaw_step - num_grasp_plan;
@@ -228,8 +229,6 @@ plan_grasp_cb(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp:
 private:
 ros::NodeHandle nh_;
 
-ros::ServiceClient ik_info_client_;
-ros::ServiceClient ik_client_;
 ros::ServiceClient get_planning_scene_client_;
 
 ros::Publisher state_validity_marker_array_pub_;
@@ -241,12 +240,15 @@ main(int argc, char** argv)
   ros::init(argc, argv, "grasper");
   ros::NodeHandle nh;
 
+//  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
+//  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
+
   GraspPlanner gp(nh);
   
   ros::ServiceServer plan_grasp_srv_;
-  plan_grasp_srv_ = nh.advertiseService("plan_grasp", &GraspPlanner::plan_grasp_cb, &gp);
-  ROS_INFO("Ready to plan grasps.");
+  plan_grasp_srv_ = nh.advertiseService("plan_grasp", &GraspPlanner::plan_grasp_srv_cb, &gp);
   
+  ROS_INFO("Ready to plan grasps.");
   ros::spin();
   
   ros::shutdown();

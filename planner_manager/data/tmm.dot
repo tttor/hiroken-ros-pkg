@@ -1,0 +1,12 @@
+digraph G {
+"Grasped_CAN1[]";
+MessyHome;
+"Released_CAN1[]";
+TidyHome;
+"Grasped_CAN1[]"->"Released_CAN1[]"  [color=red, jspace=rarm, label="TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT", srcstate="CAN1,0.14999999999999999,-0.29999999999999999,0.086499999999999994,0,0,0,1;", weight=172];
+"Grasped_CAN1[]"->"Released_CAN1[]"  [color=blue, jspace=rarm_U_chest, label="TRANSFER_R_CAN1_MESSY-SPOT_TIDY-SPOT", srcstate="CAN1,0.14999999999999999,-0.29999999999999999,0.086499999999999994,0,0,0,1;", weight=4.69143];
+MessyHome->"Grasped_CAN1[]"  [color=blue, jspace=rarm, label="TRANSIT_R_HOME_MESSY-SPOT", srcstate="CAN1,0.14999999999999999,-0.29999999999999999,0.92149999999999999,0,0,0,1;", weight=3.47632];
+MessyHome->"Grasped_CAN1[]"  [color=red, jspace=rarm_U_chest, label="TRANSIT_R_HOME_MESSY-SPOT", srcstate="CAN1,0.14999999999999999,-0.29999999999999999,0.92149999999999999,0,0,0,1;", weight=3.51231];
+"Released_CAN1[]"->TidyHome  [color=red, jspace=rarm, label="TRANSIT_R_TIDY-SPOT_HOME", srcstate="CAN1,0,0.34999999999999998,0.92149999999999999,0,0,0,1;", weight=172];
+"Released_CAN1[]"->TidyHome  [color=blue, jspace=rarm_U_chest, label="TRANSIT_R_TIDY-SPOT_HOME", srcstate="CAN1,0,0.34999999999999998,0.92149999999999999,0,0,0,1;", weight=4.00138];
+}

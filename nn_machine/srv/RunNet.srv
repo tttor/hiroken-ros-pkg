@@ -1,4 +1,0 @@
-uint64 vertex
-nn_machine/Feature[] input
----
-float64 output

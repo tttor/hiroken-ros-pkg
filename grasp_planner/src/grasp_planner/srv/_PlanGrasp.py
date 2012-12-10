@@ -9,11 +9,12 @@ import geometry_msgs.msg
 import std_msgs.msg
 
 class PlanGraspRequest(genpy.Message):
-  _md5sum = "f7a087ead26fd69642de724593d27ebe"
+  _md5sum = "54df94bfc96cf22a032153787903e218"
   _type = "grasp_planner/PlanGraspRequest"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """
 arm_navigation_msgs/CollisionObject object
+string jspace
 
 ================================================================================
 MSG: arm_navigation_msgs/CollisionObject
@@ -137,8 +138,8 @@ float64 z
 float64 w
 
 """
-  __slots__ = ['object']
-  _slot_types = ['arm_navigation_msgs/CollisionObject']
+  __slots__ = ['object','jspace']
+  _slot_types = ['arm_navigation_msgs/CollisionObject','string']
 
   def __init__(self, *args, **kwds):
     """
@@ -148,7 +149,7 @@ float64 w
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       object
+       object,jspace
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -159,8 +160,11 @@ float64 w
       #message fields cannot be None, assign default values for those that are
       if self.object is None:
         self.object = arm_navigation_msgs.msg.CollisionObject()
+      if self.jspace is None:
+        self.jspace = ''
     else:
       self.object = arm_navigation_msgs.msg.CollisionObject()
+      self.jspace = ''
 
   def _get_types(self):
     """
@@ -216,6 +220,12 @@ float64 w
         _v2 = val1.orientation
         _x = _v2
         buff.write(_struct_4d.pack(_x.x, _x.y, _x.z, _x.w))
+      _x = self.jspace
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -306,6 +316,15 @@ float64 w
         end += 32
         (_x.x, _x.y, _x.z, _x.w,) = _struct_4d.unpack(str[start:end])
         self.object.poses.append(val1)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.jspace = str[start:end].decode('utf-8')
+      else:
+        self.jspace = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -360,6 +379,12 @@ float64 w
         _v6 = val1.orientation
         _x = _v6
         buff.write(_struct_4d.pack(_x.x, _x.y, _x.z, _x.w))
+      _x = self.jspace
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -451,6 +476,15 @@ float64 w
         end += 32
         (_x.x, _x.y, _x.z, _x.w,) = _struct_4d.unpack(str[start:end])
         self.object.poses.append(val1)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.jspace = str[start:end].decode('utf-8')
+      else:
+        self.jspace = str[start:end]
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -811,6 +845,6 @@ _struct_2I = struct.Struct("<2I")
 _struct_d = struct.Struct("<d")
 class PlanGrasp(object):
   _type          = 'grasp_planner/PlanGrasp'
-  _md5sum = 'c214586bed6ac1dd7e3513ab1459889b'
+  _md5sum = 'baedc1f1c41f8bb1d906ca306945570f'
   _request_class  = PlanGraspRequest
   _response_class = PlanGraspResponse

@@ -83,7 +83,7 @@ sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Respo
   sense_static_object();
    
 //  get_messy_config(6, true);
-  get_messy_cfg_tb_5();
+  get_messy_cfg_tb_1();
 
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;

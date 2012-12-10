@@ -1,0 +1,8 @@
+>> dot paths, e.g. task graph, tmm should be in global variables set at .launch or centralized
+
+>> adjust hiro_joint_controller.cpp and hiro_joint_action_server.cpp to accept different jspaces
+
+>> geometric planning cost HAVE TO consider jspace
+
+DONE
+-- grasp_planner should receive information about jspace used. 

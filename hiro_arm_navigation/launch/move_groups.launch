@@ -1,3 +1,4 @@
 <launch>
     <include file="$(find hiro_arm_navigation)/launch/move_rarm.launch" />
+    <include file="$(find hiro_arm_navigation)/launch/move_rarm_U_chest.launch" />
 </launch>

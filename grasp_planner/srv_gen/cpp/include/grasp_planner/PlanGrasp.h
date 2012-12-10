@@ -29,16 +29,21 @@ struct PlanGraspRequest_ {
 
   PlanGraspRequest_()
   : object()
+  , jspace()
   {
   }
 
   PlanGraspRequest_(const ContainerAllocator& _alloc)
   : object(_alloc)
+  , jspace(_alloc)
   {
   }
 
   typedef  ::arm_navigation_msgs::CollisionObject_<ContainerAllocator>  _object_type;
    ::arm_navigation_msgs::CollisionObject_<ContainerAllocator>  object;
+
+  typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _jspace_type;
+  std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  jspace;
 
 
   typedef boost::shared_ptr< ::grasp_planner::PlanGraspRequest_<ContainerAllocator> > Ptr;
@@ -106,12 +111,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::grasp_planner::PlanGraspRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "f7a087ead26fd69642de724593d27ebe";
+    return "54df94bfc96cf22a032153787903e218";
   }
 
   static const char* value(const  ::grasp_planner::PlanGraspRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0xf7a087ead26fd696ULL;
-  static const uint64_t static_value2 = 0x42de724593d27ebeULL;
+  static const uint64_t static_value1 = 0x54df94bfc96cf22aULL;
+  static const uint64_t static_value2 = 0x032153787903e218ULL;
 };
 
 template<class ContainerAllocator>
@@ -130,6 +135,7 @@ struct Definition< ::grasp_planner::PlanGraspRequest_<ContainerAllocator> > {
   {
     return "\n\
 arm_navigation_msgs/CollisionObject object\n\
+string jspace\n\
 \n\
 ================================================================================\n\
 MSG: arm_navigation_msgs/CollisionObject\n\
@@ -365,6 +371,7 @@ template<class ContainerAllocator> struct Serializer< ::grasp_planner::PlanGrasp
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
     stream.next(m.object);
+    stream.next(m.jspace);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -399,7 +406,7 @@ template<>
 struct MD5Sum<grasp_planner::PlanGrasp> {
   static const char* value() 
   {
-    return "c214586bed6ac1dd7e3513ab1459889b";
+    return "baedc1f1c41f8bb1d906ca306945570f";
   }
 
   static const char* value(const grasp_planner::PlanGrasp&) { return value(); } 
@@ -419,7 +426,7 @@ template<class ContainerAllocator>
 struct MD5Sum<grasp_planner::PlanGraspRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "c214586bed6ac1dd7e3513ab1459889b";
+    return "baedc1f1c41f8bb1d906ca306945570f";
   }
 
   static const char* value(const grasp_planner::PlanGraspRequest_<ContainerAllocator> &) { return value(); } 
@@ -439,7 +446,7 @@ template<class ContainerAllocator>
 struct MD5Sum<grasp_planner::PlanGraspResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "c214586bed6ac1dd7e3513ab1459889b";
+    return "baedc1f1c41f8bb1d906ca306945570f";
   }
 
   static const char* value(const grasp_planner::PlanGraspResponse_<ContainerAllocator> &) { return value(); } 

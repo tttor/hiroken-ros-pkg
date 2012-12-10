@@ -1,10 +1,10 @@
 <launch>
   <arg name="is_online" default="False" />
 	<arg name="joint_gui" default="False" />
-	<arg name="testing" default="False" />
+	<arg name="data_path" default="/home/vektor/data/rss-2013/" />
   
-  <!-- A crucial parameter indicating whether this is online -->
   <param name="is_online" value="$(arg is_online)"/>
+  <param name="data_path" value="$(arg data_path)"/>
   <param name="task_planner_path" value="$(find task_planner)"/>
   <param name="planner_manager_path" value="$(find planner_manager)"/>
 
@@ -49,9 +49,7 @@
   
   <node name="tasker" pkg="task_planner" type="tasker" output="screen" />
 
-  <node name="net" pkg="nn_machine" type="nn_machine" output="screen" />  
-    
-  <node name="planner_manager" pkg="planner_manager" type="planner" output="screen" />
+  <node name="planner_mgr" pkg="planner_manager" type="planner" output="screen" />
   
-  <!--param name="flower_description" command="$(find xacro)/xacro.py '$(find hk_env)/urdf/flower.urdf.xacro'" /-->
+  <node name="general_mgr" pkg="general_manager" type="general_mgr" output="screen" />    
 </launch>
