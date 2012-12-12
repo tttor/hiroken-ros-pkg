@@ -2,8 +2,7 @@
 (cl:in-package :asdf)
 
 (defsystem "hiro_control-srv"
-  :depends-on (:roslisp-msg-protocol :roslisp-utils :arm_navigation_msgs-msg
-               :trajectory_msgs-msg
+  :depends-on (:roslisp-msg-protocol :roslisp-utils :trajectory_msgs-msg
 )
   :components ((:file "_package")
     (:file "CommitMovingArm" :depends-on ("_package_CommitMovingArm"))

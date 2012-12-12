@@ -58,7 +58,10 @@ get_samples(const std::vector<std::string>& tmm_paths)
         
     std::ifstream tmm_dot(i->c_str());
     read_graphviz(tmm_dot, tmm, tmm_dp, "vertex_id");
-
+    
+    // Remove more-expensive edges, remove parallelism
+    std::set<TMMEdge> tobe_removed_edges;
+    
     boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
     for(boost::tie(vi,vi_end) = vertices(tmm); vi!=vi_end; ++vi)
     {
@@ -76,18 +79,22 @@ get_samples(const std::vector<std::string>& tmm_paths)
         {
           if(get(edge_weight,tmm,*oei) < get(edge_weight,tmm,it->second))
           {
-            remove_edge(it->second,tmm);
+            tobe_removed_edges.insert(it->second);
 
             it->second = *oei;
           }
           else
           {
-            remove_edge(oei,tmm);
+            tobe_removed_edges.insert(*oei);
           }
         }
       }
     }// end of: For each vertex in tmm
-      
+    
+    for(std::set<TMMEdge>::const_iterator i=tobe_removed_edges.begin(); i!=tobe_removed_edges.end(); ++i)
+      remove_edge(*i,tmm);
+    ROS_DEBUG("Parallelism: removed");
+    
     // Filter only the planned edge 
     PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, tmm) );
     typedef filtered_graph< TaskMotionMultigraph, PlannedEdgeFilter<TMMEdgeColorMap> > PlannedTMM;
@@ -95,6 +102,23 @@ get_samples(const std::vector<std::string>& tmm_paths)
     PlannedTMM p_tmm(tmm, planned_edge_filter);
     ROS_DEBUG_STREAM("num_vertices(p_tmm)= " << num_vertices(p_tmm));
     ROS_DEBUG_STREAM("num_edges(p_tmm)= " << num_edges(p_tmm));
+    
+    // Write the filtered tmm: p_tmm
+    boost::dynamic_properties p_tmm_dp;
+  
+    p_tmm_dp.property( "vertex_id",get(vertex_name,p_tmm) );
+    p_tmm_dp.property( "label",get(edge_name, p_tmm) );
+    p_tmm_dp.property( "weight",get(edge_weight, p_tmm) );
+    p_tmm_dp.property( "jspace",get(edge_jspace, p_tmm) );
+    p_tmm_dp.property( "color",get(edge_color, p_tmm) );
+    p_tmm_dp.property( "srcstate",get(edge_srcstate,p_tmm) );
+
+    std::string p_tmm_dot_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/p_tmm.dot";
+    ofstream p_tmm_dot;
+    p_tmm_dot.open(p_tmm_dot_path.c_str());
+      
+    write_graphviz_dp( p_tmm_dot, p_tmm, p_tmm_dp, std::string("vertex_id"));
+    p_tmm_dot.close();
     
     // Do dfs to get planned paths. First, make this multigraph to be a graph by removing more expensive edges
     DataCollector dc( &tr_data_,get_feature_names() );
@@ -160,7 +184,7 @@ get_feature_names()
     // Note that eventhough there is no "," or the metadata is empty, the resulted vector still has 1 element which is an empty string.
     if( !strcmp(feature_names.at(0).c_str(), std::string("").c_str())  )
     {
-        ROS_ERROR("metadata file is corrupt");
+        ROS_ERROR("metadata file is corrupt.");
         feature_names.erase(feature_names.begin());
     }
     else
@@ -194,8 +218,8 @@ main(int argc, char **argv)
   ros::init(argc, argv, "learning_machine");
   ros::NodeHandle nh;
   
-//  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
-//  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
+  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
+  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
   
   LearningMachine learner(nh);
   
@@ -204,7 +228,7 @@ main(int argc, char **argv)
 
 //  ros::ServiceServer test_srv;
 //  test_srv = nh.advertiseService("/test", &LearningMachine::test_srv_handle, &learner);
-  
+  ROS_INFO("learner: spinning...");
   ros::spin();
   
   return 0;

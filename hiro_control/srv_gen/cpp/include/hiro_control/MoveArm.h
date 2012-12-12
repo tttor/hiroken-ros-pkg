@@ -16,7 +16,7 @@
 
 #include "ros/service_traits.h"
 
-#include "arm_navigation_msgs/RobotTrajectory.h"
+#include "trajectory_msgs/JointTrajectory.h"
 
 
 
@@ -27,17 +27,17 @@ struct MoveArmRequest_ {
   typedef MoveArmRequest_<ContainerAllocator> Type;
 
   MoveArmRequest_()
-  : robot_trajectory()
+  : trajectory()
   {
   }
 
   MoveArmRequest_(const ContainerAllocator& _alloc)
-  : robot_trajectory(_alloc)
+  : trajectory(_alloc)
   {
   }
 
-  typedef  ::arm_navigation_msgs::RobotTrajectory_<ContainerAllocator>  _robot_trajectory_type;
-   ::arm_navigation_msgs::RobotTrajectory_<ContainerAllocator>  robot_trajectory;
+  typedef  ::trajectory_msgs::JointTrajectory_<ContainerAllocator>  _trajectory_type;
+   ::trajectory_msgs::JointTrajectory_<ContainerAllocator>  trajectory;
 
 
   typedef boost::shared_ptr< ::hiro_control::MoveArmRequest_<ContainerAllocator> > Ptr;
@@ -100,12 +100,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::hiro_control::MoveArmRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "6366bd72f32fa5d9429f90aac9082227";
+    return "48a668811b715b51af6b3383511ae27f";
   }
 
   static const char* value(const  ::hiro_control::MoveArmRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0x6366bd72f32fa5d9ULL;
-  static const uint64_t static_value2 = 0x429f90aac9082227ULL;
+  static const uint64_t static_value1 = 0x48a668811b715b51ULL;
+  static const uint64_t static_value2 = 0xaf6b3383511ae27fULL;
 };
 
 template<class ContainerAllocator>
@@ -122,12 +122,7 @@ template<class ContainerAllocator>
 struct Definition< ::hiro_control::MoveArmRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "arm_navigation_msgs/RobotTrajectory robot_trajectory\n\
-\n\
-================================================================================\n\
-MSG: arm_navigation_msgs/RobotTrajectory\n\
-trajectory_msgs/JointTrajectory joint_trajectory\n\
-arm_navigation_msgs/MultiDOFJointTrajectory multi_dof_joint_trajectory\n\
+    return "trajectory_msgs/JointTrajectory trajectory\n\
 \n\
 ================================================================================\n\
 MSG: trajectory_msgs/JointTrajectory\n\
@@ -158,41 +153,6 @@ float64[] positions\n\
 float64[] velocities\n\
 float64[] accelerations\n\
 duration time_from_start\n\
-================================================================================\n\
-MSG: arm_navigation_msgs/MultiDOFJointTrajectory\n\
-#A representation of a multi-dof joint trajectory\n\
-duration stamp\n\
-string[] joint_names\n\
-string[] frame_ids\n\
-string[] child_frame_ids\n\
-MultiDOFJointTrajectoryPoint[] points\n\
-\n\
-================================================================================\n\
-MSG: arm_navigation_msgs/MultiDOFJointTrajectoryPoint\n\
-geometry_msgs/Pose[] poses\n\
-duration time_from_start\n\
-================================================================================\n\
-MSG: geometry_msgs/Pose\n\
-# A representation of pose in free space, composed of postion and orientation. \n\
-Point position\n\
-Quaternion orientation\n\
-\n\
-================================================================================\n\
-MSG: geometry_msgs/Point\n\
-# This contains the position of a point in free space\n\
-float64 x\n\
-float64 y\n\
-float64 z\n\
-\n\
-================================================================================\n\
-MSG: geometry_msgs/Quaternion\n\
-# This represents an orientation in free space in quaternion form.\n\
-\n\
-float64 x\n\
-float64 y\n\
-float64 z\n\
-float64 w\n\
-\n\
 ";
   }
 
@@ -257,7 +217,7 @@ template<class ContainerAllocator> struct Serializer< ::hiro_control::MoveArmReq
 {
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
-    stream.next(m.robot_trajectory);
+    stream.next(m.trajectory);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -291,7 +251,7 @@ template<>
 struct MD5Sum<hiro_control::MoveArm> {
   static const char* value() 
   {
-    return "fb33bba3ae442866206b8da53e3f13ad";
+    return "874d1766247c2b01a9a335bc13e0897e";
   }
 
   static const char* value(const hiro_control::MoveArm&) { return value(); } 
@@ -311,7 +271,7 @@ template<class ContainerAllocator>
 struct MD5Sum<hiro_control::MoveArmRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "fb33bba3ae442866206b8da53e3f13ad";
+    return "874d1766247c2b01a9a335bc13e0897e";
   }
 
   static const char* value(const hiro_control::MoveArmRequest_<ContainerAllocator> &) { return value(); } 
@@ -331,7 +291,7 @@ template<class ContainerAllocator>
 struct MD5Sum<hiro_control::MoveArmResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "fb33bba3ae442866206b8da53e3f13ad";
+    return "874d1766247c2b01a9a335bc13e0897e";
   }
 
   static const char* value(const hiro_control::MoveArmResponse_<ContainerAllocator> &) { return value(); } 
