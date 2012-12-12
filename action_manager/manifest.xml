@@ -1,0 +1,16 @@
+<package>
+  <description brief="action_manager">
+
+     action_manager
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/action_manager</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  <depend package="hiro_control"/>
+</package>
+
+

@@ -31,6 +31,8 @@ public:
   void 
   examine_vertex(typename Graph::vertex_descriptor v, Graph& g) 
   {
+    cerr << "Examine v= " << get(vertex_name,g,v) << endl;
+    
     gpm_->mark_vertex(v);
     
     if(v == goal_)

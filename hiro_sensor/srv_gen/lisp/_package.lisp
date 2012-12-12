@@ -6,5 +6,10 @@
    "SENSE-REQUEST"
    "<SENSE-RESPONSE>"
    "SENSE-RESPONSE"
+   "SEE"
+   "<SEE-REQUEST>"
+   "SEE-REQUEST"
+   "<SEE-RESPONSE>"
+   "SEE-RESPONSE"
   ))
 

@@ -1,0 +1,17 @@
+<package>
+  <description brief="sensor_manager">
+
+     sensor_manager
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/sensor_manager</url>
+  <depend package="roscpp"/>
+  <depend package="rospy"/>
+  
+  <depend package="hiro_sensor"/>  
+</package>
+
+

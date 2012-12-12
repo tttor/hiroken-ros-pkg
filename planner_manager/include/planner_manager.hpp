@@ -71,7 +71,7 @@ private:
   It also employs the concept of task motion multigraph.
 */
 bool
-plan();
+plan(std::vector<trajectory_msgs::JointTrajectory>* man_plan);
 
 void
 set_tidy_config();
@@ -100,7 +100,7 @@ std::string planner_manager_path_;
 std::map<std::string, arm_navigation_msgs::CollisionObject> messy_cfg_;
 std::map<std::string, arm_navigation_msgs::CollisionObject> tidy_cfg_;
 
-sensor_msgs::JointState init_jstates_;
+std::string data_path_;
 };// end of: class PlannerManager
 
 #endif // #ifndef PLANNER_MANAGER_HPP_INCLUDED

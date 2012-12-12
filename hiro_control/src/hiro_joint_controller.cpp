@@ -52,9 +52,9 @@ joint_trajectory_sub_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
 bool
 move_arm_srv_handle(hiro_control::MoveArm::Request& req, hiro_control::MoveArm::Response& res)
 {
-  ROS_DEBUG_STREAM("Received a trajectory from joint_action_server containing " << req.robot_trajectory.joint_trajectory.points.size() << " waypoints");
+  ROS_DEBUG_STREAM("Received a trajectory containing " << req.trajectory.points.size() << " waypoints");
   
-  control_joint(req.robot_trajectory.joint_trajectory);
+  control_joint(req.trajectory);
   
   return true;
 }
@@ -76,18 +76,6 @@ commit_moving_arm_srv_handle(hiro_control::CommitMovingArm::Request& req, hiro_c
 }
 
 private:
-ros::NodeHandle nh_;
-
-ros::Publisher joint_states_cmd_pub_;
-ros::Publisher joint_states_feedback_pub_;
-
-ros::ServiceClient set_planning_scene_diff_client_;
-
-ros::ServiceClient control_rarm_client_;
-
-bool approved_;
-bool online_;
-
 void
 control_joint(const trajectory_msgs::JointTrajectory& path)
 {
@@ -99,7 +87,6 @@ control_joint(const trajectory_msgs::JointTrajectory& path)
     ros::spinOnce();
     waiting_rate.sleep();
   }
-  
   approved_ = false;
   
   ROS_DEBUG_STREAM("Start controlling joints for " << path.points.size() << " waypoints");
@@ -217,6 +204,19 @@ control_joint(const trajectory_msgs::JointTrajectory& path)
   ROS_DEBUG_STREAM( "Number of lucky_waypoint= " << n_lucky_waypoint << " of " <<  path.points.size() );
   ROS_DEBUG("Finish controlling joints for a trajectory");
 }
+
+ros::NodeHandle nh_;
+
+ros::Publisher joint_states_cmd_pub_;
+ros::Publisher joint_states_feedback_pub_;
+
+ros::ServiceClient set_planning_scene_diff_client_;
+
+ros::ServiceClient control_rarm_client_;
+
+bool approved_;
+
+bool online_;
 };// end of: class HiroJointController
 
 int 
@@ -230,16 +230,15 @@ main(int argc, char** argv)
 
   HiroJointController hjc(nh);
   
-  ros::Subscriber joint_trajectory_sub = nh.subscribe("rarm_controller/command", 1, &HiroJointController::joint_trajectory_sub_cb, &hjc);
+//  ros::Subscriber joint_trajectory_sub = nh.subscribe("rarm_controller/command", 1, &HiroJointController::joint_trajectory_sub_cb, &hjc);
+//  
+//  ros::ServiceServer commit_srv = nh.advertiseService("commit_moving_arm", &HiroJointController::commit_moving_arm_srv_handle, &hjc);
   
-  ros::ServiceServer commit_srv = nh.advertiseService("commit_moving_arm", &HiroJointController::commit_moving_arm_srv_handle, &hjc);
-  
-  ros::ServiceServer move_arm_srv = nh.advertiseService("move_arm", &HiroJointController::move_arm_srv_handle, &hjc);
+  ros::ServiceServer move_arm_srv = nh.advertiseService("/move_arm", &HiroJointController::move_arm_srv_handle, &hjc);
   
   ROS_INFO("hiro_joint_controller:: UP and RUNNING");
 
-  ros::Rate loop_rate(30);    
-
+  ros::Rate loop_rate(30);
   while( ros::ok() )
   {
     ros::spinOnce();

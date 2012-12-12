@@ -18,6 +18,7 @@
 
 
 
+#include "trajectory_msgs/JointTrajectory.h"
 
 namespace planner_manager
 {
@@ -49,12 +50,17 @@ struct PlanResponse_ {
   typedef PlanResponse_<ContainerAllocator> Type;
 
   PlanResponse_()
+  : man_plan()
   {
   }
 
   PlanResponse_(const ContainerAllocator& _alloc)
+  : man_plan(_alloc)
   {
   }
+
+  typedef std::vector< ::trajectory_msgs::JointTrajectory_<ContainerAllocator> , typename ContainerAllocator::template rebind< ::trajectory_msgs::JointTrajectory_<ContainerAllocator> >::other >  _man_plan_type;
+  std::vector< ::trajectory_msgs::JointTrajectory_<ContainerAllocator> , typename ContainerAllocator::template rebind< ::trajectory_msgs::JointTrajectory_<ContainerAllocator> >::other >  man_plan;
 
 
   typedef boost::shared_ptr< ::planner_manager::PlanResponse_<ContainerAllocator> > Ptr;
@@ -133,12 +139,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::planner_manager::PlanResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "044b8b6e7f41c18680e0bc1687bd081a";
   }
 
   static const char* value(const  ::planner_manager::PlanResponse_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0xd41d8cd98f00b204ULL;
-  static const uint64_t static_value2 = 0xe9800998ecf8427eULL;
+  static const uint64_t static_value1 = 0x044b8b6e7f41c186ULL;
+  static const uint64_t static_value2 = 0x80e0bc1687bd081aULL;
 };
 
 template<class ContainerAllocator>
@@ -155,15 +161,44 @@ template<class ContainerAllocator>
 struct Definition< ::planner_manager::PlanResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "\n\
+    return "trajectory_msgs/JointTrajectory[] man_plan\n\
 \n\
+\n\
+================================================================================\n\
+MSG: trajectory_msgs/JointTrajectory\n\
+Header header\n\
+string[] joint_names\n\
+JointTrajectoryPoint[] points\n\
+================================================================================\n\
+MSG: std_msgs/Header\n\
+# Standard metadata for higher-level stamped data types.\n\
+# This is generally used to communicate timestamped data \n\
+# in a particular coordinate frame.\n\
+# \n\
+# sequence ID: consecutively increasing ID \n\
+uint32 seq\n\
+#Two-integer timestamp that is expressed as:\n\
+# * stamp.secs: seconds (stamp_secs) since epoch\n\
+# * stamp.nsecs: nanoseconds since stamp_secs\n\
+# time-handling sugar is provided by the client library\n\
+time stamp\n\
+#Frame this data is associated with\n\
+# 0: no frame\n\
+# 1: global frame\n\
+string frame_id\n\
+\n\
+================================================================================\n\
+MSG: trajectory_msgs/JointTrajectoryPoint\n\
+float64[] positions\n\
+float64[] velocities\n\
+float64[] accelerations\n\
+duration time_from_start\n\
 ";
   }
 
   static const char* value(const  ::planner_manager::PlanResponse_<ContainerAllocator> &) { return value(); } 
 };
 
-template<class ContainerAllocator> struct IsFixedSize< ::planner_manager::PlanResponse_<ContainerAllocator> > : public TrueType {};
 } // namespace message_traits
 } // namespace ros
 
@@ -193,6 +228,7 @@ template<class ContainerAllocator> struct Serializer< ::planner_manager::PlanRes
 {
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
+    stream.next(m.man_plan);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -208,7 +244,7 @@ template<>
 struct MD5Sum<planner_manager::Plan> {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "044b8b6e7f41c18680e0bc1687bd081a";
   }
 
   static const char* value(const planner_manager::Plan&) { return value(); } 
@@ -228,7 +264,7 @@ template<class ContainerAllocator>
 struct MD5Sum<planner_manager::PlanRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "044b8b6e7f41c18680e0bc1687bd081a";
   }
 
   static const char* value(const planner_manager::PlanRequest_<ContainerAllocator> &) { return value(); } 
@@ -248,7 +284,7 @@ template<class ContainerAllocator>
 struct MD5Sum<planner_manager::PlanResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "044b8b6e7f41c18680e0bc1687bd081a";
   }
 
   static const char* value(const planner_manager::PlanResponse_<ContainerAllocator> &) { return value(); } 
