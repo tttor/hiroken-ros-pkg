@@ -6,10 +6,12 @@
 #include <arm_navigation_msgs/GetPlanningScene.h>
 #include <arm_navigation_msgs/SetPlanningSceneDiff.h>
 
+#include <boost/algorithm/string/erase.hpp>
+
 #include "planner_manager.hpp"
 #include "tmm_utils.hpp"
 
-static const double PUB_TIME = 1.0;
+static const double COL_OBJ_PUB_TIME = 1.0;
 
 static const size_t NUM_PLANNING_ATTEMPTS = 1;
 static const double ALLOWED_PLANNING_TIME = 1. * 60.;
@@ -80,7 +82,15 @@ plan(TMMEdge e)
   
   // Determine all possible goal poses using grasp(if GRASPED_) or ungrasp(if RELEASED_) planner
   std::vector<sensor_msgs::JointState> goal_set;// Note that we do not use std::set because of ros msg constraint that is an array[] is handled as a vector
-  goal_set = get_goal_set( target(e,pm_->tmm_),get(edge_jspace,pm_->tmm_,e) );
+  if(target(e,pm_->tmm_)==pm_->tmm_goal_)
+  {
+    // Get a subset of initial jstates stored in the goal vertex, which is the home pose
+    goal_set.push_back(   get_jstate_subset(  get(edge_jspace, pm_->tmm_, e), get(vertex_jstates, pm_->tmm_, target(e, pm_->tmm_))  )   );
+  }
+  else
+  {
+    goal_set = get_goal_set( target(e,pm_->tmm_),get(edge_jspace,pm_->tmm_,e) );  
+  }
   ROS_DEBUG_STREAM("goal_set.size()= " << goal_set.size());
   
   // Prepare the planning environment to do motion planning
@@ -135,20 +145,61 @@ plan(TMMEdge e)
     if(n_failure >= n_max_failure) break;
   }
 
+  // Reset the planning environment
+  reset_planning_env();
+    
+  if(best_plan.points.size()==0)
+    ROS_WARN_STREAM("No motion plan for e= " << get(edge_name,pm_->tmm_,e));
+
   // Put the best motion plan of this edge e and its geo. planning cost
   put(edge_plan, pm_->tmm_, e, best_plan);
+  put(edge_planstr, pm_->tmm_,e,get_planstr(best_plan));
   put(edge_weight, pm_->tmm_, e, cheapest_cost.total_2());
   put(edge_color, pm_->tmm_, e, std::string("red"));
   
-  // Reset the planning environment
-  reset_planning_env();
-  
+  ROS_DEBUG_STREAM("Geo. planning for " << get(edge_name,pm_->tmm_,e) << " ends successfully.");
   return true;
 }
-
+//! Convert plan representations from trajectory_msgs::JointTrajectory to std::string
+/*!
+  ...
+*/
+std::string
+get_planstr(const trajectory_msgs::JointTrajectory& plan )
+{
+  std::string planstr;
+  
+  for(std::vector<std::string>::const_iterator i=plan.joint_names.begin(); i!=plan.joint_names.end(); ++i)
+  {
+    planstr += *i;
+    planstr += ",";
+  }
+  boost::erase_last(planstr,",");
+  planstr += ";";
+  
+  for(std::vector<trajectory_msgs::JointTrajectoryPoint>::const_iterator i=plan.points.begin(); i!=plan.points.end(); ++i)
+  {
+    for(std::vector<double>::const_iterator j=i->positions.begin(); j!=i->positions.end(); ++j)
+    {
+      planstr += boost::lexical_cast<std::string>(*j);
+      planstr += ",";
+    }
+    boost::erase_last(planstr,",");
+    planstr += ";";
+  }
+  boost::erase_last(planstr,";");
+  
+  return planstr;
+}
+//! Set joint states of adjacent vertex of the given vertex v
+/*!
+  ...
+*/
 bool
 set_av_jstates(TMMVertex v)
 {
+  ROS_DEBUG_STREAM("set_av_jstates for v= " << get(vertex_name,pm_->tmm_,v) << ": Begin.");
+  
   // Determine the cheapest in_edge of the adjacent vertices of v
   std::map<TMMVertex,TMMEdge> av_ce_map;// av = adjacent_vertices to ce = cheapest_edge map
   
@@ -167,6 +218,8 @@ set_av_jstates(TMMVertex v)
   }
   
   // Update the adjacent vertices's jstates using av_ce_map
+  ROS_DEBUG("Updating av's jstates");
+  
   graph_traits<TaskMotionMultigraph>::adjacency_iterator avi, avi_end;
   for(tie(avi,avi_end)=adjacent_vertices(v, pm_->tmm_); avi!=avi_end; ++avi )
   {
@@ -177,6 +230,9 @@ set_av_jstates(TMMVertex v)
     trajectory_msgs::JointTrajectory motion_plan;
     motion_plan = get(edge_plan, pm_->tmm_, av_ce_map[*avi]);
     
+    if(motion_plan.points.size()==0)
+      continue;
+      
     trajectory_msgs::JointTrajectoryPoint goal_point = motion_plan.points.back();
     
     for(std::vector<std::string>::const_iterator i=motion_plan.joint_names.begin(); i!=motion_plan.joint_names.end(); ++i)
@@ -190,6 +246,7 @@ set_av_jstates(TMMVertex v)
     put(vertex_jstates, pm_->tmm_, *avi, joint_state);
   }
   
+  ROS_DEBUG_STREAM("set_av_jstates for v= " << get(vertex_name,pm_->tmm_,v) << ": End.");
   return true;
 }
   
@@ -284,20 +341,60 @@ get_planning_env()
 void
 init_vertex(const TMMVertex& v)
 {
-  // TODO Call to /environment_server/get_robot_state srv
-  arm_navigation_msgs::GetRobotState::Request req;
-  arm_navigation_msgs::GetRobotState::Response res;
+//  // Call to /environment_server/get_robot_state srv
+//  arm_navigation_msgs::GetRobotState::Request req;
+//  arm_navigation_msgs::GetRobotState::Response res;
+//  
+//  ros::service::waitForService(GET_ROBOT_STATE_SRV_NAME);
+//  ros::ServiceClient get_robot_state_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetRobotState>(GET_ROBOT_STATE_SRV_NAME);
+//  
+//  if ( !get_robot_state_client.call(req, res) )
+//  { 
+//    ROS_ERROR("A call get_robot_state srv, Init vertex: FAILED");
+//    return;
+//  }
+//  
+//  put(vertex_jstates, pm_->tmm_, v, res.robot_state.joint_state);
   
-  ros::service::waitForService(GET_ROBOT_STATE_SRV_NAME);
-  ros::ServiceClient get_robot_state_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetRobotState>(GET_ROBOT_STATE_SRV_NAME);
+  sensor_msgs::JointState init_jstates;
   
-  if ( !get_robot_state_client.call(req, res) )
-  { 
-    ROS_ERROR("A call get_robot_state srv, Init vertex: FAILED");
-    return;
-  }
+  init_jstates.header.stamp = ros::Time::now();
   
-  put(vertex_jstates, pm_->tmm_, v, res.robot_state.joint_state);
+  // MUST be in order
+  init_jstates.name.push_back("joint_chest_yaw");
+
+  init_jstates.name.push_back("joint_rshoulder_yaw");
+  init_jstates.name.push_back("joint_rshoulder_pitch");
+  init_jstates.name.push_back("joint_relbow_pitch");
+  init_jstates.name.push_back("joint_rwrist_yaw");
+  init_jstates.name.push_back("joint_rwrist_pitch");
+  init_jstates.name.push_back("joint_rwrist_roll");
+
+  init_jstates.name.push_back("joint_lshoulder_yaw");
+  init_jstates.name.push_back("joint_lshoulder_pitch");
+  init_jstates.name.push_back("joint_lelbow_pitch");
+  init_jstates.name.push_back("joint_lwrist_yaw");
+  init_jstates.name.push_back("joint_lwrist_pitch");
+  init_jstates.name.push_back("joint_lwrist_roll");
+   
+  // For Hiro pose where his hands are in the back 
+  init_jstates.position.push_back(0.);
+
+  init_jstates.position.push_back(0.15707963267948966);  
+  init_jstates.position.push_back(-2.7017696820872223);
+  init_jstates.position.push_back(-2.6162485487395);
+  init_jstates.position.push_back(2.0263272615654166);
+  init_jstates.position.push_back(-0.38048177693476387);
+  init_jstates.position.push_back(0.17453292519943295);
+
+  init_jstates.position.push_back(0.15707963267948966);  
+  init_jstates.position.push_back(-2.7017696820872223);
+  init_jstates.position.push_back(-2.6162485487395);
+  init_jstates.position.push_back(2.0263272615654166);
+  init_jstates.position.push_back(-0.38048177693476387);
+  init_jstates.position.push_back(0.17453292519943295);
+  
+  put(vertex_jstates, pm_->tmm_, v, init_jstates);
 }
 
 private:
@@ -347,7 +444,7 @@ std::vector<sensor_msgs::JointState>
 get_goal_set(const TMMVertex& v, const std::string& jspace)
 {
   std::vector<sensor_msgs::JointState> goal_set;// Because plan_grasp receive a vector, instead of a set
-
+  
   // Set the planning environment (for grasp planning) so as to satisfy the init_state, i.e. by setting already-tidied-up object at tidy spot.
   set_planning_env(v);
       
@@ -359,8 +456,7 @@ get_goal_set(const TMMVertex& v, const std::string& jspace)
   
   if(name_parts.size() < 2)// e.g. "TidyHome"
   {
-    goal_set.push_back( get_jstate_subset(jspace, pm_->init_jstates_) );
-    
+    ROS_WARN("get_goal_set() returns an empty goal_set.");
     return goal_set;
   }
   
@@ -450,7 +546,7 @@ plan_ungrasp(arm_navigation_msgs::CollisionObject& object, const std::string& js
   // Set the object in the tidy_cfg in the planning_environment
   object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
   collision_object_pub_.publish(object);
-  ros::Duration(PUB_TIME).sleep();
+  ros::Duration(COL_OBJ_PUB_TIME).sleep();
 
   if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
     ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -636,7 +732,7 @@ reset_planning_env()
     
     i->second.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     collision_object_pub_.publish( i->second );
-    ros::Duration(PUB_TIME).sleep();
+    ros::Duration(COL_OBJ_PUB_TIME).sleep();
     
     if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
     {
@@ -660,7 +756,7 @@ reset_planning_env()
     att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::DETACH_AND_ADD_AS_OBJECT;
     
     att_collision_object_pub_.publish(att_object);
-    ros::Duration(PUB_TIME).sleep();
+    ros::Duration(COL_OBJ_PUB_TIME).sleep();
     
     ROS_INFO("waitForService(SET_PLANNING_SCENE_DIFF_SRV_NAME)");
     ros::service::waitForService(SET_PLANNING_SCENE_DIFF_SRV_NAME);
@@ -699,7 +795,7 @@ set_planning_env(const TMMVertex& v, const bool& for_motion_planning=false)
       
     object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     collision_object_pub_.publish(object);
-    ros::Duration(PUB_TIME).sleep();
+    ros::Duration(COL_OBJ_PUB_TIME).sleep();
 
     if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
       ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -722,7 +818,7 @@ set_planning_env(const TMMVertex& v, const bool& for_motion_planning=false)
       
     object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     collision_object_pub_.publish(object);
-    ros::Duration(PUB_TIME).sleep();
+    ros::Duration(COL_OBJ_PUB_TIME).sleep();
 
     if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
       ROS_WARN("Can't get planning scene. Env can not be configured correctly");
@@ -751,7 +847,7 @@ set_planning_env(const TMMVertex& v, const bool& for_motion_planning=false)
 //    att_object.object.poses.push_back(pose);
         
     att_collision_object_pub_.publish(att_object);
-    ros::Duration(PUB_TIME).sleep();
+    ros::Duration(COL_OBJ_PUB_TIME).sleep();
     
     if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
       ROS_WARN("Can't get planning scene. Env can not be configured correctly");

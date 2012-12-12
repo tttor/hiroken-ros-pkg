@@ -47,13 +47,9 @@ public:
 TaskPlanner(ros::NodeHandle& nh)
   :nh_(nh)
 {
-  task_planner_path_ = ".";
-  if( !ros::param::get("/task_planner_path", task_planner_path_) )
-    ROS_WARN("Can not get /task_planner_path, use the default value instead");
-  
-  planner_manager_path_ = ".";
-  if( !ros::param::get("/planner_manager_path", planner_manager_path_) )
-    ROS_WARN("Can not get /task_planner_path, use the default value instead");
+  data_path_ = ".";
+  if( !ros::param::get("/data_path", data_path_) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
   
   ROS_INFO("TaskPlanner: Up and Running...");
 }
@@ -87,7 +83,7 @@ handle_plan_task_srv(task_planner::PlanTask::Request& req, task_planner::PlanTas
 bool
 plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
 {
-  std::string plan_path = task_planner_path_ + "/plans/" ;
+  std::string plan_path = "/home/vektor/hiroken-ros-pkg/task_planner/with_shop2/plans/";
   for(size_t i=0; i<objs.size(); ++i)
     plan_path += boost::lexical_cast<std::string>(i+1) + ".";
   plan_path += "plan";
@@ -223,7 +219,7 @@ plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
   }// End of: for each task plan
 
   // Write the task_graph.dot
-  std::string task_graph_dot_path = planner_manager_path_ + "/data/task_graph.dot";
+  std::string task_graph_dot_path = data_path_ + "/task_graph.dot";
   
   std::ofstream task_graph_dot;
   task_graph_dot.open(task_graph_dot_path.c_str());
@@ -394,7 +390,7 @@ convert_tg_tmm(const TaskGraph& tg)
   }// end of: FOR each edge in a task graph tg
   
   // Write the tmm.dot
-  std::string tmm_dot_path = planner_manager_path_ + "/data/vanilla_tmm.dot";
+  std::string tmm_dot_path = data_path_ + "/vanilla_tmm.dot";
   
   std::ofstream tmm_dot;
   tmm_dot.open(tmm_dot_path.c_str());
@@ -513,9 +509,7 @@ infer(const std::vector<Action>::iterator& i, const std::vector<Action>::iterato
 */
 ros::NodeHandle nh_;
 
-std::string task_planner_path_;
-
-std::string planner_manager_path_;
+std::string data_path_;
 };// End of: TaskPlanner class
 
 int 

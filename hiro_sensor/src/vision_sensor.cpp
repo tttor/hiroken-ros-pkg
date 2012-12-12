@@ -23,6 +23,7 @@
 #include <opencv2/highgui/highgui.hpp>
 
 #include "hiro_sensor/Sense.h"
+#include "hiro_sensor/See.h"
 
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 
@@ -54,8 +55,8 @@ static const double DEG_PER_RAD = 57.2957795;
 class VisionSensor
 {
 public:
-VisionSensor(ros::NodeHandle nh):
-  nh_(nh)
+VisionSensor(ros::NodeHandle nh)
+:nh_(nh)
 {
   collision_space_pub_ = nh.advertise<arm_navigation_msgs::CollisionObject>("collision_object", 10);
   ros::Duration(2.0).sleep();// This delay is so critical, otherwise the first published object can not be added in the collision_space by the environment_server
@@ -67,34 +68,22 @@ VisionSensor(ros::NodeHandle nh):
 }
 
 ~VisionSensor()
-{
-}
+{ }
 
 bool
-sense_see_srv_handle(hiro_sensor::Sense::Request& req, hiro_sensor::Sense::Response& res)
+see_srv_handle(hiro_sensor::See::Request& req, hiro_sensor::See::Response& res)
 {
-  if(req.sensor_type != 1)
-  {
-    res.msg = "Sorry, your request is not appropriate here!";
-    return true;
-  }
-
-  // Hardcode the sensed_objects_----------------------------------------------------------------------
-  sense_static_object();
+  // Hardcode the sensed_objects
+  see_static_cfg();
+  see_messy_cfg(req.n,req.random);
    
-//  get_messy_config(6, true);
-  get_messy_cfg_tb_1();
-
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
   arm_navigation_msgs::SetPlanningSceneDiff::Response planning_scene_res;
 
-  if(!set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res)) {
+  if(!set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res)) 
     ROS_WARN("Can't get planning scene. Env can not be configured correctly");
-  } 
-  // End of: Hardcode the sensed_objects_ --------------------------------------------------------------
   
-  res.msg = "sense_see: Succeeded";
   return true;
 }
 
@@ -122,18 +111,8 @@ run()
 }
 
 private:
-ros::NodeHandle nh_;
-
-std::map<std::string,geometry_msgs::PoseStamped> sensed_objects_;// Modified in sense_movable_object(),...
-
-ros::Publisher collision_space_pub_;
-
-tf::TransformBroadcaster object_tf_bc_;// Must be outside the  while() loop
-
-ros::ServiceClient set_planning_scene_diff_client_;
-
 bool
-sense_static_object()
+see_static_cfg()
 {
   arm_navigation_msgs::CollisionObject table;
   
@@ -296,7 +275,6 @@ sense_movable_object( const std::string& object_id,
   return true;
 }
 
-
 bool
 is_in_collision(cv::Mat* img, const double& x, const double& y, const size_t& pitch_sym, const double& yaw)
 {
@@ -382,13 +360,18 @@ is_in_collision(cv::Mat* img, const double& x, const double& y, const size_t& pi
   Assume that orientation can be divided into 2 main groups: standing up-right and lying-down, for the latter there is an infiniti number of possible orientation.
 */
 void
-get_messy_config(const size_t& n, bool random=true)
+see_messy_cfg(const size_t& n, bool random=true)
 {
-  if( !random )
-    return hardcode_messy_cfg(n);
-
-  std::vector<std::string> ids;
+  if(!random)
+  {
+    see_messy_cfg_tb(n);
+    return;
+  }
+  
+    
   std::string common_id = "CAN";
+  
+  std::vector<std::string> ids;
   for(size_t i=0; i<n; ++i)
     ids.push_back( std::string(common_id+boost::lexical_cast<std::string>(i+1)) );
 
@@ -489,222 +472,171 @@ get_messy_config(const size_t& n, bool random=true)
 //  cv::imshow("img", img);
 //  cv::waitKey(0);
 }
-
+//! Generate a messy config for test bed
+/*!
+  More ...
+*/
 void
-hardcode_messy_cfg(const size_t& n)
+see_messy_cfg_tb(const size_t& n)
 {
   switch(n)
   {
+    case 6:
+    {
+      sense_movable_object( "CAN1",
+                            B_RADIUS, B_HEIGHT,
+                            0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN2",
+                            B_RADIUS, B_HEIGHT,
+                            0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+                            0.,sqrt(0.5),0.,sqrt(0.5)
+                          );
+                          
+      sense_movable_object( "CAN3",
+                            B_RADIUS, B_HEIGHT,
+                            0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN4",
+                            B_RADIUS, B_HEIGHT,
+                            0.30, 0.35,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN5",
+                            B_RADIUS, B_HEIGHT,
+                            0.40, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN6",
+                            B_RADIUS, B_HEIGHT,
+                            -0.10, -0.45,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );    
+      break;
+    }
+    case 5:
+    {
+      sense_movable_object( "CAN1",
+                            B_RADIUS, B_HEIGHT,
+                            0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN2",
+                            B_RADIUS, B_HEIGHT,
+                            0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+                            0.,sqrt(0.5),0.,sqrt(0.5)
+                          );
+                          
+      sense_movable_object( "CAN3",
+                            B_RADIUS, B_HEIGHT,
+                            0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN4",
+                            B_RADIUS, B_HEIGHT,
+                            0.30, 0.35,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN5",
+                            B_RADIUS, B_HEIGHT,
+                            0.40, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+      break;
+    }
     case 4:
-          sense_movable_object( "CAN4",
-                                B_RADIUS, B_HEIGHT,
-                                0.30, 0.25,(TABLE_THICKNESS/2)+(B_RADIUS),
-                                0.,sqrt(0.5),0.,sqrt(0.5)
-                              );
+    {
+      sense_movable_object( "CAN1",
+                            B_RADIUS, B_HEIGHT,
+                            0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN2",
+                            B_RADIUS, B_HEIGHT,
+                            0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+                            0.,sqrt(0.5),0.,sqrt(0.5)
+                          );
+                          
+      sense_movable_object( "CAN3",
+                            B_RADIUS, B_HEIGHT,
+                            0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN4",
+                            B_RADIUS, B_HEIGHT,
+                            0.30, 0.35,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+      break;
+    }
     case 3:
-          sense_movable_object( "CAN3",
-                                B_RADIUS, B_HEIGHT,
-                                0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                                0.,0.,0.,1.
-                              ); 
-//          sense_movable_object( "CAN3",
-//                                B_RADIUS, B_HEIGHT,
-//                                0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
-//                                0.,sqrt(0.5),0.,sqrt(0.5)
-//                              );                                 
-
+    {
+      sense_movable_object( "CAN1",
+                            B_RADIUS, B_HEIGHT,
+                            0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN2",
+                            B_RADIUS, B_HEIGHT,
+                            0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
+                            0.,sqrt(0.5),0.,sqrt(0.5)
+                          );
+                          
+      sense_movable_object( "CAN3",
+                            B_RADIUS, B_HEIGHT,
+                            0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+      break;
+    }    
     case 2:
-          sense_movable_object( "CAN2",
-                                B_RADIUS, B_HEIGHT,
-                                0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
-                                0.,sqrt(0.5),0.,sqrt(0.5)
-                              );
-//          sense_movable_object( "CAN2",
-//                                B_RADIUS, B_HEIGHT,
-//                                0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-//                                0.,0.,0.,1.
-//                              );                              
+    {
+      sense_movable_object( "CAN1",
+                            B_RADIUS, B_HEIGHT,
+                            0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+                          
+      sense_movable_object( "CAN2",
+                            B_RADIUS, B_HEIGHT,
+                            0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+      break;
+    }
     case 1:
-          sense_movable_object( "CAN1",
-                                B_RADIUS, B_HEIGHT,
-                                0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                                0.,0.,0.,1.
-                              );
-           break;
-    default:
-          ROS_WARN("No this number here.");
+    {
+      sense_movable_object( "CAN1",
+                            B_RADIUS, B_HEIGHT,
+                            0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
+                            0.,0.,0.,1.
+                          );
+      break;                      
+    }    
   }
-  
-  if(n==0) ROS_WARN("There is no sensed object.");
 }
 
-//! Generate a messy config for test bed
-/*!
-  More ...
-*/
-void
-get_messy_cfg_tb_6()
-{
-  sense_movable_object( "CAN1",
-                        B_RADIUS, B_HEIGHT,
-                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN2",
-                        B_RADIUS, B_HEIGHT,
-                        0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
-                        0.,sqrt(0.5),0.,sqrt(0.5)
-                      );
-                      
-  sense_movable_object( "CAN3",
-                        B_RADIUS, B_HEIGHT,
-                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN4",
-                        B_RADIUS, B_HEIGHT,
-                        0.30, 0.35,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN5",
-                        B_RADIUS, B_HEIGHT,
-                        0.40, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN6",
-                        B_RADIUS, B_HEIGHT,
-                        -0.10, -0.45,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-}
-//! Generate a messy config for test bed
-/*!
-  More ...
-*/
-void
-get_messy_cfg_tb_5()
-{
-  sense_movable_object( "CAN1",
-                        B_RADIUS, B_HEIGHT,
-                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN2",
-                        B_RADIUS, B_HEIGHT,
-                        0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
-                        0.,sqrt(0.5),0.,sqrt(0.5)
-                      );
-                      
-  sense_movable_object( "CAN3",
-                        B_RADIUS, B_HEIGHT,
-                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN4",
-                        B_RADIUS, B_HEIGHT,
-                        0.30, 0.35,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN5",
-                        B_RADIUS, B_HEIGHT,
-                        0.40, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-}
-//! Generate a messy config for test bed
-/*!
-  More ...
-*/
-void
-get_messy_cfg_tb_4()
-{
-  sense_movable_object( "CAN1",
-                        B_RADIUS, B_HEIGHT,
-                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN2",
-                        B_RADIUS, B_HEIGHT,
-                        0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
-                        0.,sqrt(0.5),0.,sqrt(0.5)
-                      );
-                      
-  sense_movable_object( "CAN3",
-                        B_RADIUS, B_HEIGHT,
-                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN4",
-                        B_RADIUS, B_HEIGHT,
-                        0.30, 0.35,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-}
-//! Generate a messy config for test bed
-/*!
-  Consists of 2 upright objects and 1 falling-down objects.
-*/
-void
-get_messy_cfg_tb_3()
-{
-  sense_movable_object( "CAN1",
-                        B_RADIUS, B_HEIGHT,
-                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN2",
-                        B_RADIUS, B_HEIGHT,
-                        0.15,-0.40,(TABLE_THICKNESS/2)+(B_RADIUS),
-                        0.,sqrt(0.5),0.,sqrt(0.5)
-                      );
-                      
-  sense_movable_object( "CAN3",
-                        B_RADIUS, B_HEIGHT,
-                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-}
+ros::NodeHandle nh_;
 
-void
-get_messy_cfg_tb_2()
-{
-  sense_movable_object( "CAN1",
-                        B_RADIUS, B_HEIGHT,
-                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-                      
-  sense_movable_object( "CAN2",
-                        B_RADIUS, B_HEIGHT,
-                        0.40, 0.25,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-}
+std::map<std::string,geometry_msgs::PoseStamped> sensed_objects_;// Modified in sense_movable_object(),...
 
-//! Generate a messy config for test bed
-/*!
-  More ...
-*/
-void
-get_messy_cfg_tb_1()
-{
-  sense_movable_object( "CAN1",
-                        B_RADIUS, B_HEIGHT,
-                        0.15, -0.30,(TABLE_THICKNESS/2)+(B_HEIGHT/2),
-                        0.,0.,0.,1.
-                      );
-}
+ros::Publisher collision_space_pub_;
 
+tf::TransformBroadcaster object_tf_bc_;// Must be outside the  while() loop
+
+ros::ServiceClient set_planning_scene_diff_client_;
 };// enf of: class VisionSensor
 
 int 
@@ -715,7 +647,7 @@ main(int argc, char** argv)
   
   VisionSensor vis_sensor(nh);
   
-  ros::ServiceServer sense_see_srv = nh.advertiseService("sense_see", &VisionSensor::sense_see_srv_handle, &vis_sensor);
+  ros::ServiceServer see_srv = nh.advertiseService("/see", &VisionSensor::see_srv_handle, &vis_sensor);
   
   vis_sensor.run();
 

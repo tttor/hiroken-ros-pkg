@@ -33,6 +33,12 @@ namespace boost
   BOOST_INSTALL_PROPERTY(edge, plan);
 }
 
+enum edge_planstr_t { edge_planstr };
+namespace boost 
+{
+  BOOST_INSTALL_PROPERTY(edge, planstr);
+}
+
 enum edge_srcstate_t { edge_srcstate };
 namespace boost 
 {
@@ -46,7 +52,7 @@ namespace boost
 }
 
 typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double> > TGEdgeProperty;
-typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double, boost::property<edge_jspace_t, std::string, boost::property<edge_plan_t, trajectory_msgs::JointTrajectory, property<edge_color_t, std::string, property<edge_srcstate_t, std::string> > > > > > TMMEdgeProperty;
+typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double, boost::property<edge_jspace_t, std::string, boost::property<edge_plan_t, trajectory_msgs::JointTrajectory, property<edge_color_t, std::string, property<edge_srcstate_t, std::string, property<edge_planstr_t, std::string> > > > > > > TMMEdgeProperty;
     
 typedef boost::property<vertex_name_t, std::string> TGVertexProperty;
 typedef boost::property<vertex_name_t, std::string, boost::property< vertex_jstates_t, sensor_msgs::JointState, property<vertex_color_t, default_color_type> > > TMMVertexProperty;
@@ -194,6 +200,28 @@ public:
   operator()(const Edge& e) const 
   {
     return ( (!strcmp(color_map_[e].c_str(),"red"))or(!strcmp(color_map_[e].c_str(),"blue")) );
+  }
+
+private:
+  ColorMap color_map_;  
+};
+
+template <typename ColorMap>
+class SolEdgeFilter
+{
+public:
+  SolEdgeFilter()
+  { }
+  
+  SolEdgeFilter(ColorMap color_map)
+    : color_map_(color_map) 
+  { }
+  
+  template <typename Edge>
+  bool 
+  operator()(const Edge& e) const 
+  {
+    return (!strcmp(color_map_[e].c_str(),"blue"));
   }
 
 private:

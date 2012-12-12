@@ -1,1 +1,2 @@
 ---
+trajectory_msgs/JointTrajectory[] man_plan

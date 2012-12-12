@@ -14,10 +14,10 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
 {
   ros::service::waitForService("plan_grasp");
   
-  planner_manager_path_ = ".";
-  if( !ros::param::get("/planner_manager_path", planner_manager_path_) )
-    ROS_WARN("Can not get /task_planner_path, use the default value instead");
-  
+  data_path_= ".";
+  if( !ros::param::get("/data_path", data_path_) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
+    
   set_tidy_config();
   
   ROS_INFO("PlannerManager: Up and Running ...");
@@ -49,7 +49,7 @@ PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::
 bool
 PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_manager::Plan::Response& res)
 {
-  return plan();
+  return plan( &(res.man_plan) );
 }
 
 //! Plan manipulation plans.
@@ -63,7 +63,7 @@ PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_man
   within which a geometric planner is called to validate each action whether it is symbollically feasible.
 */
 bool
-PlannerManager::plan()
+PlannerManager::plan(std::vector<trajectory_msgs::JointTrajectory>* man_plan)
 {
   // Create task plan space encoded in a task motion graph
   SymbolicPlannerManager spm(nh_);
@@ -85,17 +85,15 @@ PlannerManager::plan()
   tmm_dp.property("weight", get(edge_weight, tmm_));
   tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
   
-  std::string tmm_dot_path = planner_manager_path_ + "/data/vanilla_tmm.dot";  
+  std::string tmm_dot_path = data_path_ + "/vanilla_tmm.dot";  
   std::ifstream tmm_dot(tmm_dot_path.c_str());
   
   read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id"); 
   
-  // Put init jstates + Mark the root and the goal vertex in the TMM
+  // Mark the root and the goal vertex in the TMM
   boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
   for(tie(vi,vi_end) = vertices(tmm_); vi != vi_end; ++vi)
   {
-    put(vertex_jstates, tmm_, *vi, init_jstates_);
-    
     std::string name;
     name = get(vertex_name, tmm_, *vi);
     
@@ -170,8 +168,10 @@ PlannerManager::plan()
       put(edge_color,tmm_,*i,std::string("blue"));
       
       put( vertex_color,tmm_,source(*i,tmm_),color_traits<boost::default_color_type>::gray() );// for vertex in the solution path
-      put( vertex_color,tmm_,source(*i,tmm_),color_traits<boost::default_color_type>::gray() );// somewhat redundant indeed
-            
+      put( vertex_color,tmm_,target(*i,tmm_),color_traits<boost::default_color_type>::gray() );// somewhat redundant indeed
+      
+      man_plan->push_back( get(edge_plan,tmm_,*i) );
+      
       cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << endl;
     }
     cout << endl;
@@ -181,7 +181,7 @@ PlannerManager::plan()
   ROS_DEBUG_STREAM("num_edges(tmm_),After= " << num_edges(tmm_));
   
   // Write a fancy planned TMM
-  std::string p_tmm_dot_path = planner_manager_path_ + "/data/fancy_tmm.dot";
+  std::string p_tmm_dot_path = data_path_ + "/fancy_tmm.dot";
   
   ofstream p_tmm_dot;
   p_tmm_dot.open(p_tmm_dot_path.c_str());
@@ -194,22 +194,41 @@ PlannerManager::plan()
   p_tmm_dot.close();
   
   // Write a simplistic planned TMM for data collection
-  std::string simple_p_tmm_dot_path = planner_manager_path_ + "/data/tmm.dot";
-
-  ofstream simple_p_tmm_dot;
-  simple_p_tmm_dot.open(simple_p_tmm_dot_path.c_str());
-  
   boost::dynamic_properties p_tmm_dp;
   
   p_tmm_dp.property( "vertex_id",get(vertex_name,tmm_) );
-  
   p_tmm_dp.property( "label",get(edge_name, tmm_) );
   p_tmm_dp.property( "weight",get(edge_weight, tmm_) );
   p_tmm_dp.property( "jspace",get(edge_jspace, tmm_) );
   p_tmm_dp.property( "color",get(edge_color, tmm_) );
   p_tmm_dp.property( "srcstate",get(edge_srcstate,tmm_) );
-    
+
+  std::string simple_p_tmm_dot_path = data_path_ + "/tmm.dot";
+  ofstream simple_p_tmm_dot;
+  simple_p_tmm_dot.open(simple_p_tmm_dot_path.c_str());
+      
   write_graphviz_dp( simple_p_tmm_dot, tmm_, p_tmm_dp, std::string("vertex_id"));
+  simple_p_tmm_dot.close();
+  
+  // Filter then write solution tmm
+  SolEdgeFilter<TMMEdgeColorMap> sol_edge_filter( get(edge_color, tmm_) );
+  typedef filtered_graph< TaskMotionMultigraph, SolEdgeFilter<TMMEdgeColorMap> > SolTMM;
+
+  SolTMM sol_tmm(tmm_, sol_edge_filter);
+  
+  boost::dynamic_properties sol_tmm_dp;
+  
+  sol_tmm_dp.property( "vertex_id",get(vertex_name,sol_tmm) );
+  sol_tmm_dp.property( "label",get(edge_name, sol_tmm) );
+  sol_tmm_dp.property( "jspace",get(edge_jspace, sol_tmm) );
+  sol_tmm_dp.property( "planstr",get(edge_planstr, sol_tmm) );  
+
+  std::string sol_tmm_dot_path = data_path_ + "/sol_tmm.dot";
+  ofstream sol_tmm_dot;
+  sol_tmm_dot.open(sol_tmm_dot_path.c_str());
+    
+  write_graphviz_dp( sol_tmm_dot, sol_tmm, sol_tmm_dp, std::string("vertex_id"));
+  sol_tmm_dot.close();
   
   return true;
 }
@@ -427,8 +446,8 @@ main(int argc, char **argv)
   ros::init(argc, argv, "planner_mgr");
   ros::NodeHandle nh;
  
-//  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
-//  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
+  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
+  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
  
   PlannerManager pm(nh);
 
