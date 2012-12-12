@@ -73,27 +73,17 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 Public Member Functions</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a68bb72ecbc34907bbc5307e3ebc430bd">VisionSensor</a> (ros::NodeHandle nh)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#ab6b05ff359adab95ab040913629f2972">~VisionSensor</a> ()</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#ac6bdcd87a93b7d21c3d93af41f07dcaa">sense_see_srv_handle</a> (hiro_sensor::Sense::Request &amp;req, hiro_sensor::Sense::Response &amp;res)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a8911f424209c3b03d3c87ba821cc61c7">see_srv_handle</a> (hiro_sensor::See::Request &amp;req, hiro_sensor::See::Response &amp;res)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#af8e48524311eb7e64922a618eae4ace9">run</a> ()</td></tr>
 <tr><td colspan="2"><h2><a name="pri-methods"></a>
 Private Member Functions</h2></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a9cb25eb89afee0f13bcc5bea5a65979c">sense_static_object</a> ()</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a2427efdebea2f3894ba6d1393dbefe4b">see_static_cfg</a> ()</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#afde9ef76887c7600b132925829bc4f55">sense_movable_object</a> (const std::string &amp;object_id, const double &amp;radius, const double &amp;height, const double &amp;x, const double &amp;y, const double &amp;z, const double &amp;qx=0., const double &amp;qy=0., const double &amp;qz=0., const double &amp;qw=1.)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a6ea194fee6ab004fde0c9733c0c9b448">is_in_collision</a> (cv::Mat *img, const double &amp;x, const double &amp;y, const size_t &amp;pitch_sym, const double &amp;yaw)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a825ac19b4bbc84aa62d5a9363b7e4ffe">get_messy_config</a> (const size_t &amp;n, bool random=true)</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate messy configs.  <a href="#a825ac19b4bbc84aa62d5a9363b7e4ffe"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a7c8ab916ebbc25456c751fff501ed67f">hardcode_messy_cfg</a> (const size_t &amp;n)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#ac36d5d6eb33b71b8ea6bfc0039fa8671">get_messy_cfg_tb_6</a> ()</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a messy config for test bed.  <a href="#ac36d5d6eb33b71b8ea6bfc0039fa8671"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a0cf71caf261721b05b8ac19415b49acb">get_messy_cfg_tb_5</a> ()</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a messy config for test bed.  <a href="#a0cf71caf261721b05b8ac19415b49acb"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#aa9a192d7eb6e20bb598520154e7f551b">get_messy_cfg_tb_4</a> ()</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a messy config for test bed.  <a href="#aa9a192d7eb6e20bb598520154e7f551b"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a849b18623d19dfc39469022d75ace4c8">get_messy_cfg_tb_3</a> ()</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a messy config for test bed.  <a href="#a849b18623d19dfc39469022d75ace4c8"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#ad9631da4c1d02a7b61b89b498b8741a9">get_messy_cfg_tb_2</a> ()</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a5bef49a6b81ef8474d11b3883c3a665a">get_messy_cfg_tb_1</a> ()</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a messy config for test bed.  <a href="#a5bef49a6b81ef8474d11b3883c3a665a"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a2544c1d188dbca4903f43542278bafe4">see_messy_cfg</a> (const size_t &amp;n, bool random=true)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate messy configs.  <a href="#a2544c1d188dbca4903f43542278bafe4"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a3321c06d2ce0700acf555aae4b06738a">see_messy_cfg_tb</a> (const size_t &amp;n)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a messy config for test bed.  <a href="#a3321c06d2ce0700acf555aae4b06738a"></a><br/></td></tr>
 <tr><td colspan="2"><h2><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::NodeHandle&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a76db427bdc9f2c5d9f92850292cde290">nh_</a></td></tr>
@@ -138,164 +128,6 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
 </div>
 </div>
 <hr/><h2>Member Function Documentation</h2>
-<a class="anchor" id="a5bef49a6b81ef8474d11b3883c3a665a"></a><!-- doxytag: member="VisionSensor::get_messy_cfg_tb_1" ref="a5bef49a6b81ef8474d11b3883c3a665a" args="()" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void VisionSensor::get_messy_cfg_tb_1 </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-<p>Generate a messy config for test bed. </p>
-<p>More ... </p>
-
-</div>
-</div>
-<a class="anchor" id="ad9631da4c1d02a7b61b89b498b8741a9"></a><!-- doxytag: member="VisionSensor::get_messy_cfg_tb_2" ref="ad9631da4c1d02a7b61b89b498b8741a9" args="()" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void VisionSensor::get_messy_cfg_tb_2 </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="a849b18623d19dfc39469022d75ace4c8"></a><!-- doxytag: member="VisionSensor::get_messy_cfg_tb_3" ref="a849b18623d19dfc39469022d75ace4c8" args="()" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void VisionSensor::get_messy_cfg_tb_3 </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-<p>Generate a messy config for test bed. </p>
-<p>Consists of 2 upright objects and 1 falling-down objects. </p>
-
-</div>
-</div>
-<a class="anchor" id="aa9a192d7eb6e20bb598520154e7f551b"></a><!-- doxytag: member="VisionSensor::get_messy_cfg_tb_4" ref="aa9a192d7eb6e20bb598520154e7f551b" args="()" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void VisionSensor::get_messy_cfg_tb_4 </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-<p>Generate a messy config for test bed. </p>
-<p>More ... </p>
-
-</div>
-</div>
-<a class="anchor" id="a0cf71caf261721b05b8ac19415b49acb"></a><!-- doxytag: member="VisionSensor::get_messy_cfg_tb_5" ref="a0cf71caf261721b05b8ac19415b49acb" args="()" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void VisionSensor::get_messy_cfg_tb_5 </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-<p>Generate a messy config for test bed. </p>
-<p>More ... </p>
-
-</div>
-</div>
-<a class="anchor" id="ac36d5d6eb33b71b8ea6bfc0039fa8671"></a><!-- doxytag: member="VisionSensor::get_messy_cfg_tb_6" ref="ac36d5d6eb33b71b8ea6bfc0039fa8671" args="()" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void VisionSensor::get_messy_cfg_tb_6 </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-<p>Generate a messy config for test bed. </p>
-<p>More ... </p>
-
-</div>
-</div>
-<a class="anchor" id="a825ac19b4bbc84aa62d5a9363b7e4ffe"></a><!-- doxytag: member="VisionSensor::get_messy_config" ref="a825ac19b4bbc84aa62d5a9363b7e4ffe" args="(const size_t &amp;n, bool random=true)" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void VisionSensor::get_messy_config </td>
-          <td>(</td>
-          <td class="paramtype">const size_t &amp;&#160;</td>
-          <td class="paramname"><em>n</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">bool&#160;</td>
-          <td class="paramname"><em>random</em> = <code>true</code>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-<p>Generate messy configs. </p>
-<p>Assume that all objects are cylindrical: radius and height. Assume that orientation can be divided into 2 main groups: standing up-right and lying-down, for the latter there is an infiniti number of possible orientation. </p>
-
-</div>
-</div>
-<a class="anchor" id="a7c8ab916ebbc25456c751fff501ed67f"></a><!-- doxytag: member="VisionSensor::hardcode_messy_cfg" ref="a7c8ab916ebbc25456c751fff501ed67f" args="(const size_t &amp;n)" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void VisionSensor::hardcode_messy_cfg </td>
-          <td>(</td>
-          <td class="paramtype">const size_t &amp;&#160;</td>
-          <td class="paramname"><em>n</em></td><td>)</td>
-          <td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
 <a class="anchor" id="a6ea194fee6ab004fde0c9733c0c9b448"></a><!-- doxytag: member="VisionSensor::is_in_collision" ref="a6ea194fee6ab004fde0c9733c0c9b448" args="(cv::Mat *img, const double &amp;x, const double &amp;y, const size_t &amp;pitch_sym, const double &amp;yaw)" -->
 <div class="memitem">
 <div class="memproto">
@@ -350,6 +182,99 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
           <td>(</td>
           <td class="paramname"></td><td>)</td>
           <td><code> [inline]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+</div>
+</div>
+<a class="anchor" id="a2544c1d188dbca4903f43542278bafe4"></a><!-- doxytag: member="VisionSensor::see_messy_cfg" ref="a2544c1d188dbca4903f43542278bafe4" args="(const size_t &amp;n, bool random=true)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void VisionSensor::see_messy_cfg </td>
+          <td>(</td>
+          <td class="paramtype">const size_t &amp;&#160;</td>
+          <td class="paramname"><em>n</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">bool&#160;</td>
+          <td class="paramname"><em>random</em> = <code>true</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline, private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Generate messy configs. </p>
+<p>Assume that all objects are cylindrical: radius and height. Assume that orientation can be divided into 2 main groups: standing up-right and lying-down, for the latter there is an infiniti number of possible orientation. </p>
+
+</div>
+</div>
+<a class="anchor" id="a3321c06d2ce0700acf555aae4b06738a"></a><!-- doxytag: member="VisionSensor::see_messy_cfg_tb" ref="a3321c06d2ce0700acf555aae4b06738a" args="(const size_t &amp;n)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void VisionSensor::see_messy_cfg_tb </td>
+          <td>(</td>
+          <td class="paramtype">const size_t &amp;&#160;</td>
+          <td class="paramname"><em>n</em></td><td>)</td>
+          <td><code> [inline, private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Generate a messy config for test bed. </p>
+<p>More ... </p>
+
+</div>
+</div>
+<a class="anchor" id="a8911f424209c3b03d3c87ba821cc61c7"></a><!-- doxytag: member="VisionSensor::see_srv_handle" ref="a8911f424209c3b03d3c87ba821cc61c7" args="(hiro_sensor::See::Request &amp;req, hiro_sensor::See::Response &amp;res)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool VisionSensor::see_srv_handle </td>
+          <td>(</td>
+          <td class="paramtype">hiro_sensor::See::Request &amp;&#160;</td>
+          <td class="paramname"><em>req</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">hiro_sensor::See::Response &amp;&#160;</td>
+          <td class="paramname"><em>res</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+</div>
+</div>
+<a class="anchor" id="a2427efdebea2f3894ba6d1393dbefe4b"></a><!-- doxytag: member="VisionSensor::see_static_cfg" ref="a2427efdebea2f3894ba6d1393dbefe4b" args="()" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool VisionSensor::see_static_cfg </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
@@ -425,49 +350,6 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
           <td></td>
           <td>)</td>
           <td></td><td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="ac6bdcd87a93b7d21c3d93af41f07dcaa"></a><!-- doxytag: member="VisionSensor::sense_see_srv_handle" ref="ac6bdcd87a93b7d21c3d93af41f07dcaa" args="(hiro_sensor::Sense::Request &amp;req, hiro_sensor::Sense::Response &amp;res)" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">bool VisionSensor::sense_see_srv_handle </td>
-          <td>(</td>
-          <td class="paramtype">hiro_sensor::Sense::Request &amp;&#160;</td>
-          <td class="paramname"><em>req</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">hiro_sensor::Sense::Response &amp;&#160;</td>
-          <td class="paramname"><em>res</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td><code> [inline]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="a9cb25eb89afee0f13bcc5bea5a65979c"></a><!-- doxytag: member="VisionSensor::sense_static_object" ref="a9cb25eb89afee0f13bcc5bea5a65979c" args="()" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">bool VisionSensor::sense_static_object </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
@@ -559,7 +441,7 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Mon Dec 10 2012 19:57:39 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>
