@@ -374,7 +374,7 @@ PlannerManager::set_tidy_config()
   can4.poses.push_back(can4_tidy_pose);
   
   tidy_cfg_[can4.id] = can4;
-  //------------------------------------------------------------------------------CAN5
+  //------------------------------------------------------------------------------CAN5 TODO !rearrange!
   arm_navigation_msgs::CollisionObject can5;
    
   can5.id = "CAN5"; 

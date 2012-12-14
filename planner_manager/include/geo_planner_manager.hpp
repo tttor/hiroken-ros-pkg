@@ -12,25 +12,20 @@
 #include "tmm_utils.hpp"
 
 static const double COL_OBJ_PUB_TIME = 1.0;
-
-static const size_t NUM_PLANNING_ATTEMPTS = 1;
-static const double ALLOWED_PLANNING_TIME = 1. * 60.;
-static const double ALLOWED_SMOOTHING_TIME = 2.0;
-
-static const double MP_PROCESS_PENALTY = 100.;// a guess
-static const double MP_RESULT_UP = 10.0;// a guess
-static const double MP_PROCESS_UP = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;
-
 static const std::string SET_PLANNING_SCENE_DIFF_SRV_NAME = "/environment_server/set_planning_scene_diff";
 static const std::string GET_PLANNING_SCENE_SRV_NAME = "/environment_server/get_planning_scene";
 static const std::string GET_ROBOT_STATE_SRV_NAME = "/environment_server/get_robot_state";
 static const std::string TRAJECTORY_FILTER_SRV_NAME = "/trajectory_filter_server/filter_trajectory_with_constraints";
 
+static const size_t NUM_PLANNING_ATTEMPTS = 1;
+static const double ALLOWED_PLANNING_TIME = 1. * 60.;
+static const double ALLOWED_SMOOTHING_TIME = 2.0;
+static const size_t MAX_JSPACE_DIM = 7;
+
 struct GeoPlanningCost
 {
   GeoPlanningCost()
   :process(0.), result(0.)
-  , w_p(1.), w_r(1.)
   { }
   
   double process;
@@ -39,22 +34,10 @@ struct GeoPlanningCost
   double w_p;
   double w_r;
   
-//  double
-//  total()
-//  {
-//    // We normalize both process_cost and result_cost as well as put some weight to control the trade-off.
-//    // The ratio of (process/result) means the process cost per result-cost-unit. 
-//    // In the same vein, (result/process) means the result cost per process-cost-unit. 
-//    // We are happy to call this step as normalization.
-//    return (w_p*(process/result)) + (w_r*(result/process));
-//  }
-  
-  // This is for comparing among paths insided plan_motion();
-  // And finally for all (?)
   double
-  total_2()
+  total(const double& w)
   {
-    return ( (w_p*process) + (w_r*result) );
+    return ( (w*process) + ((1.0-w)*result) );
   }
 };
 
@@ -81,7 +64,7 @@ plan(TMMEdge e)
   ROS_DEBUG("start_state: SET");
   
   // Determine all possible goal poses using grasp(if GRASPED_) or ungrasp(if RELEASED_) planner
-  std::vector<sensor_msgs::JointState> goal_set;// Note that we do not use std::set because of ros msg constraint that is an array[] is handled as a vector
+  std::vector<sensor_msgs::JointState> goal_set;// Note that we do not use std::set because of ros an msg constraint that is an array[] is handled as a vector
   if(target(e,pm_->tmm_)==pm_->tmm_goal_)
   {
     // Get a subset of initial jstates stored in the goal vertex, which is the home pose
@@ -89,6 +72,7 @@ plan(TMMEdge e)
   }
   else
   {
+    // Call grasp/ungrasp planner here!
     goal_set = get_goal_set( target(e,pm_->tmm_),get(edge_jspace,pm_->tmm_,e) );  
   }
   ROS_DEBUG_STREAM("goal_set.size()= " << goal_set.size());
@@ -103,61 +87,80 @@ plan(TMMEdge e)
   ROS_DEBUG("Start planning motions");
   trajectory_msgs::JointTrajectory best_plan;
   
-  GeoPlanningCost cheapest_cost;
-  cheapest_cost.result = MP_RESULT_UP;// Initialize with a high value because it serves as a base for comparison
-  cheapest_cost.process = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;// Initialize with a high value because it serves
+  GeoPlanningCost cheapest_cost;// Initialize with a high value because it serves as a base for comparison
+  cheapest_cost.result = std::numeric_limits<double>::max();
+  cheapest_cost.process = std::numeric_limits<double>::max();
 
+  // For calculating iter_cost
   size_t n_success = 0;
-  size_t n_failure = 0;// For computing motion planning process cost
-  size_t n_attempt = 0;
-
-  // For suppressing the number of motion planning trials.
-  const size_t expected_n_success = 1;
-  const size_t n_max_failure = 1;
+  size_t n_failure = 0;
   
+  // Try to plan a motion for all possible goal states in the goal set. Then, take the best among them.
+  // This means that we consider a goal set not only a single goal state.
   for(std::vector<sensor_msgs::JointState>::const_iterator i=goal_set.begin(); i!=goal_set.end(); ++i)
   {
-    ++n_attempt;
-    ROS_INFO_STREAM( "Attempt " << n_attempt << "-th of " << goal_set.size() );
+    ROS_INFO_STREAM( "Attempt: " << i-goal_set.begin()+1 << "-th of " << goal_set.size() );
 
     trajectory_msgs::JointTrajectory plan;
     GeoPlanningCost cost;
-    
-    if( !plan_motion( start_state,*i,get(edge_jspace,pm_->tmm_,e),&plan,&cost ) )
+    bool found;
+
+    if(  plan_motion( start_state,*i,get(edge_jspace,pm_->tmm_,e),&plan,&cost,&found )  )
     {
-      ROS_DEBUG("Motion planning call for this start-goal-state pair: failed, continue...");
-      
-      ++n_failure;
-      continue;
+      if(found)
+      {
+        ++n_success;
+        ROS_DEBUG_STREAM("cost.total(0.5)= " << cost.total(0.5));
+        
+        if( cost.total(0.5) < cheapest_cost.total(0.5) )
+        {
+          ROS_DEBUG("The new plan is better");
+          
+          cheapest_cost = cost;
+          best_plan = plan;
+        }
+      } 
+      else
+      {
+        ++n_failure;
+      }
     }
     else
     {
-      ++n_success;
-      
-      if( cost.total_2() < cheapest_cost.total_2() )
-      {
-        cheapest_cost = cost;
-        best_plan = plan;
-      }
-    } 
-    
-    if(n_success >= expected_n_success) break;
-    if(n_failure >= n_max_failure) break;
+      ROS_WARN("A call to /ompl_planning/plan_kinematic_path and or /benchmark_motion_plan: FAILED.");
+    }
   }
+  ROS_INFO_STREAM("n_success= " << n_success);
+  ROS_INFO_STREAM("n_failure= " << n_failure);
+ 
+  if(n_success==0) 
+  {
+    ROS_INFO_STREAM("No motion plan for " << goal_set.size() << " goals in the goal set ");
+    ROS_INFO_STREAM("OF e= " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e));
+        
+    cheapest_cost.result = 0.;
+    cheapest_cost.process = (ALLOWED_PLANNING_TIME*NUM_PLANNING_ATTEMPTS) + ALLOWED_SMOOTHING_TIME + exp(MAX_JSPACE_DIM/MAX_JSPACE_DIM);
+  }
+  
+  // Calculate the cost of iterating over the goal set
+  double iter_cost;
+  if( goal_set.empty() )
+    iter_cost = 0.;
+  else
+   iter_cost = exp( (double)n_failure/(double)(n_success+n_failure) );
+  
+  cheapest_cost.process += iter_cost;
 
   // Reset the planning environment
   reset_planning_env();
-    
-  if(best_plan.points.size()==0)
-    ROS_WARN_STREAM("No motion plan for e= " << get(edge_name,pm_->tmm_,e));
 
   // Put the best motion plan of this edge e and its geo. planning cost
   put(edge_plan, pm_->tmm_, e, best_plan);
   put(edge_planstr, pm_->tmm_,e,get_planstr(best_plan));
-  put(edge_weight, pm_->tmm_, e, cheapest_cost.total_2());
+  put(edge_weight, pm_->tmm_, e, cheapest_cost.total(0.8));// Thus, process_cost is 4 times worth it than result_cost; 0.8:0.2
   put(edge_color, pm_->tmm_, e, std::string("red"));
   
-  ROS_DEBUG_STREAM("Geo. planning for " << get(edge_name,pm_->tmm_,e) << " ends successfully.");
+  ROS_DEBUG_STREAM("Geo. planning for " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e) << " ends successfully.");
   return true;
 }
 //! Convert plan representations from trajectory_msgs::JointTrajectory to std::string
@@ -274,7 +277,7 @@ get_planning_env()
     return state_str;
   }
   
-  // Put movable object configs
+  // Put movable object poses
   std::vector<arm_navigation_msgs::CollisionObject> col_objs;
   col_objs = res.planning_scene.collision_objects;
   
@@ -299,10 +302,6 @@ get_planning_env()
   
   for(std::vector<arm_navigation_msgs::AttachedCollisionObject>::iterator i=att_col_objs.begin(); i!=att_col_objs.end(); ++i)
   {
-    ROS_DEBUG_STREAM(i->object.id << "'s frame_id= " << i->object.header.frame_id);
-    ROS_DEBUG_STREAM(i->object.id << "'s x,y,z= " << i->object.poses.at(0).position.x  << ", " << i->object.poses.at(0).position.y << ", " << i->object.poses.at(0).position.z);
-    ROS_DEBUG_STREAM(i->object.id << "'s qx,qy,qz,qw= " << i->object.poses.at(0).orientation.x << ", " << i->object.poses.at(0).orientation.y << ", " << i->object.poses.at(0).orientation.z << ", " << i->object.poses.at(0).orientation.w);
-    
     // AttachedCollisionObject automatically has its link_name as the reference frame.
     // Therefore, we have to lookup the transfrom from the object to /table (our common ref. frame for all movable object)
     // $ rosrun tf tf_echo /table CAN1
@@ -312,7 +311,7 @@ get_planning_env()
 
     try
     {
-      listener.waitForTransform("/tabe", i->object.id, ros::Time::now(), ros::Duration(3.0));
+      listener.waitForTransform("/table", i->object.id, ros::Time::now(), ros::Duration(3.0));
       listener.lookupTransform("/table", i->object.id, ros::Time(0), transform);
     }
     catch (tf::TransformException ex)
@@ -320,9 +319,6 @@ get_planning_env()
       ROS_ERROR("%s",ex.what());
     }
 
-    ROS_DEBUG_STREAM(i->object.id << "'s x,y,z= " << transform.getOrigin().x()  << ", " << transform.getOrigin().y() << ", " << transform.getOrigin().z());
-    ROS_DEBUG_STREAM(i->object.id << "'s qx,qy,qz,qw= " << transform.getRotation().x() << ", " << transform.getRotation().y() << ", " << transform.getRotation().z() << ", " << transform.getRotation().w());
-        
     state_str = state_str + i->object.id + ",";
     state_str = state_str + boost::lexical_cast<std::string>(transform.getOrigin().x()) + ",";
     state_str = state_str + boost::lexical_cast<std::string>(transform.getOrigin().y()) + ",";
@@ -334,6 +330,15 @@ get_planning_env()
   }
   
   // TODO Put joint states
+  sensor_msgs::JointState joint_state;
+  joint_state = res.planning_scene.robot_state.joint_state;
+  
+  for(std::vector<std::string>::const_iterator i=joint_state.name.begin(); i!=joint_state.name.end(); ++i)
+  {
+    state_str += *i + ",";
+    state_str += boost::lexical_cast<std::string>( joint_state.position.at(i-joint_state.name.begin()) ) + ";";
+  }
+  boost::erase_last(state_str,";");
   
   return state_str;
 } 
@@ -341,60 +346,20 @@ get_planning_env()
 void
 init_vertex(const TMMVertex& v)
 {
-//  // Call to /environment_server/get_robot_state srv
-//  arm_navigation_msgs::GetRobotState::Request req;
-//  arm_navigation_msgs::GetRobotState::Response res;
-//  
-//  ros::service::waitForService(GET_ROBOT_STATE_SRV_NAME);
-//  ros::ServiceClient get_robot_state_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetRobotState>(GET_ROBOT_STATE_SRV_NAME);
-//  
-//  if ( !get_robot_state_client.call(req, res) )
-//  { 
-//    ROS_ERROR("A call get_robot_state srv, Init vertex: FAILED");
-//    return;
-//  }
-//  
-//  put(vertex_jstates, pm_->tmm_, v, res.robot_state.joint_state);
+  // Call to /environment_server/get_robot_state srv
+  arm_navigation_msgs::GetRobotState::Request req;
+  arm_navigation_msgs::GetRobotState::Response res;
   
-  sensor_msgs::JointState init_jstates;
+  ros::service::waitForService(GET_ROBOT_STATE_SRV_NAME);
+  ros::ServiceClient get_robot_state_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetRobotState>(GET_ROBOT_STATE_SRV_NAME);
   
-  init_jstates.header.stamp = ros::Time::now();
+  if ( !get_robot_state_client.call(req, res) )
+  { 
+    ROS_ERROR("A call get_robot_state srv, Init vertex: FAILED");
+    return;
+  }
   
-  // MUST be in order
-  init_jstates.name.push_back("joint_chest_yaw");
-
-  init_jstates.name.push_back("joint_rshoulder_yaw");
-  init_jstates.name.push_back("joint_rshoulder_pitch");
-  init_jstates.name.push_back("joint_relbow_pitch");
-  init_jstates.name.push_back("joint_rwrist_yaw");
-  init_jstates.name.push_back("joint_rwrist_pitch");
-  init_jstates.name.push_back("joint_rwrist_roll");
-
-  init_jstates.name.push_back("joint_lshoulder_yaw");
-  init_jstates.name.push_back("joint_lshoulder_pitch");
-  init_jstates.name.push_back("joint_lelbow_pitch");
-  init_jstates.name.push_back("joint_lwrist_yaw");
-  init_jstates.name.push_back("joint_lwrist_pitch");
-  init_jstates.name.push_back("joint_lwrist_roll");
-   
-  // For Hiro pose where his hands are in the back 
-  init_jstates.position.push_back(0.);
-
-  init_jstates.position.push_back(0.15707963267948966);  
-  init_jstates.position.push_back(-2.7017696820872223);
-  init_jstates.position.push_back(-2.6162485487395);
-  init_jstates.position.push_back(2.0263272615654166);
-  init_jstates.position.push_back(-0.38048177693476387);
-  init_jstates.position.push_back(0.17453292519943295);
-
-  init_jstates.position.push_back(0.15707963267948966);  
-  init_jstates.position.push_back(-2.7017696820872223);
-  init_jstates.position.push_back(-2.6162485487395);
-  init_jstates.position.push_back(2.0263272615654166);
-  init_jstates.position.push_back(-0.38048177693476387);
-  init_jstates.position.push_back(0.17453292519943295);
-  
-  put(vertex_jstates, pm_->tmm_, v, init_jstates);
+  put(vertex_jstates, pm_->tmm_, v, res.robot_state.joint_state);
 }
 
 private:
@@ -521,12 +486,16 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, const std::string& jspa
     
     *grasp_poses = plan_grasp_res.grasp_plans;// This may be empty
     
+    /*
+    Note that the geometric planning process cost returned by plan_grasp_srv is ignored for now for simplicity.
+    If we would like to take account of it, we also have to define the result cost of the grasp pose that results in the best motion plan.
+    */
+
     return true;
   }
   else
   {
-    // TODO what happens with the cost.
-    ROS_WARN("Failed to call plan_grasp service");
+    ROS_WARN("A call to plan_grasp service: FAILED");
     return false;
   }
 }
@@ -555,9 +524,12 @@ plan_ungrasp(arm_navigation_msgs::CollisionObject& object, const std::string& js
 }
 //! Brief ...
 /*!
-  Assuming that the motion planner is an oracle i.e. always returns the best motion plan for given a pair of start and goal states
-  Note: the planner does not put any values at motion_plan.joint_trajectory.points.at(0).velocities
-  motion_plan.joint_trajectory.points.at(0).velocities.size() is always zero here.
+  Assuming that the motion planner is an oracle i.e. always returns the best motion plan for given a pair of start and goal states.
+  This returns false in 2 cases: a call to motion plan is failed and or a call to benchmark_motion_plan srv is failed. In both cases, any result is erronous.
+  From Sucan PhD Thesis: "In general, the dimensionality of the space to plan in and the amount of time spent planning seem to be the more important parameters when estimating edge costs."
+  
+  (1) the planner does not put any values at motion_plan.joint_trajectory.points.at(0).velocities. Therefore, motion_plan.joint_trajectory.points.at(0).velocities.size() is always zero (by default) here.
+  (2) The result cost of this motion plan is only determined by the path length. Other possibilities: path smothness, clearance
   
   \param start_state
   \param goal_state
@@ -566,13 +538,8 @@ plan_ungrasp(arm_navigation_msgs::CollisionObject& object, const std::string& js
   \return whether successful
 */
 bool
-plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::JointState& goal_state, const std::string& jspace, trajectory_msgs::JointTrajectory* plan, GeoPlanningCost* cost)
+plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::JointState& goal_state, const std::string& jspace, trajectory_msgs::JointTrajectory* plan, GeoPlanningCost* cost, bool* found)
 {
-  while(!ros::service::waitForService("ompl_planning/plan_kinematic_path", ros::Duration(1.0))) 
-    ROS_INFO_STREAM("Waiting for requested service " << "ompl_planning/plan_kinematic_path");
-  
-  ros::ServiceClient planning_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetMotionPlan>("ompl_planning/plan_kinematic_path");
-
   arm_navigation_msgs::GetMotionPlan::Request req;  
   arm_navigation_msgs::GetMotionPlan::Response res;
   
@@ -582,8 +549,7 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
   req.motion_plan_request.allowed_planning_time = ros::Duration(ALLOWED_PLANNING_TIME);
   req.motion_plan_request.planner_id= std::string("");
   
-  req.motion_plan_request.goal_constraints.joint_constraints.resize(goal_state.name.size());
-  
+  req.motion_plan_request.goal_constraints.joint_constraints.resize( goal_state.name.size() );
   for(size_t i=0; i < req.motion_plan_request.goal_constraints.joint_constraints.size(); ++i)
   {
     req.motion_plan_request.goal_constraints.joint_constraints[i].joint_name = goal_state.name.at(i);
@@ -606,37 +572,47 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
     req.motion_plan_request.start_state.joint_state.effort.at(i) = 0.;
   }  
   
+  ros::service::waitForService("ompl_planning/plan_kinematic_path");
+  ros::ServiceClient planning_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetMotionPlan>("ompl_planning/plan_kinematic_path");
+  
   ros::Time planning_begin = ros::Time::now();
   if ( planning_client.call(req, res) )
   {
-    double planning_time = (ros::Time::now()-planning_begin).toSec();
+    double planning_time;
+    planning_time = (ros::Time::now()-planning_begin).toSec();
     
     if ( res.trajectory.joint_trajectory.points.empty() )
     {
-      ROS_WARN("Motion planner was unable to plan a path to goal, trajectory.points.empty()");
-      
-      // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
-      cost->result = 0.;// Ensure the length cost is exactly 0
-      cost->process = (NUM_PLANNING_ATTEMPTS*ALLOWED_PLANNING_TIME) + ALLOWED_SMOOTHING_TIME + MP_PROCESS_PENALTY;// The penalty is to make a significant diff. with any expensive yet feasible plan.
-      
-      return false;// No feasible motion plan must indicate that the call to this function is unsuccesful.
+      ROS_INFO_STREAM("Motion planner was unable to plan a path to goal, joint_trajectory.points.size()= " << res.trajectory.joint_trajectory.points.size());
+      *found = false;
     }
     else
     {
       ROS_INFO("Motion planning succeeded");
+      *found = true;
       
+      // Calculate jspace_cost
+      size_t jspace_dim;
+      jspace_dim = start_state.name.size(); // _must_ be equal to goal_state.name.size()
+      
+      double jspace_cost;
+      jspace_cost = exp( (double)jspace_dim/(double)MAX_JSPACE_DIM );
+      
+      // Filter(smooth) the raw motion plan
       trajectory_msgs::JointTrajectory filtered_trajectory;
-      
       ros::Time smoothing_begin = ros::Time::now();
-      filter_path(res.trajectory.joint_trajectory, req, &filtered_trajectory);// Note that whenever filter_path() returns false, it means that the trajectory pass in is not changed
-      double smoothing_time = (ros::Time::now()-smoothing_begin).toSec();
-      
+
+      filter_path(res.trajectory.joint_trajectory, req, &filtered_trajectory);
+
+      double smoothing_time;
+      smoothing_time = (ros::Time::now()-smoothing_begin).toSec();
+            
       // Visualize the path
       motion_plan_pub_.publish(filtered_trajectory);
 
-      // Benchmark the filtered path
-      ros::service::waitForService("plan_grasp");
-      ros::ServiceClient benchmark_path_client = pm_->nh_.serviceClient<hiro_common::BenchmarkPath>("benchmark_motion_plan");
+      // Benchmark the filtered path to determine the result cost
+      ros::service::waitForService("/benchmark_motion_plan");
+      ros::ServiceClient benchmark_path_client = pm_->nh_.serviceClient<hiro_common::BenchmarkPath>("/benchmark_motion_plan");
       
       hiro_common::BenchmarkPath::Request benchmark_path_req;
       hiro_common::BenchmarkPath::Response benchmark_path_res;
@@ -646,38 +622,40 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
       if (benchmark_path_client.call(benchmark_path_req, benchmark_path_res))
       {
         ROS_DEBUG("BenchmarkPath succeeded");
-        
-        // Up to Oct 23, 2012, the result cost of this motion plan is only determined by the path length.
-        cost->result = benchmark_path_res.length;
-        cost->process = (planning_time + smoothing_time);
       }
       else
       {
         ROS_ERROR("BenchmarkPath service failed on %s",benchmark_path_client.getService().c_str());
-        //TODO what happen with the cost?
-        return false;// Although not truly appropriate, this must indicate that the call to this function is unsuccessful.
+        return false;
       }
+  
+      // Accumulate the cost 
+      cost->result = benchmark_path_res.length;
+      cost->process = planning_time + smoothing_time + jspace_cost;
+      
+      // Put the resulted plan
+      *plan = filtered_trajectory;
       
       // Clear the path visualization
       trajectory_msgs::JointTrajectory empty_path;
       ros::Duration(0.1).sleep();// May be not necessary, just to make the visualization time as longer as you want.
       motion_plan_pub_.publish(empty_path);
-      
-      *plan = filtered_trajectory;
-      return true;
     }
+    return true;
   }
   else
   {
     ROS_ERROR("Motion planning service failed on %s",planning_client.getService().c_str());
-    //TODO what happen with the cost?
     return false;// Although not truly appropriate, this must indicate that the call to this function is unsuccessful.
   }
 }
 //! Filter the motion path
 /*!
-  More ...
-  \param trajectory_in trajectory_out  
+  Note that whenever filter_path() returns false, it means that the trajectory pass in is not changed
+
+  \param trajectory_in 
+  \param ori_req
+  \param *trajectory_out  
   \return whether successful
 */
 bool
@@ -704,7 +682,7 @@ filter_path(const trajectory_msgs::JointTrajectory& trajectory_in, const arm_nav
     
     if(trajectory_out->points.empty())
     {
-      ROS_WARN("filter srv returns TRUE but it is empty");
+      ROS_WARN("filter srv returns TRUE but it is empty; trajectory_out = trajectory_in");
       *trajectory_out = trajectory_in;
     }
     
