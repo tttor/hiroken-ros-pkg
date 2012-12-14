@@ -71,7 +71,6 @@ void tree_edge(typename boost::graph_traits<Graph>::edge_descriptor e,Graph& g)
     
     std::vector<std::string> state_str_parts;
     boost::split( state_str_parts, state_str, boost::is_any_of(";") );
-    state_str_parts.erase(state_str_parts.end()-1);// remove the blank part because state_str always ends with ";"
     
     for(std::vector<std::string>::const_iterator i=state_str_parts.begin(); i!=state_str_parts.end(); ++i )
     {

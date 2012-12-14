@@ -17,9 +17,7 @@
 #include "grasp_planner/PlanGrasp.h"
 
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
-
 static const double GRASP_PADDING = 0.070;
-
 static const size_t YAW_STEP = (360./5.);// It means each step is (2*M_PI)/YAW_STEP radian = (360)/YAW_STEP degree
 
 class GraspPlanner
@@ -35,7 +33,7 @@ GraspPlanner(ros::NodeHandle& nh)
 { }
 
 bool
-plan_grasp_srv_cb(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp::Response &res)
+plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp::Response &res)
 {
   ROS_DEBUG_STREAM("Grasp planning: BEGIN for " << req.object.id.c_str() << " in " << req.jspace );
   
@@ -246,7 +244,7 @@ main(int argc, char** argv)
   GraspPlanner gp(nh);
   
   ros::ServiceServer plan_grasp_srv_;
-  plan_grasp_srv_ = nh.advertiseService("plan_grasp", &GraspPlanner::plan_grasp_srv_cb, &gp);
+  plan_grasp_srv_ = nh.advertiseService("plan_grasp", &GraspPlanner::plan_grasp_srv_handle, &gp);
   
   ROS_INFO("Ready to plan grasps.");
   ros::spin();

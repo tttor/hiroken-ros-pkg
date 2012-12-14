@@ -7,6 +7,7 @@
 	
   <param name="is_online" value="$(arg is_online)"/>
   <param name="data_path" value="$(arg data_path)"/>
+  <param name="task_planner_path" value="$(find task_planner)"/>
   <param name="mode" value="$(arg mode)"/>  
   <param name="n_objs" value="$(arg n_objs)"/>    
   <param name="task_planner_path" value="$(find task_planner)"/>
