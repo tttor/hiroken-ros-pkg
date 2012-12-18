@@ -13,7 +13,8 @@
   
   <depend package="sensor_manager"/>
   <depend package="planner_manager"/>
-  <depend package="action_manager"/>  
+  <depend package="action_manager"/>
+  <depend package="learning_machine"/>  
 </package>
 
 

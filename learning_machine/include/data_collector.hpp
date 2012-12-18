@@ -77,31 +77,36 @@ void tree_edge(typename boost::graph_traits<Graph>::edge_descriptor e,Graph& g)
       std::vector<std::string> comps;
       boost::split( comps, *i, boost::is_any_of(",") );
       
-      if(comps.size()!=8)// : id, x, y, z, qx, qy, qz, qw
+      if(comps.size()==8)// : id, x, y, z, qx, qy, qz, qw
       {
-        std::cerr << "comps.size()= " << comps.size() << std::endl;
-        std::cerr << "state_str is corrupt!" << std::endl;
-        return;
-      }
-      
-      std::string obj_id = comps.at(0);
-      comps.erase(comps.begin());// to make comps and names exactly matched
-      
-      std::vector<std::string> names;
-      names.push_back(obj_id+".x");
-      names.push_back(obj_id+".y");
-      names.push_back(obj_id+".z");
-      names.push_back(obj_id+".qx");
-      names.push_back(obj_id+".qy");
-      names.push_back(obj_id+".qz");
-      names.push_back(obj_id+".qw");
-      
-      for(std::vector<std::string>::const_iterator j=names.begin(); j!=names.end(); ++j)
-      {
-        std::string name = *j;
-        double val = boost::lexical_cast<double>( comps.at(j-names.begin()) );
+        std::string obj_id = comps.at(0);
+        comps.erase(comps.begin());// to make comps and names exactly matched
         
-        r_in.insert( std::make_pair(name,val) );
+        std::vector<std::string> names;
+        names.push_back(obj_id+".x");
+        names.push_back(obj_id+".y");
+        names.push_back(obj_id+".z");
+        names.push_back(obj_id+".qx");
+        names.push_back(obj_id+".qy");
+        names.push_back(obj_id+".qz");
+        names.push_back(obj_id+".qw");
+        
+        for(std::vector<std::string>::const_iterator j=names.begin(); j!=names.end(); ++j)
+        {
+          std::string name = *j;
+          double val = boost::lexical_cast<double>( comps.at(j-names.begin()) );
+          
+          r_in.insert( std::make_pair(name,val) );
+        }
+      }
+      else if(comps.size()==2)// joint-name, joint-state
+      {
+        r_in.insert(  std::make_pair( comps.at(0),boost::lexical_cast<double>(comps.at(1)) )  );
+      }
+      else
+      {
+        std::cerr << "state_str is corrupt; comps.size()= " << comps.size() << std::endl;
+        return;
       }
     }
     
@@ -138,7 +143,7 @@ convert(RawInput r_in, Input* in)
     if( j!=r_in.end() )
       in->push_back( j->second );
     else
-      in->push_back(0.);// Make it a point and at the Origin
+      in->push_back(0.);// Make it a point and at the Origin for object's pose; Set not-exist value for symbolic features
   }
 }
 
