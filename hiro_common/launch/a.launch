@@ -51,5 +51,7 @@
   <node name="planner_mgr" pkg="planner_manager" type="planner" output="screen" />
   <node name="action_mgr" pkg="action_manager" type="actor" output="screen" />
     
-  <node name="general_mgr" pkg="general_manager" type="general_mgr" output="screen" />    
+  <node name="general_mgr" pkg="general_manager" type="general_mgr" output="screen" />
+  
+  <node name="learner" pkg="learning_machine" type="learner" output="screen" />
 </launch>

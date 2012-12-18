@@ -6,13 +6,14 @@ import struct
 
 
 class TrainRequest(genpy.Message):
-  _md5sum = "d41d8cd98f00b204e9800998ecf8427e"
+  _md5sum = "a4e82f149495f2916fe2470fb0fe41f8"
   _type = "learning_machine/TrainRequest"
   _has_header = False #flag to mark the presence of a Header object
-  _full_text = """
+  _full_text = """string[] tmm_paths
+
 """
-  __slots__ = []
-  _slot_types = []
+  __slots__ = ['tmm_paths']
+  _slot_types = ['string[]']
 
   def __init__(self, *args, **kwds):
     """
@@ -22,7 +23,7 @@ class TrainRequest(genpy.Message):
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       
+       tmm_paths
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -30,6 +31,11 @@ class TrainRequest(genpy.Message):
     """
     if args or kwds:
       super(TrainRequest, self).__init__(*args, **kwds)
+      #message fields cannot be None, assign default values for those that are
+      if self.tmm_paths is None:
+        self.tmm_paths = []
+    else:
+      self.tmm_paths = []
 
   def _get_types(self):
     """
@@ -43,7 +49,14 @@ class TrainRequest(genpy.Message):
     :param buff: buffer, ``StringIO``
     """
     try:
-      pass
+      length = len(self.tmm_paths)
+      buff.write(_struct_I.pack(length))
+      for val1 in self.tmm_paths:
+        length = len(val1)
+        if python3 or type(val1) == unicode:
+          val1 = val1.encode('utf-8')
+          length = len(val1)
+        buff.write(struct.pack('<I%ss'%length, length, val1))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -54,6 +67,21 @@ class TrainRequest(genpy.Message):
     """
     try:
       end = 0
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      self.tmm_paths = []
+      for i in range(0, length):
+        start = end
+        end += 4
+        (length,) = _struct_I.unpack(str[start:end])
+        start = end
+        end += length
+        if python3:
+          val1 = str[start:end].decode('utf-8')
+        else:
+          val1 = str[start:end]
+        self.tmm_paths.append(val1)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -66,7 +94,14 @@ class TrainRequest(genpy.Message):
     :param numpy: numpy python module
     """
     try:
-      pass
+      length = len(self.tmm_paths)
+      buff.write(_struct_I.pack(length))
+      for val1 in self.tmm_paths:
+        length = len(val1)
+        if python3 or type(val1) == unicode:
+          val1 = val1.encode('utf-8')
+          length = len(val1)
+        buff.write(struct.pack('<I%ss'%length, length, val1))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -78,6 +113,21 @@ class TrainRequest(genpy.Message):
     """
     try:
       end = 0
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      self.tmm_paths = []
+      for i in range(0, length):
+        start = end
+        end += 4
+        (length,) = _struct_I.unpack(str[start:end])
+        start = end
+        end += length
+        if python3:
+          val1 = str[start:end].decode('utf-8')
+        else:
+          val1 = str[start:end]
+        self.tmm_paths.append(val1)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -171,6 +221,6 @@ class TrainResponse(genpy.Message):
 _struct_I = genpy.struct_I
 class Train(object):
   _type          = 'learning_machine/Train'
-  _md5sum = 'd41d8cd98f00b204e9800998ecf8427e'
+  _md5sum = 'a4e82f149495f2916fe2470fb0fe41f8'
   _request_class  = TrainRequest
   _response_class = TrainResponse

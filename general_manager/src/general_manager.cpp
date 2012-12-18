@@ -5,6 +5,7 @@
 #include "planner_manager/Plan.h"
 #include "action_manager/Commit.h"
 #include "action_manager/Go2Home.h"
+#include "learning_machine/Train.h"
 
 using namespace std;
 
@@ -110,6 +111,27 @@ act()
   return true;
 }
 
+bool
+train(const std::vector<std::string>& tmm_paths)
+{
+  ros::service::waitForService("/train");
+    
+  ros::ServiceClient train_client;
+  train_client = nh_.serviceClient<learning_machine::Train> ("/train");
+  
+  learning_machine::Train::Request req;
+  learning_machine::Train::Response res;
+  
+  req.tmm_paths = tmm_paths;
+  
+  if( !train_client.call(req, res) ) 
+  {
+    ROS_WARN("Call to learning_machine/train srv: FAILED");
+    return false;
+  }
+  
+  return true;
+}
 private:
 //! A ROS node handler
 /*!
@@ -143,6 +165,10 @@ main(int argc, char **argv)
   int n_objs = 0;
   if( !ros::param::get("/n_objs",n_objs) )
     ROS_WARN("Can not get /n_objs, use the default value (=0) instead");
+  
+  std::string data_path;
+  if( !ros::param::get("/data_path", data_path) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
     
   switch(mode)
   {
@@ -162,8 +188,12 @@ main(int argc, char **argv)
       gm.act();
       break;
     }
-    case 3:
+    case 3:// TRAIN the ML offline (data are already available)
     {
+      std::vector<std::string> tmm_paths;
+      tmm_paths.push_back(data_path+"/tmm.dot");
+      
+      gm.train(tmm_paths);
       break;
     }
     default:

@@ -26,12 +26,17 @@ struct TrainRequest_ {
   typedef TrainRequest_<ContainerAllocator> Type;
 
   TrainRequest_()
+  : tmm_paths()
   {
   }
 
   TrainRequest_(const ContainerAllocator& _alloc)
+  : tmm_paths(_alloc)
   {
   }
+
+  typedef std::vector<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > , typename ContainerAllocator::template rebind<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::other >  _tmm_paths_type;
+  std::vector<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > , typename ContainerAllocator::template rebind<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::other >  tmm_paths;
 
 
   typedef boost::shared_ptr< ::learning_machine::TrainRequest_<ContainerAllocator> > Ptr;
@@ -89,12 +94,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::learning_machine::TrainRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "a4e82f149495f2916fe2470fb0fe41f8";
   }
 
   static const char* value(const  ::learning_machine::TrainRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0xd41d8cd98f00b204ULL;
-  static const uint64_t static_value2 = 0xe9800998ecf8427eULL;
+  static const uint64_t static_value1 = 0xa4e82f149495f291ULL;
+  static const uint64_t static_value2 = 0x6fe2470fb0fe41f8ULL;
 };
 
 template<class ContainerAllocator>
@@ -111,14 +116,14 @@ template<class ContainerAllocator>
 struct Definition< ::learning_machine::TrainRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "\n\
+    return "string[] tmm_paths\n\
+\n\
 ";
   }
 
   static const char* value(const  ::learning_machine::TrainRequest_<ContainerAllocator> &) { return value(); } 
 };
 
-template<class ContainerAllocator> struct IsFixedSize< ::learning_machine::TrainRequest_<ContainerAllocator> > : public TrueType {};
 } // namespace message_traits
 } // namespace ros
 
@@ -176,6 +181,7 @@ template<class ContainerAllocator> struct Serializer< ::learning_machine::TrainR
 {
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
+    stream.next(m.tmm_paths);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -208,7 +214,7 @@ template<>
 struct MD5Sum<learning_machine::Train> {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "a4e82f149495f2916fe2470fb0fe41f8";
   }
 
   static const char* value(const learning_machine::Train&) { return value(); } 
@@ -228,7 +234,7 @@ template<class ContainerAllocator>
 struct MD5Sum<learning_machine::TrainRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "a4e82f149495f2916fe2470fb0fe41f8";
   }
 
   static const char* value(const learning_machine::TrainRequest_<ContainerAllocator> &) { return value(); } 
@@ -248,7 +254,7 @@ template<class ContainerAllocator>
 struct MD5Sum<learning_machine::TrainResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "a4e82f149495f2916fe2470fb0fe41f8";
   }
 
   static const char* value(const learning_machine::TrainResponse_<ContainerAllocator> &) { return value(); } 
