@@ -15,16 +15,17 @@ class LearningMachine
 public:
 LearningMachine(ros::NodeHandle nh)
 : nh_(nh)
-{ }
+{
+  data_path_= ".";
+  if( !ros::param::get("/data_path", data_path_) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
+}
 
 bool
 train_srv_handle(learning_machine::Train::Request& req, learning_machine::Train::Response& res)
 {
-  std::vector<std::string> tmm_paths;// holds planned tmm paths
-  tmm_paths.push_back("/home/vektor/hiroken-ros-pkg/planner_manager/data/tmm.dot");
-  
   // Collect samples/training data
-  get_samples(tmm_paths);
+  get_samples(req.tmm_paths);
     
   // Train TODO
   
@@ -113,7 +114,7 @@ get_samples(const std::vector<std::string>& tmm_paths)
     p_tmm_dp.property( "color",get(edge_color, p_tmm) );
     p_tmm_dp.property( "srcstate",get(edge_srcstate,p_tmm) );
 
-    std::string p_tmm_dot_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/p_tmm.dot";
+    std::string p_tmm_dot_path = data_path_ + "/p_tmm.dot";
     ofstream p_tmm_dot;
     p_tmm_dot.open(p_tmm_dot_path.c_str());
       
@@ -138,7 +139,7 @@ get_samples(const std::vector<std::string>& tmm_paths)
   }// End of: for each tmm_path
   
   // Write data to a file  
-  std::string tr_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/data.csv";
+  std::string tr_data_path = data_path_ + "/ml_data/data.csv";
   
   std::ofstream tr_data_out;
   tr_data_out.open( tr_data_path.c_str() );// overwrite
@@ -168,7 +169,7 @@ get_feature_names()
   std::vector<std::string> feature_names;
   
   // Read from a csv file containing metadata
-  std::string metadata_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/metadata.csv"; // Note that the metadata must only contain 1 line at most.
+  std::string metadata_path = data_path_ + "/ml_data/metadata.csv"; // Note that the metadata must only contain 1 line at most.
   std::ifstream metadata_in(metadata_path.c_str());
   
   if ( metadata_in.is_open() )
@@ -210,6 +211,8 @@ get_feature_names()
 ros::NodeHandle nh_;
 
 Data tr_data_;
+
+std::string data_path_;
 };
 
 int 

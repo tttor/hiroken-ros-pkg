@@ -81,7 +81,7 @@ plan(TMMEdge e)
   set_planning_env( source(e,pm_->tmm_), true );
   
   // Put the geometric config of source vertex set above into edge prop.
-  put( edge_srcstate,pm_->tmm_,e,get_planning_env() );
+  put( edge_srcstate,pm_->tmm_,e,get_planning_env(e) );
   
   // Obtain the best motion plan
   ROS_DEBUG("Start planning motions");
@@ -157,7 +157,7 @@ plan(TMMEdge e)
   // Put the best motion plan of this edge e and its geo. planning cost
   put(edge_plan, pm_->tmm_, e, best_plan);
   put(edge_planstr, pm_->tmm_,e,get_planstr(best_plan));
-  put(edge_weight, pm_->tmm_, e, cheapest_cost.total(0.8));// Thus, process_cost is 4 times worth it than result_cost; 0.8:0.2
+  put(edge_weight, pm_->tmm_, e, cheapest_cost.total(0.9));// Thus, process_cost is 4 times worth it than result_cost; 0.8:0.2
   put(edge_color, pm_->tmm_, e, std::string("red"));
   
   ROS_DEBUG_STREAM("Geo. planning for " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e) << " ends successfully.");
@@ -260,7 +260,7 @@ mark_vertex(const TMMVertex& v)
 }
 
 std::string
-get_planning_env()
+get_planning_env(const TMMEdge& e)
 {
   std::string state_str;
   
@@ -329,9 +329,11 @@ get_planning_env()
     state_str = state_str + boost::lexical_cast<std::string>(transform.getRotation().w()) + ";";// The last one use ";", instead of ","
   }
   
-  // TODO Put joint states
-  sensor_msgs::JointState joint_state;
-  joint_state = res.planning_scene.robot_state.joint_state;
+  // Put joint states
+  // Note that instead of using res.planning_scene.robot_state.joint_state, we use get(vertex_jstates, pm_->tmm_, source(e, pm_->tmm_).
+  // The reason is because set_planning_env() does not do anything with the robot_state.
+  sensor_msgs::JointState joint_state;  
+  joint_state = get( vertex_jstates, pm_->tmm_, source(e, pm_->tmm_) );
   
   for(std::vector<std::string>::const_iterator i=joint_state.name.begin(); i!=joint_state.name.end(); ++i)
   {
