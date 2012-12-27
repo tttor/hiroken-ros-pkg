@@ -1,6 +1,8 @@
 >> geometric planning cost HAVE TO consider jspace
-
-DONE
--- grasp_planner should receive information about jspace used. 
--- data path, dot paths, e.g. task graph, tmm should be in global variables set at .launch or centralized
--- adjust hiro_joint_controller.cpp to accept different jspaces
+>> typedef typename graph_traits<GPMGraph>::vertex_descriptor Vertex; VS typedef typename GPMGraph::vertex_descriptor Vertex;
+>> debug for tidying up with >= 5objects
+>> build object config. file + its parser
+===
+>> grasp_planner should receive information about jspace used. 
+>> data path, dot paths, e.g. task graph, tmm should be in global variables set at .launch or centralized
+>> adjust hiro_joint_controller.cpp to accept different jspaces

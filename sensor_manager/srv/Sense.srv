@@ -1,3 +1,4 @@
 uint16 id
-uint16[] args
+uint16[] uint_args
+string[] string_args
 ---

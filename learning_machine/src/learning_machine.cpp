@@ -96,7 +96,7 @@ get_samples(const std::vector<std::string>& tmm_paths)
       remove_edge(*i,tmm);
     ROS_DEBUG("Parallelism: removed");
     
-    // Filter only the planned edge 
+    // Filter only the planned edge to make dfs_visit more efficient by cutting the depth of the tmm
     PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, tmm) );
     typedef filtered_graph< TaskMotionMultigraph, PlannedEdgeFilter<TMMEdgeColorMap> > PlannedTMM;
 

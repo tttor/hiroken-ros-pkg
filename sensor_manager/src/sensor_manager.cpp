@@ -24,9 +24,10 @@ sense_srv_handle(sensor_manager::Sense::Request& root_req, sensor_manager::Sense
       
       hiro_sensor::See::Request req;
       hiro_sensor::See::Response res;
-      
-      req.n = root_req.args.at(0);// number of expected sensed objects
-      req.random = root_req.args.at(1);// Whether using a random messy cfg or a hardcoded testbed
+
+      req.random = root_req.uint_args.at(0);// Whether using a random messy cfg or a hardcoded testbed      
+      req.n = root_req.uint_args.at(1);// number of expected sensed objects
+      req.path = root_req.string_args.at(0);// path for replay messy_cfg
         
       if( !see_client.call(req,res) ) 
       {

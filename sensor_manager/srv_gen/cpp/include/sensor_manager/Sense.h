@@ -27,21 +27,26 @@ struct SenseRequest_ {
 
   SenseRequest_()
   : id(0)
-  , args()
+  , uint_args()
+  , string_args()
   {
   }
 
   SenseRequest_(const ContainerAllocator& _alloc)
   : id(0)
-  , args(_alloc)
+  , uint_args(_alloc)
+  , string_args(_alloc)
   {
   }
 
   typedef uint16_t _id_type;
   uint16_t id;
 
-  typedef std::vector<uint16_t, typename ContainerAllocator::template rebind<uint16_t>::other >  _args_type;
-  std::vector<uint16_t, typename ContainerAllocator::template rebind<uint16_t>::other >  args;
+  typedef std::vector<uint16_t, typename ContainerAllocator::template rebind<uint16_t>::other >  _uint_args_type;
+  std::vector<uint16_t, typename ContainerAllocator::template rebind<uint16_t>::other >  uint_args;
+
+  typedef std::vector<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > , typename ContainerAllocator::template rebind<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::other >  _string_args_type;
+  std::vector<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > , typename ContainerAllocator::template rebind<std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other > >::other >  string_args;
 
 
   typedef boost::shared_ptr< ::sensor_manager::SenseRequest_<ContainerAllocator> > Ptr;
@@ -99,12 +104,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::sensor_manager::SenseRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "27de861bbd83c4387cd67c9dc671edee";
+    return "321a9d12d35a991430b703db88e8fea8";
   }
 
   static const char* value(const  ::sensor_manager::SenseRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0x27de861bbd83c438ULL;
-  static const uint64_t static_value2 = 0x7cd67c9dc671edeeULL;
+  static const uint64_t static_value1 = 0x321a9d12d35a9914ULL;
+  static const uint64_t static_value2 = 0x30b703db88e8fea8ULL;
 };
 
 template<class ContainerAllocator>
@@ -122,7 +127,8 @@ struct Definition< ::sensor_manager::SenseRequest_<ContainerAllocator> > {
   static const char* value() 
   {
     return "uint16 id\n\
-uint16[] args\n\
+uint16[] uint_args\n\
+string[] string_args\n\
 \n\
 ";
   }
@@ -188,7 +194,8 @@ template<class ContainerAllocator> struct Serializer< ::sensor_manager::SenseReq
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
     stream.next(m.id);
-    stream.next(m.args);
+    stream.next(m.uint_args);
+    stream.next(m.string_args);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -221,7 +228,7 @@ template<>
 struct MD5Sum<sensor_manager::Sense> {
   static const char* value() 
   {
-    return "27de861bbd83c4387cd67c9dc671edee";
+    return "321a9d12d35a991430b703db88e8fea8";
   }
 
   static const char* value(const sensor_manager::Sense&) { return value(); } 
@@ -241,7 +248,7 @@ template<class ContainerAllocator>
 struct MD5Sum<sensor_manager::SenseRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "27de861bbd83c4387cd67c9dc671edee";
+    return "321a9d12d35a991430b703db88e8fea8";
   }
 
   static const char* value(const sensor_manager::SenseRequest_<ContainerAllocator> &) { return value(); } 
@@ -261,7 +268,7 @@ template<class ContainerAllocator>
 struct MD5Sum<sensor_manager::SenseResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "27de861bbd83c4387cd67c9dc671edee";
+    return "321a9d12d35a991430b703db88e8fea8";
   }
 
   static const char* value(const sensor_manager::SenseResponse_<ContainerAllocator> &) { return value(); } 

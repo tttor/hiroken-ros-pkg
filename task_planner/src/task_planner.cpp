@@ -47,10 +47,6 @@ public:
 TaskPlanner(ros::NodeHandle& nh)
   :nh_(nh)
 {
-  data_path_ = ".";
-  if( !ros::param::get("/data_path", data_path_) )
-    ROS_WARN("Can not get /data_path, use the default value instead");
- 
   task_planner_path_ = ".";
   if( !ros::param::get("/task_planner_path", task_planner_path_) )
     ROS_WARN("Can not get /task_planner_path, use the default value instead");
@@ -228,7 +224,11 @@ plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
   }// End of: for each task plan
 
   // Write the task_graph.dot
-  std::string task_graph_dot_path = data_path_ + "/task_graph.dot";
+  std::string data_path = ".";
+  if( !ros::param::get("/data_path", data_path) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
+    
+  std::string task_graph_dot_path = data_path + "/task_graph.dot";
   
   std::ofstream task_graph_dot;
   task_graph_dot.open(task_graph_dot_path.c_str());
@@ -243,6 +243,29 @@ plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
   // Convert to Task Motion Multigraph
   TaskMotionMultigraph tmm;
   tmm = convert_tg_tmm(g);
+  
+  // Write the tmm.dot
+  std::string tmm_dot_path = data_path + "/vanilla_tmm.dot";
+  
+  std::ofstream tmm_dot;
+  tmm_dot.open(tmm_dot_path.c_str());
+      
+//  write_graphviz( tmm_dot, tmm
+//                , VertexPropWriter_1<TMMVertexNameMap>( get(vertex_name, tmm) )
+//                , TMMEdgePropWriter<TMMEdgeNameMap, TMMEdgeWeightMap, TMMEdgeJspaceMap>( get(edge_name, tmm), get(edge_weight, tmm), get(edge_jspace, tmm) )
+//                );  
+
+  boost::dynamic_properties dp;
+  
+  dp.property("vertex_id", get(vertex_name, tmm));
+  
+  dp.property("label", get(edge_name, tmm));
+  dp.property("weight", get(edge_weight, tmm));
+  dp.property("jspace", get(edge_jspace, tmm));
+  
+  write_graphviz_dp( tmm_dot, tmm, dp, std::string("vertex_id"));
+  
+  tmm_dot.close();
   
 //  create_metadata(tmm,objs.size());
   
@@ -398,29 +421,6 @@ convert_tg_tmm(const TaskGraph& tg)
     }
   }// end of: FOR each edge in a task graph tg
   
-  // Write the tmm.dot
-  std::string tmm_dot_path = data_path_ + "/vanilla_tmm.dot";
-  
-  std::ofstream tmm_dot;
-  tmm_dot.open(tmm_dot_path.c_str());
-      
-//  write_graphviz( tmm_dot, tmm
-//                , VertexPropWriter_1<TMMVertexNameMap>( get(vertex_name, tmm) )
-//                , TMMEdgePropWriter<TMMEdgeNameMap, TMMEdgeWeightMap, TMMEdgeJspaceMap>( get(edge_name, tmm), get(edge_weight, tmm), get(edge_jspace, tmm) )
-//                );  
-
-  boost::dynamic_properties dp;
-  
-  dp.property("vertex_id", get(vertex_name, tmm));
-  
-  dp.property("label", get(edge_name, tmm));
-  dp.property("weight", get(edge_weight, tmm));
-  dp.property("jspace", get(edge_jspace, tmm));
-  
-  write_graphviz_dp( tmm_dot, tmm, dp, std::string("vertex_id"));
-  
-  tmm_dot.close();
-
   return tmm;
 }
 //! Infer the connectivity in plans from SHOP2 planner
@@ -517,8 +517,6 @@ infer(const std::vector<Action>::iterator& i, const std::vector<Action>::iterato
   Useless if outside ROS.
 */
 ros::NodeHandle nh_;
-
-std::string data_path_;
 
 std::string task_planner_path_;
 };// End of: TaskPlanner class

@@ -1,6 +1,9 @@
 #include <ros/ros.h>
 #include <arm_navigation_msgs/RobotTrajectory.h>
 
+#include <boost/filesystem.hpp>
+#include <fstream>
+
 #include "sensor_manager/Sense.h"
 #include "planner_manager/Plan.h"
 #include "action_manager/Commit.h"
@@ -43,7 +46,7 @@ GeneralManager(ros::NodeHandle& nh)
 { }
 
 bool
-sense(const size_t& n, const bool& random)
+sense(const std::string& path)
 {
   // At least 3 times, otherwise the planner_manager will miss collission object publications.
   for(size_t i=0; i<3; ++i)
@@ -57,8 +60,9 @@ sense(const size_t& n, const bool& random)
     sensor_manager::Sense::Response res;
     
     req.id = 1;
-    req.args.push_back(n);
-    req.args.push_back(random);
+    req.uint_args.push_back(false);// randomized=false
+    req.uint_args.push_back(0);// any number, meaningless here
+    req.string_args.push_back(path);
     
     if( !sense_client.call(req,res) ) 
     {
@@ -71,7 +75,40 @@ sense(const size_t& n, const bool& random)
 }
 
 bool
-plan()
+sense(const size_t& n)
+{
+  // At least 3 times, otherwise the planner_manager will miss collission object publications.
+  for(size_t i=0; i<3; ++i)
+  {
+    ros::service::waitForService("/sense");
+      
+    ros::ServiceClient sense_client;
+    sense_client = nh_.serviceClient<sensor_manager::Sense> ("/sense");
+    
+    sensor_manager::Sense::Request req;
+    sensor_manager::Sense::Response res;
+    
+    req.id = 1;// for sense::see
+    req.uint_args.push_back(true);
+    req.uint_args.push_back(n);
+    req.string_args.push_back("");
+    
+    if( !sense_client.call(req,res) ) 
+    {
+      ROS_WARN("A call to /sense srv: FAILED");
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+//! Brief
+/*!
+  Mode = 1 (without heuristic learner, heuristic is always equal to zero)
+*/
+bool
+plan(const size_t& mode)
 {
   ros::service::waitForService("/plan");
     
@@ -81,14 +118,15 @@ plan()
   planner_manager::Plan::Request req;
   planner_manager::Plan::Response res;
   
+  req.mode = 1;
+  
   if( !plan_client.call(req, res) ) 
   {
     ROS_WARN("Call to planner_manager/plan srv: FAILED");
     return false;
   }
   
-  man_plan_ = res.man_plan;
-  return true;
+  return !(res.man_plan.empty());
 }
 
 bool
@@ -143,11 +181,6 @@ ros::NodeHandle nh_;
   More ...
 */
 bool online_;
-//! The resulted manipulation plan is stored here
-/*!
-  It is basically a sequence of Transfer and Transit path along with its geometric (joint_state) level implementation.
-*/
-std::vector<trajectory_msgs::JointTrajectory> man_plan_;
 };
 
 int 
@@ -162,42 +195,76 @@ main(int argc, char **argv)
   if( !ros::param::get("/mode",mode) )
     ROS_WARN("Can not get /mode, use the default value (=0) instead");
   
-  int n_objs = 0;
-  if( !ros::param::get("/n_objs",n_objs) )
-    ROS_WARN("Can not get /n_objs, use the default value (=0) instead");
-  
-  std::string data_path;
-  if( !ros::param::get("/data_path", data_path) )
-    ROS_WARN("Can not get /data_path, use the default value instead");
+  int n_obj = 0;
+  if( !ros::param::get("/n_obj",n_obj) )
+    ROS_WARN("Can not get /n_obj, use the default value (=0) instead");
+
+  std::string base_data_path;// The base_data_path is a constant
+  if( !ros::param::get("/base_data_path", base_data_path) )
+    ROS_WARN("Can not get /base_data_path, use the default value instead");  
     
   switch(mode)
   {
-    case 1:// SENSE-PLAN with zeroed-H
+    case 1:// SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS.
     {
-      size_t n = 1;
-      for(size_t j=0; j<n; ++j)
+      std::string suffix_data_path;
+      if( !ros::param::get("/suffix_data_path", suffix_data_path) )
+        ROS_WARN("Can not get /suffix_data_path, use the default value instead");  
+    
+      int n_run = 1;
+      if( !ros::param::get("/n_run", n_run) )
+        ROS_WARN("Can not get /n_run, use the default value instead");  
+      
+      // Open a log file for this episode
+      std::ofstream epi_log;
+      epi_log.open(std::string(base_data_path+suffix_data_path+".log").c_str());
+
+      epi_log << "successful_runs= " << endl;
+      for(size_t j=0; j<(size_t)n_run; ++j)
       {
-        gm.sense(n_objs,false);
-        gm.plan();
+        std::string data_path;
+        data_path = base_data_path + suffix_data_path + "." +  boost::lexical_cast<std::string>(j);
+        ros::param::set("/data_path",data_path);
+        
+        boost::filesystem::create_directories(data_path);
+        
+        gm.sense(n_obj);
+        
+        if( gm.plan(1) )// mode=1 -> UCS, no learning 
+          epi_log << j << endl;
       }
+      
+      epi_log.close();
       break;
     }
     case 2:// SENSE-ACT with any existing manipulation plan in the data center
     {
-      gm.sense(n_objs,false);
+      gm.sense(std::string(base_data_path+"/messy.cfg"));
       gm.act();
       break;
     }
     case 3:// TRAIN the ML offline (data are already available)
     {
-      std::vector<std::string> tmm_paths;
-      tmm_paths.push_back(data_path+"/tmm.dot");
-      
-      gm.train(tmm_paths);
+//      std::vector<std::string> tmm_paths;
+//      tmm_paths.push_back(data_path+"/tmm.dot");
+//      
+//      gm.train(tmm_paths);
+      break;
+    }
+    case 4:// randomized-SENSE only, messy.cfg is written in base_data_path
+    {
+      gm.sense(n_obj);
+      break;
+    }
+    case 5:// SENSE TIDY-cfg only
+    {
+      gm.sense(std::string(base_data_path+"/tidy_tb1.cfg"));
       break;
     }
     default:
+    {
       ROS_WARN("Unknown mode; do nothing!");
+    }
   }
   
   ROS_INFO("general_mgr: spinning...");
