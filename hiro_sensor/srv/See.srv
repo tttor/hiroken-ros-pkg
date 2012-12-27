@@ -1,3 +1,4 @@
-uint16 n #Expected number of sensed can
-bool random #Whether using a random messy cfg or a hardcoded testbed
+bool random #Whether using a random messy cfg or a hardcoded testbed/replay only
+uint16 n #Expected number of sensed can, only if set random
+string path #Used only if "replay"
 ---

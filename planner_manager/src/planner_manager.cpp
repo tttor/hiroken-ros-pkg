@@ -13,10 +13,6 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
   nh_(nh)
 {
   ros::service::waitForService("plan_grasp");
-  
-  data_path_= ".";
-  if( !ros::param::get("/data_path", data_path_) )
-    ROS_WARN("Can not get /data_path, use the default value instead");
     
   set_tidy_config();
   
@@ -49,7 +45,7 @@ PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::
 bool
 PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_manager::Plan::Response& res)
 {
-  return plan( &(res.man_plan) );
+  return plan( req.mode,&(res.man_plan) );
 }
 
 //! Plan manipulation plans.
@@ -63,8 +59,16 @@ PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_man
   within which a geometric planner is called to validate each action whether it is symbollically feasible.
 */
 bool
-PlannerManager::plan(std::vector<trajectory_msgs::JointTrajectory>* man_plan)
+PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajectory>* man_plan)
 {
+  // Clear the tmm_
+  TaskMotionMultigraph tmm;
+  tmm_ = tmm;
+  
+  std::string data_path;
+  if( !ros::param::get("/data_path", data_path) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
+    
   // Create task plan space encoded in a task motion graph
   SymbolicPlannerManager spm(nh_);
   
@@ -85,7 +89,7 @@ PlannerManager::plan(std::vector<trajectory_msgs::JointTrajectory>* man_plan)
   tmm_dp.property("weight", get(edge_weight, tmm_));
   tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
   
-  std::string tmm_dot_path = data_path_ + "/vanilla_tmm.dot";  
+  std::string tmm_dot_path = data_path + "/vanilla_tmm.dot";  
   std::ifstream tmm_dot(tmm_dot_path.c_str());
   
   read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id"); 
@@ -103,85 +107,149 @@ PlannerManager::plan(std::vector<trajectory_msgs::JointTrajectory>* man_plan)
       tmm_goal_ = *vi;
   }
   
+  // Set the learning machine
+  LWPR_Object learner(2,1);// TODO adjust the dimension, or get from a file
+
+  learner.setInitD(50);/* Set initial distance metric to 50*(identity matrix) */
+  learner.setInitAlpha(250);/* Set init_alpha to 250 in all elements */
+  learner.wGen(0.2);/* Set w_gen to 0.2 */
+  
+  // Open a log file
+  std::ofstream perf_log;
+  perf_log.open(std::string(data_path+"/perf.log").c_str());
+
   // Search 
   GeometricPlannerManager gpm(this);
-  std::vector<TMMVertex> sol_path(num_vertices(tmm_));
+  std::vector<TMMVertex> sol_path_vertex_vec(num_vertices(tmm_));
   std::vector<double> sol_path_cost(num_vertices(tmm_));
-  
-  ROS_DEBUG("Start seaching.");
-  ROS_DEBUG_STREAM("num_edges(tmm_),Before= " << num_edges(tmm_));
+
+  ROS_DEBUG("Start searching over TMM.");
+  ros::Time planning_begin = ros::Time::now();
   try 
   {
     astar_search( tmm_
                 , tmm_root_
-                , AstarHeuristics<TaskMotionMultigraph, double>(tmm_goal_)
-                , visitor(AstarVisitor<TaskMotionMultigraph>(tmm_goal_,&gpm))
-                . predecessor_map(&sol_path[0])
+                , AstarHeuristics<TaskMotionMultigraph, double>(tmm_goal_,&gpm,&learner,mode)
+                , visitor( AstarVisitor<TaskMotionMultigraph>(tmm_goal_,&gpm,&learner,mode) )
+                . predecessor_map(&sol_path_vertex_vec[0])
                 . distance_map(&sol_path_cost[0])
                 );
-
   }
   catch(FoundGoalSignal fgs) 
   {
-    cerr << "GOAL_FOUND" << endl;
+    ROS_INFO("GOAL_FOUND.");
     
-    std::list<TMMVertex> sol_path_list;
-    for(TMMVertex v = tmm_goal_; ; v = sol_path[v]) 
+    // Get elapsed time for planning
+    double planning_time;
+    planning_time = (ros::Time::now()-planning_begin).toSec();
+    
+    cout << "PlanningTime= " << planning_time << endl;
+    perf_log << "PlanningTime=" << planning_time << endl;
+    
+    // Get #expanded vertices
+    size_t n = 0;
+    boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
+
+    for(boost::tie(vi,vi_end) = vertices(tmm_); vi!=vi_end; ++vi)
+      if(get(vertex_color,tmm_,*vi)==color_traits<boost::default_color_type>::black())
+        ++n;
+    
+    cout << "#ExpandedVertices= " << n << endl << endl;
+    perf_log << "#ExpandedVertices=" << n << endl;
+    
+    // Convert from vector to list to enable push_front()
+    std::list<TMMVertex> sol_path_vertex_list;
+    for(TMMVertex v = tmm_goal_; ; v = sol_path_vertex_vec[v]) 
     {
-      sol_path_list.push_front(v);
-      if(sol_path[v] == v)
+      sol_path_vertex_list.push_front(v);
+      if(sol_path_vertex_vec[v] == v)
         break;
     }
     
-    std::vector<TMMEdge> sol_path_edges;
-    TMMVertex s;// the vertex before *spi in the loop
+    // Build the solution path. Here the solution path may be cancelled if there is an edge that has no motion plan (edge_color=red).
+    std::vector<TMMEdge> sol_path;
+    bool recheck = true;// Optimistis that this is truly solution path
+    std::list<TMMVertex>::iterator spvl_it = sol_path_vertex_list.begin();
+
+    TMMVertex s;
+    s = *spvl_it;
     
-    std::list<TMMVertex>::iterator spi = sol_path_list.begin();
-    s = *spi;
+    cout << "SolutionPath(v)=" << endl;
+    perf_log << "SolutionPath(v)=";
     
-    cout << "Solution Path (vertices)= " << get(vertex_name, tmm_, *spi);
-    for(++spi; spi != sol_path_list.end(); ++spi)
+    cout << get(vertex_name, tmm_, *spvl_it) << endl;
+    perf_log << get(vertex_name, tmm_, *spvl_it) << ",";
+    
+    for(++spvl_it; spvl_it != sol_path_vertex_list.end(); ++spvl_it)
     {
-      cout << " -> " << get(vertex_name, tmm_, *spi);
+      cout << get(vertex_name, tmm_, *spvl_it) << endl;
+      perf_log << get(vertex_name, tmm_, *spvl_it) << ",";
       
+      // Get the cheapest path among many due to parallelism/multigraph
       TMMEdge cheapest_e;
-      double cheapest_w = 9999.;
+      double cheapest_w = std::numeric_limits<double>::max();
 
       graph_traits<TaskMotionMultigraph>::out_edge_iterator oei,oei_end;
       for(tie(oei,oei_end)=out_edges(s, tmm_); oei!=oei_end; ++oei)
       {
-        if( (target(*oei,tmm_)==*spi) and (get(edge_weight,tmm_,*oei) < cheapest_w) )
+        if( (target(*oei,tmm_)==*spvl_it) and (get(edge_weight,tmm_,*oei) < cheapest_w) )
         {
           cheapest_e = *oei;
           cheapest_w = get(edge_weight,tmm_,*oei);
         }
       }
       
-      sol_path_edges.push_back(cheapest_e);
-      s = *spi;
+      sol_path.push_back(cheapest_e);
+      s = *spvl_it;
     }
     cout << endl;
+    perf_log << endl;
     
-    cout << "Solution Path (edges)= " << endl;
-    for(std::vector<TMMEdge>::iterator i=sol_path_edges.begin(); i!=sol_path_edges.end(); ++i)
+    
+    cout << "SolutionPath(e)=" << endl;
+    perf_log << "SolutionPath(e)=";
+    
+    for(std::vector<TMMEdge>::iterator i=sol_path.begin(); i!=sol_path.end(); ++i)
     {
-      put(edge_color,tmm_,*i,std::string("blue"));
-      
-      put( vertex_color,tmm_,source(*i,tmm_),color_traits<boost::default_color_type>::gray() );// for vertex in the solution path
-      put( vertex_color,tmm_,target(*i,tmm_),color_traits<boost::default_color_type>::gray() );// somewhat redundant indeed
-      
-      man_plan->push_back( get(edge_plan,tmm_,*i) );
-      
       cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << endl;
+      perf_log << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << ",";
+      
+      if( !strcmp(get(edge_color,tmm_,*i).c_str(),"red") )
+      {
+        // TODO may re-do motion planning here for this edge
+        
+        recheck = false;
+      }
+      else if( !strcmp(get(edge_color,tmm_,*i).c_str(),"green") )
+      {
+        put( edge_color,tmm_,*i,std::string("blue") );
+        put( vertex_color,tmm_,source(*i,tmm_),color_traits<boost::default_color_type>::gray() );// for vertex in the solution path
+        put( vertex_color,tmm_,target(*i,tmm_),color_traits<boost::default_color_type>::gray() );// somewhat redundant indeed
+        
+        man_plan->push_back( get(edge_plan,tmm_,*i) );
+      }
     }
     cout << endl;
+    perf_log << endl;
     
-    cout << "Sol Path Cost= " << sol_path_cost[tmm_goal_] << endl;
-  }
-  ROS_DEBUG_STREAM("num_edges(tmm_),After= " << num_edges(tmm_));
+    if(recheck)
+    {
+      cout << "SolPathCost= " << sol_path_cost[tmm_goal_] << endl;
+      perf_log << "SolPathCost=" << sol_path_cost[tmm_goal_] << endl;
+    }
+    else
+    {
+      man_plan->clear();
+      
+      cout << "SolPathCost= UNDEFINED" << endl;
+      perf_log << "SolPathCost=UNDEFINED" << endl;
+      cout << "SolPathAbove= CANCELLED" << endl;
+      perf_log << "SolPathAbove=CANCELLED" << endl;
+    }
+  }// End of: catch(FoundGoalSignal fgs) 
   
   // Write a fancy planned TMM
-  std::string p_tmm_dot_path = data_path_ + "/fancy_tmm.dot";
+  std::string p_tmm_dot_path = data_path + "/fancy_tmm.dot";
   
   ofstream p_tmm_dot;
   p_tmm_dot.open(p_tmm_dot_path.c_str());
@@ -203,7 +271,7 @@ PlannerManager::plan(std::vector<trajectory_msgs::JointTrajectory>* man_plan)
   p_tmm_dp.property( "color",get(edge_color, tmm_) );
   p_tmm_dp.property( "srcstate",get(edge_srcstate,tmm_) );
 
-  std::string simple_p_tmm_dot_path = data_path_ + "/tmm.dot";
+  std::string simple_p_tmm_dot_path = data_path + "/tmm.dot";
   ofstream simple_p_tmm_dot;
   simple_p_tmm_dot.open(simple_p_tmm_dot_path.c_str());
       
@@ -223,221 +291,40 @@ PlannerManager::plan(std::vector<trajectory_msgs::JointTrajectory>* man_plan)
   sol_tmm_dp.property( "jspace",get(edge_jspace, sol_tmm) );
   sol_tmm_dp.property( "planstr",get(edge_planstr, sol_tmm) );  
 
-  std::string sol_tmm_dot_path = data_path_ + "/sol_tmm.dot";
+  std::string sol_tmm_dot_path = data_path + "/sol_tmm.dot";
   ofstream sol_tmm_dot;
   sol_tmm_dot.open(sol_tmm_dot_path.c_str());
     
   write_graphviz_dp( sol_tmm_dot, sol_tmm, sol_tmm_dp, std::string("vertex_id"));
   sol_tmm_dot.close();
   
+  perf_log.close();
   return true;
 }
 
 //! Set the tidy_config_
 /*!
   More...
-  TODO should be from a file
 */
-void
+bool
 PlannerManager::set_tidy_config()
 {
-  const double B_RADIUS = 0.065/2.;
-  const double B_HEIGHT = 0.123;
-  const double TABLE_THICKNESS = 0.050;
+  ObjCfg tidy_cfg;
   
-  //------------------------------------------------------------------CAN1
-  arm_navigation_msgs::CollisionObject can1;
-   
-  can1.id = "CAN1"; 
-
-  can1.header.seq = 1;
-  can1.header.stamp = ros::Time::now();
-  can1.header.frame_id = "/table";
-  can1.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-
-  arm_navigation_msgs::Shape can1_shape;
-  
-  can1_shape.type = arm_navigation_msgs::Shape::CYLINDER;
-  can1_shape.dimensions.resize(2);
-  can1_shape.dimensions[0] = B_RADIUS;
-  can1_shape.dimensions[1] = B_HEIGHT;
+  std::string base_data_path;
+  if( !ros::param::get("/base_data_path", base_data_path) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
     
-  can1.shapes.push_back(can1_shape);
-
-  geometry_msgs::Pose can1_tidy_pose;
+  if( !read_obj_cfg(std::string(base_data_path+ "/tidy_tb1.cfg"),&tidy_cfg) )
+  {
+    ROS_ERROR("Can not find the tidy*.cfg file.");
+    return false;
+  }
   
-  can1_tidy_pose.position.x = 0.; 
-  can1_tidy_pose.position.y = 0.35;
-  can1_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
-  can1_tidy_pose.orientation.x = 0.;    
-  can1_tidy_pose.orientation.y = 0.;    
-  can1_tidy_pose.orientation.z = 0.;    
-  can1_tidy_pose.orientation.w = 1.;    
-      
-  can1.poses.push_back(can1_tidy_pose);
+  for(ObjCfg::iterator i=tidy_cfg.begin(); i!=tidy_cfg.end(); ++i)
+    tidy_cfg_[i->id] = *i; 
   
-  tidy_cfg_[can1.id] = can1;
-  
-  //------------------------------------------------------------------------------CAN2
-  arm_navigation_msgs::CollisionObject can2;
-   
-  can2.id = "CAN2"; 
-
-  can2.header.seq = 1;
-  can2.header.stamp = ros::Time::now();
-  can2.header.frame_id = "/table";
-  can2.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-  
-  arm_navigation_msgs::Shape can2_shape;
-  
-  can2_shape.type = arm_navigation_msgs::Shape::CYLINDER;
-  can2_shape.dimensions.resize(2);
-  can2_shape.dimensions[0] = B_RADIUS;
-  can2_shape.dimensions[1] = B_HEIGHT;
-    
-  can2.shapes.push_back(can2_shape);
-
-  geometry_msgs::Pose can2_tidy_pose;
-  
-  can2_tidy_pose.position.x = 0.; 
-  can2_tidy_pose.position.y = 0.42;
-  can2_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
-  can2_tidy_pose.orientation.x = 0.;    
-  can2_tidy_pose.orientation.y = 0.;    
-  can2_tidy_pose.orientation.z = 0.;    
-  can2_tidy_pose.orientation.w = 1.;    
-      
-  can2.poses.push_back(can2_tidy_pose);
-  
-  tidy_cfg_[can2.id] = can2;  
-  //------------------------------------------------------------------------------CAN3
-  arm_navigation_msgs::CollisionObject can3;
-   
-  can3.id = "CAN3"; 
-
-  can3.header.seq = 1;
-  can3.header.stamp = ros::Time::now();
-  can3.header.frame_id = "/table";
-  can3.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-  
-  arm_navigation_msgs::Shape can3_shape;
-  
-  can3_shape.type = arm_navigation_msgs::Shape::CYLINDER;
-  can3_shape.dimensions.resize(2);
-  can3_shape.dimensions[0] = B_RADIUS;
-  can3_shape.dimensions[1] = B_HEIGHT;
-    
-  can3.shapes.push_back(can3_shape);
-
-  geometry_msgs::Pose can3_tidy_pose;
-  
-  can3_tidy_pose.position.x = 0.; 
-  can3_tidy_pose.position.y = 0.49;
-  can3_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
-  can3_tidy_pose.orientation.x = 0.;    
-  can3_tidy_pose.orientation.y = 0.;    
-  can3_tidy_pose.orientation.z = 0.;    
-  can3_tidy_pose.orientation.w = 1.;    
-      
-  can3.poses.push_back(can3_tidy_pose);
-  
-  tidy_cfg_[can3.id] = can3;  
-  //------------------------------------------------------------------------------CAN4
-  arm_navigation_msgs::CollisionObject can4;
-   
-  can4.id = "CAN4"; 
-
-  can4.header.seq = 1;
-  can4.header.stamp = ros::Time::now();
-  can4.header.frame_id = "/table";
-  can4.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-  
-  arm_navigation_msgs::Shape can4_shape;
-  
-  can4_shape.type = arm_navigation_msgs::Shape::CYLINDER;
-  can4_shape.dimensions.resize(2);
-  can4_shape.dimensions[0] = B_RADIUS;
-  can4_shape.dimensions[1] = B_HEIGHT;
-    
-  can4.shapes.push_back(can4_shape);
-
-  geometry_msgs::Pose can4_tidy_pose;
-  
-  can4_tidy_pose.position.x = -0.07; 
-  can4_tidy_pose.position.y = 0.35;
-  can4_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
-  can4_tidy_pose.orientation.x = 0.;    
-  can4_tidy_pose.orientation.y = 0.;    
-  can4_tidy_pose.orientation.z = 0.;    
-  can4_tidy_pose.orientation.w = 1.;    
-      
-  can4.poses.push_back(can4_tidy_pose);
-  
-  tidy_cfg_[can4.id] = can4;
-  //------------------------------------------------------------------------------CAN5 TODO !rearrange!
-  arm_navigation_msgs::CollisionObject can5;
-   
-  can5.id = "CAN5"; 
-
-  can5.header.seq = 1;
-  can5.header.stamp = ros::Time::now();
-  can5.header.frame_id = "/table";
-  can5.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-  
-  arm_navigation_msgs::Shape can5_shape;
-  
-  can5_shape.type = arm_navigation_msgs::Shape::CYLINDER;
-  can5_shape.dimensions.resize(2);
-  can5_shape.dimensions[0] = B_RADIUS;
-  can5_shape.dimensions[1] = B_HEIGHT;
-    
-  can5.shapes.push_back(can5_shape);
-
-  geometry_msgs::Pose can5_tidy_pose;
-  
-  can5_tidy_pose.position.x = 0.14; 
-  can5_tidy_pose.position.y = 0.42;
-  can5_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
-  can5_tidy_pose.orientation.x = 0.;    
-  can5_tidy_pose.orientation.y = 0.;    
-  can5_tidy_pose.orientation.z = 0.;    
-  can5_tidy_pose.orientation.w = 1.;    
-      
-  can5.poses.push_back(can5_tidy_pose);
-
-  tidy_cfg_[can5.id] = can5;
-  //------------------------------------------------------------------------------CAN6
-  arm_navigation_msgs::CollisionObject can6;
-   
-  can6.id = "CAN6"; 
-
-  can6.header.seq = 1;
-  can6.header.stamp = ros::Time::now();
-  can6.header.frame_id = "/table";
-  can6.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-  
-  arm_navigation_msgs::Shape can6_shape;
-  
-  can6_shape.type = arm_navigation_msgs::Shape::CYLINDER;
-  can6_shape.dimensions.resize(2);
-  can6_shape.dimensions[0] = B_RADIUS;
-  can6_shape.dimensions[1] = B_HEIGHT;
-    
-  can6.shapes.push_back(can6_shape);
-
-  geometry_msgs::Pose can6_tidy_pose;
-  
-  can6_tidy_pose.position.x = -0.21; 
-  can6_tidy_pose.position.y = 0.49;
-  can6_tidy_pose.position.z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);  
-  can6_tidy_pose.orientation.x = 0.;    
-  can6_tidy_pose.orientation.y = 0.;    
-  can6_tidy_pose.orientation.z = 0.;    
-  can6_tidy_pose.orientation.w = 1.;    
-      
-  can6.poses.push_back(can6_tidy_pose);
-  
-  tidy_cfg_[can6.id] = can6; 
+  return true;
 }
 
 int 

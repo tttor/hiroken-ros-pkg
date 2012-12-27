@@ -1,6 +1,8 @@
 (cl:in-package hiro_sensor-srv)
-(cl:export '(N-VAL
-          N
-          RANDOM-VAL
+(cl:export '(RANDOM-VAL
           RANDOM
+          N-VAL
+          N
+          PATH-VAL
+          PATH
 ))

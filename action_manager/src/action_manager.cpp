@@ -25,10 +25,6 @@ ActionManager(ros::NodeHandle nh)
   if( !ros::param::get("/is_online", online_) )
     ROS_WARN("Can not get /is_online, use the default value (=false) instead");
     
-  data_path_= "/home/vektor/rss-2013/data";
-  if( !ros::param::get("/data_path", data_path_) )
-    ROS_WARN("Can not get /data_path, use the default value instead");
-    
   motion_plan_pub_ = nh_.advertise<trajectory_msgs::JointTrajectory>("motion_plan", 1000);
   
   att_collision_object_pub_ = nh_.advertise<arm_navigation_msgs::AttachedCollisionObject>("attached_collision_object", 10);
@@ -218,6 +214,10 @@ get_plan(const std::string& planstr)
 bool
 read_sol(TaskMotionMultigraph* sol_tmm,TMMVertex* sol_tmm_root)
 {
+  std::string data_path= ".";
+  if( !ros::param::get("/data_path", data_path) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
+    
   boost::dynamic_properties sol_tmm_dp;
   
   sol_tmm_dp.property("vertex_id", get(vertex_name, *sol_tmm));
@@ -225,7 +225,7 @@ read_sol(TaskMotionMultigraph* sol_tmm,TMMVertex* sol_tmm_root)
   sol_tmm_dp.property("jspace", get(edge_jspace, *sol_tmm)); 
   sol_tmm_dp.property("planstr", get(edge_planstr,*sol_tmm));
       
-  std::string sol_tmm_path = data_path_ + "/sol_tmm.dot";
+  std::string sol_tmm_path = data_path + "/sol_tmm.dot";
   std::ifstream sol_tmm_dot(sol_tmm_path.c_str());
   read_graphviz(sol_tmm_dot, *sol_tmm, sol_tmm_dp, "vertex_id");  
   
@@ -418,8 +418,6 @@ ros::Publisher att_collision_object_pub_;
   More...
 */
 ros::ServiceClient set_planning_scene_diff_client_;
-
-std::string data_path_;
 
 bool online_;
 };

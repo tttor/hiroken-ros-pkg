@@ -1,6 +1,8 @@
 (cl:in-package sensor_manager-srv)
 (cl:export '(ID-VAL
           ID
-          ARGS-VAL
-          ARGS
+          UINT_ARGS-VAL
+          UINT_ARGS
+          STRING_ARGS-VAL
+          STRING_ARGS
 ))

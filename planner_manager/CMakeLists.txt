@@ -17,6 +17,9 @@ include_directories(${hiro_common_PACKAGE_PATH}/include)
 rosbuild_find_ros_package(planner_manager)
 include_directories(${planner_manager_PACKAGE_PATH}/include)
 
+rosbuild_find_ros_package(learning_machine)
+include_directories(${learning_machine_PACKAGE_PATH}/include)
+
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
@@ -35,4 +38,4 @@ rosbuild_gensrv()
 
 rosbuild_add_executable(planner src/planner_manager.cpp)
 
-target_link_libraries(planner log4cxx boost_graph)
+target_link_libraries(planner log4cxx boost_graph lwpr)

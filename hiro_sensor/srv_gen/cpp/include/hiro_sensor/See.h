@@ -26,22 +26,27 @@ struct SeeRequest_ {
   typedef SeeRequest_<ContainerAllocator> Type;
 
   SeeRequest_()
-  : n(0)
-  , random(false)
+  : random(false)
+  , n(0)
+  , path()
   {
   }
 
   SeeRequest_(const ContainerAllocator& _alloc)
-  : n(0)
-  , random(false)
+  : random(false)
+  , n(0)
+  , path(_alloc)
   {
   }
+
+  typedef uint8_t _random_type;
+  uint8_t random;
 
   typedef uint16_t _n_type;
   uint16_t n;
 
-  typedef uint8_t _random_type;
-  uint8_t random;
+  typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _path_type;
+  std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  path;
 
 
   typedef boost::shared_ptr< ::hiro_sensor::SeeRequest_<ContainerAllocator> > Ptr;
@@ -99,12 +104,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::hiro_sensor::SeeRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "9803dc42d7ec8be72013e5dbb53b26e1";
+    return "2a0590a7ed91113b12ac2f7d51f68332";
   }
 
   static const char* value(const  ::hiro_sensor::SeeRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0x9803dc42d7ec8be7ULL;
-  static const uint64_t static_value2 = 0x2013e5dbb53b26e1ULL;
+  static const uint64_t static_value1 = 0x2a0590a7ed91113bULL;
+  static const uint64_t static_value2 = 0x12ac2f7d51f68332ULL;
 };
 
 template<class ContainerAllocator>
@@ -121,8 +126,9 @@ template<class ContainerAllocator>
 struct Definition< ::hiro_sensor::SeeRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "uint16 n\n\
-bool random\n\
+    return "bool random\n\
+uint16 n\n\
+string path\n\
 \n\
 ";
   }
@@ -130,7 +136,6 @@ bool random\n\
   static const char* value(const  ::hiro_sensor::SeeRequest_<ContainerAllocator> &) { return value(); } 
 };
 
-template<class ContainerAllocator> struct IsFixedSize< ::hiro_sensor::SeeRequest_<ContainerAllocator> > : public TrueType {};
 } // namespace message_traits
 } // namespace ros
 
@@ -188,8 +193,9 @@ template<class ContainerAllocator> struct Serializer< ::hiro_sensor::SeeRequest_
 {
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
-    stream.next(m.n);
     stream.next(m.random);
+    stream.next(m.n);
+    stream.next(m.path);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -222,7 +228,7 @@ template<>
 struct MD5Sum<hiro_sensor::See> {
   static const char* value() 
   {
-    return "9803dc42d7ec8be72013e5dbb53b26e1";
+    return "2a0590a7ed91113b12ac2f7d51f68332";
   }
 
   static const char* value(const hiro_sensor::See&) { return value(); } 
@@ -242,7 +248,7 @@ template<class ContainerAllocator>
 struct MD5Sum<hiro_sensor::SeeRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "9803dc42d7ec8be72013e5dbb53b26e1";
+    return "2a0590a7ed91113b12ac2f7d51f68332";
   }
 
   static const char* value(const hiro_sensor::SeeRequest_<ContainerAllocator> &) { return value(); } 
@@ -262,7 +268,7 @@ template<class ContainerAllocator>
 struct MD5Sum<hiro_sensor::SeeResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "9803dc42d7ec8be72013e5dbb53b26e1";
+    return "2a0590a7ed91113b12ac2f7d51f68332";
   }
 
   static const char* value(const hiro_sensor::SeeResponse_<ContainerAllocator> &) { return value(); } 

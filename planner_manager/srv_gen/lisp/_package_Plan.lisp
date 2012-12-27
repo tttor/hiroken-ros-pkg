@@ -1,4 +1,6 @@
 (cl:in-package planner_manager-srv)
-(cl:export '(MAN_PLAN-VAL
+(cl:export '(MODE-VAL
+          MODE
+          MAN_PLAN-VAL
           MAN_PLAN
 ))
