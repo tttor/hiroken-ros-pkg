@@ -37,6 +37,9 @@
 
 #include "tmm_utils.hpp"
 #include "planner_manager.hpp"
+#include "obj_cfg_rw.hpp"
+
+#include <lwpr.hh>
 
 class PlannerManager
 {
@@ -71,9 +74,9 @@ private:
   It also employs the concept of task motion multigraph.
 */
 bool
-plan(std::vector<trajectory_msgs::JointTrajectory>* man_plan);
+plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajectory>* man_plan);
 
-void
+bool
 set_tidy_config();
 
 //! A task motion multigraph variable
@@ -99,8 +102,6 @@ std::string planner_manager_path_;
 */
 std::map<std::string, arm_navigation_msgs::CollisionObject> messy_cfg_;
 std::map<std::string, arm_navigation_msgs::CollisionObject> tidy_cfg_;
-
-std::string data_path_;
 };// end of: class PlannerManager
 
 #endif // #ifndef PLANNER_MANAGER_HPP_INCLUDED

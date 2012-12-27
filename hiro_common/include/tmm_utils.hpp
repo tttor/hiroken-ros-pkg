@@ -3,6 +3,7 @@
 
 #include <sensor_msgs/JointState.h>
 #include <trajectory_msgs/JointTrajectory.h>
+#include <arm_navigation_msgs/CollisionObject.h>
 
 #include <boost/graph/depth_first_search.hpp>
 #include <boost/graph/astar_search.hpp>
@@ -51,11 +52,23 @@ namespace boost
   BOOST_INSTALL_PROPERTY(vertex, jstates);
 }
 
+enum vertex_wstate_t { vertex_wstate };
+namespace boost 
+{
+  BOOST_INSTALL_PROPERTY(vertex, wstate);
+}
+
+enum vertex_heu_t { vertex_heu };
+namespace boost 
+{
+  BOOST_INSTALL_PROPERTY(vertex, heu);
+}
+
 typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double> > TGEdgeProperty;
 typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double, boost::property<edge_jspace_t, std::string, boost::property<edge_plan_t, trajectory_msgs::JointTrajectory, property<edge_color_t, std::string, property<edge_srcstate_t, std::string, property<edge_planstr_t, std::string> > > > > > > TMMEdgeProperty;
     
 typedef boost::property<vertex_name_t, std::string> TGVertexProperty;
-typedef boost::property<vertex_name_t, std::string, boost::property< vertex_jstates_t, sensor_msgs::JointState, property<vertex_color_t, default_color_type> > > TMMVertexProperty;
+typedef boost::property<vertex_name_t, std::string, boost::property< vertex_jstates_t, sensor_msgs::JointState, property<vertex_color_t, default_color_type, property<vertex_wstate_t,std::vector<arm_navigation_msgs::CollisionObject>, property<vertex_heu_t, double> > > > > TMMVertexProperty;
     
 typedef boost::adjacency_list<setS, vecS, directedS, TGVertexProperty, TGEdgeProperty > TaskGraph;// for task graph, not allowing parallel edges.
 typedef boost::adjacency_list<vecS, vecS, directedS, TMMVertexProperty, TMMEdgeProperty > TaskMotionMultigraph;// for task motion multigraph, allowing parallel edges.
@@ -199,7 +212,7 @@ public:
   bool 
   operator()(const Edge& e) const 
   {
-    return ( (!strcmp(color_map_[e].c_str(),"red"))or(!strcmp(color_map_[e].c_str(),"blue")) );
+    return ( (!strcmp(color_map_[e].c_str(),"green"))or(!strcmp(color_map_[e].c_str(),"red"))or(!strcmp(color_map_[e].c_str(),"blue")) );
   }
 
 private:

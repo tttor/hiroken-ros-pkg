@@ -10,9 +10,9 @@
 #include <boost/graph/graph_utility.hpp>
 #include <boost/graph/property_iter_range.hpp>
 
-#include "geo_planner_manager.hpp"
+#include <lwpr.hh>
 
-// NOTE that all Vertex, Edge template MUST be TMMVErtex and EdgeVertex, because this class is contructed with an instance of GeometricPlannerManager, which is a friend of PlannerManager who is the owner of tmm_, whose vertex and edge are of TMMVertex and TMMEdge.
+#include "geo_planner_manager.hpp"
 
 using namespace std;
 using namespace boost;
@@ -23,68 +23,115 @@ template <typename GPMGraph>
 class AstarVisitor: public boost::default_astar_visitor
 {
 public:
-  AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm)
-  : goal_(goal), gpm_(gpm)
-  { }
+AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LWPR_Object* learner,size_t mode)
+: goal_(goal), gpm_(gpm), learner_(learner), mode_(mode)
+{ }
+
+template <typename Graph>
+void 
+examine_vertex(typename Graph::vertex_descriptor v, Graph& g) 
+{
+  cerr << "Examine v= " << get(vertex_name,g,v) << endl;
   
-  template <typename Graph>
-  void 
-  examine_vertex(typename Graph::vertex_descriptor v, Graph& g) 
+  if(v == goal_)
+    throw FoundGoalSignal();
+  
+  // Do geometric planning for each out-edge of this vertex v
+  typename graph_traits<Graph>::out_edge_iterator oei, oei_end;
+  for(tie(oei,oei_end) = out_edges(v, g); oei!=oei_end; ++oei)
   {
-    cerr << "Examine v= " << get(vertex_name,g,v) << endl;
+    gpm_->plan(*oei);
+  }
+  
+  // Update jstates of adjacent vertex av of this vertex v, which will follows the cheapest just-planned edge
+  gpm_->set_av_jstates(v);
+  
+  if(mode_!=1)
+  {
+    // Train incrementally
+    Data samples;
+    gpm_->get_samples(v,&samples);// get samples from paths from (root,root+1, ..., v) to adjacent of v
     
-    gpm_->mark_vertex(v);
-    
-    if(v == goal_)
-      throw FoundGoalSignal();
-    
-    // Do geometric planning for each out-edge of this vertex v
-    typename graph_traits<Graph>::out_edge_iterator oei, oei_end;
-    for(tie(oei,oei_end) = out_edges(v, g); oei!=oei_end; ++oei)
+    for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
     {
-      gpm_->plan(*oei);
+      doubleVec x;
+      x = i->first;
+      
+      doubleVec y(1);
+      y.at(0) = i->second;
+
+  //    doubleVec yp;
+  //    yp = learner_->update( x,y );
     }
-    
-    // Update jstates of adjacent vertex of this vertex v
-    gpm_->set_av_jstates(v);
   }
+  else
+  { }
+
+  // Set its color to black=examined
+  gpm_->mark_vertex(v);
+}
   
-  template <typename Graph>
-  void 
-  initialize_vertex(typename Graph::vertex_descriptor v, Graph& g) 
-  {
-    gpm_->init_vertex(v);
-  }
+template <typename Graph>
+void 
+initialize_vertex(typename Graph::vertex_descriptor v, Graph& g) 
+{
+  gpm_->init_vertex(v);
+}
   
 private:
-  typename GPMGraph::vertex_descriptor goal_;
-  GeometricPlannerManager* gpm_;
+typename GPMGraph::vertex_descriptor goal_;
+GeometricPlannerManager* gpm_;
+LWPR_Object* learner_;  
+size_t mode_;
 };
 
-template <typename Graph, typename CostType>
-class AstarHeuristics: public astar_heuristic<Graph, CostType>
+template <typename GPMGraph, typename CostType>
+class AstarHeuristics: public astar_heuristic<GPMGraph, CostType>
 {
 public:
-typedef typename graph_traits<Graph>::vertex_descriptor Vertex;
+typedef typename graph_traits<GPMGraph>::vertex_descriptor Vertex;
 
-AstarHeuristics(Vertex goal)
-: goal_(goal)
+AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LWPR_Object* learner,size_t mode)
+: goal_(goal), gpm_(gpm), learner_(learner), mode_(mode)
 { }
 
 CostType 
-operator()(Vertex u)
+operator()(Vertex v)
 {
-  if(u == goal_)
-    return 0.;
+  cerr << "Compute h(" << v << "): BEGIN" << endl;
   
   double h;
-  h = 0.;
+      
+  if( (v==goal_)or(mode_==1) )// or mode=UCS, no learning
+  {
+    h = 0.;
+  }
+  else
+  {
+    // Extract feature x
+    Input x;
+    gpm_->get_feature(v,&x);
+    cerr << "x.size()= " << x.size() << endl;
+    
+//    // Predict yp
+//    doubleVec yp;
+//    yp = learner_->predict(x);
+//    
+//    h = yp[0];
+    h = 0.;
+  }
+
+  gpm_->put_heu(v,h);
   
+  cerr << "Compute h(" << v << "): END" << endl;
   return h;
 }
 
 private:
 Vertex goal_;
+GeometricPlannerManager* gpm_;
+LWPR_Object* learner_;
+size_t mode_;
 };
 
 #endif // #ifndef ASTAR_UTILS_HPP_INCLUDED

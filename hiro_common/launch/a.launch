@@ -1,17 +1,26 @@
 <launch>
   <arg name="is_online" default="False" />
-	<arg name="joint_gui" default="False" />
-	<arg name="data_path" default="/home/vektor/rss-2013/data" />
-	<arg name="mode" default="2" />
-	<arg name="n_objs" default="1" />	  
-	
-  <param name="is_online" value="$(arg is_online)"/>
-  <param name="data_path" value="$(arg data_path)"/>
+    <param name="is_online" value="$(arg is_online)"/>
+
+  <arg name="joint_gui" default="False" />
+
+  <arg name="data_path" default="/home/vektor/rss-2013/data" />
+    <param name="base_data_path" value="$(arg data_path)"/>
+    <param name="data_path" value="$(arg data_path)"/>
+
+  <arg name="suffix_data_path" default="/run.20121227.test" />
+    <param name="suffix_data_path" value="$(arg suffix_data_path)"/>
+    
+  <arg name="mode" default="2" />
+    <param name="mode" value="$(arg mode)"/>
+
+  <arg name="n_obj" default="1" />
+    <param name="n_obj" value="$(arg n_obj)"/>    
+
+  <arg name="n_run" default="1" />
+    <param name="n_run" value="$(arg n_run)"/>    
+    
   <param name="task_planner_path" value="$(find task_planner)"/>
-  <param name="mode" value="$(arg mode)"/>  
-  <param name="n_objs" value="$(arg n_objs)"/>    
-  <param name="task_planner_path" value="$(find task_planner)"/>
-  <param name="planner_manager_path" value="$(find planner_manager)"/>
   
   <group if="$(arg is_online)">          
     <param name="hiro_driver_path" value="$(find hiro_control)/driver/hiro" />
@@ -38,7 +47,7 @@
   <node name="helper" pkg="hiro_common" type="helper" output="screen" />  
   <node name="vis_sensor" pkg="hiro_sensor" type="vis" output="screen" />  
   <node name="hiro_tf_gen" pkg="robot_state_publisher" type="state_publisher" />
-    <!-- node name="joint_action_server" pkg="hiro_control" type="hjas" output="screen" /-->
+  <!-- node name="joint_action_server" pkg="hiro_control" type="hjas" output="screen" /-->
   <node name="joint_controller" pkg="hiro_control" type="hjc" output="screen" />
   
   <node name="rviz" pkg="rviz" type="rviz" args="-d $(find hiro_arm_navigation)/config/common_disp.vcg" />
@@ -53,5 +62,5 @@
     
   <node name="general_mgr" pkg="general_manager" type="general_mgr" output="screen" />
   
-  <node name="learner" pkg="learning_machine" type="learner" output="screen" />
+  <!--node name="learner" pkg="learning_machine" type="learner" output="screen" /-->
 </launch>
