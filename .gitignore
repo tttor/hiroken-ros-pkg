@@ -1,3 +1,7 @@
+# temp. editor backups:
 *~
+
+# build output:
+*/lib/*
 */build/*
 */bin/*

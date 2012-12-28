@@ -336,7 +336,7 @@ commit_grasp(const std::string& obj_id)
     ros::Duration(.5).sleep();
   }
   
-  ROS_DEBUG("Have been grasped");
+  ROS_DEBUG_STREAM("Have grasped= " << obj_id);
   return true;  
 }
 //! Commit the ungrasp

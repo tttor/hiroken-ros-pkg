@@ -49,7 +49,7 @@ bool
 sense(const std::string& path)
 {
   // At least 3 times, otherwise the planner_manager will miss collission object publications.
-  for(size_t i=0; i<3; ++i)
+  for(size_t i=0; i<1; ++i)
   {
     ros::service::waitForService("/sense");
       
@@ -219,7 +219,7 @@ main(int argc, char **argv)
       std::ofstream epi_log;
       epi_log.open(std::string(base_data_path+suffix_data_path+".log").c_str());
 
-      epi_log << "successful_runs= " << endl;
+      epi_log << "successful_run_idx= " << endl;
       for(size_t j=0; j<(size_t)n_run; ++j)
       {
         std::string data_path;
