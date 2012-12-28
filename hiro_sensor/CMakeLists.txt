@@ -31,5 +31,4 @@ rosbuild_gensrv()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 
 rosbuild_add_executable(vis src/vision_sensor.cpp)
-
-#target_link_libraries(example ${PROJECT_NAME})
+target_link_libraries(vis log4cxx)
