@@ -243,7 +243,7 @@ sense_movable_object(arm_navigation_msgs::CollisionObject object)
   pose_stamped.pose.orientation.z = object.poses.at(0).orientation.z;
   pose_stamped.pose.orientation.w = object.poses.at(0).orientation.w;
   
-  // Registering this movable object  
+  // Registering this movable object's pose_stamped
   obj_pose_map_[object.id] = pose_stamped;
   
  // For collision_object needs
@@ -252,7 +252,7 @@ sense_movable_object(arm_navigation_msgs::CollisionObject object)
   object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
   
   collision_space_pub_.publish(object);
-  ROS_INFO_STREAM(object.id << " should has been published");
+  ROS_DEBUG_STREAM("Have published= " << object.id << " (" << object.poses.at(0).position.x << "," << object.poses.at(0).position.y << "," << object.poses.at(0).position.z << ")");
   
   return true;  
 }
@@ -316,7 +316,7 @@ sense_movable_object( const std::string& object_id,
   object.poses.push_back(object_pose);
   
   collision_space_pub_.publish(object);
-  ROS_INFO_STREAM( object_id << " should has been published at " << object_pose.position.x << ", " << object_pose.position.y << ", " << object_pose.position.z );
+  ROS_DEBUG_STREAM("Have published " << object_id << " (" << object_pose.position.x << "," << object_pose.position.y << "," << object_pose.position.z << ")");
  
   obj_cfg->push_back(object);
   return true;
@@ -531,12 +531,14 @@ bool
 see_obj_cfg_replay(const std::string& path)
 {
   ObjCfg cfg;
+
   if( !read_obj_cfg(path,&cfg) )
   {
     ROS_ERROR("Can not find the obj_cfg file.");
     return false;
   }
-  
+  ROS_DEBUG_STREAM("cfg.size()= " << cfg.size());
+ 
   for(ObjCfg::iterator i=cfg.begin(); i!=cfg.end(); ++i)
     sense_movable_object(*i);
   
@@ -557,8 +559,11 @@ int
 main(int argc, char** argv)
 {
   ros::init(argc, argv, "vis_sensor");
-  ros::NodeHandle nh;
+  ros::NodeHandle nh;\
   
+//  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
+//  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
+    
   VisionSensor vis_sensor(nh);
   
   ros::ServiceServer see_srv = nh.advertiseService("/see", &VisionSensor::see_srv_handle, &vis_sensor);

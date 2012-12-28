@@ -44,7 +44,12 @@ read_obj_cfg(const std::string& cfg_path,ObjCfg* cfg)
       {
         object.shapes.push_back(object_shape);
         object.poses.push_back(object_pose);
+
         cfg->push_back(object);
+        
+        // reset
+        object.shapes.clear();
+        object.poses.clear();
         
         continue;
       }
@@ -93,13 +98,20 @@ read_obj_cfg(const std::string& cfg_path,ObjCfg* cfg)
     }
 
     cfg_in.close();
-    return true;
   }
   else
   {
    cerr << "Unable to open file";
    return false;
   }
+  
+//  for(ObjCfg::const_iterator i=cfg->begin(); i!=cfg->end(); ++i)
+//  {
+//    cerr << "id=" << i->id << endl;
+////    cerr << "x,y,z= " << i->poses.at(0).pos ...
+//  }
+  
+  return true;
 }
 
 bool

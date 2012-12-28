@@ -157,6 +157,9 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     cout << "#ExpandedVertices= " << n << endl << endl;
     perf_log << "#ExpandedVertices=" << n << endl;
     
+    cout << "#Vertices= " << num_vertices(tmm_) << endl << endl;
+    perf_log << "#Vertices=" << num_vertices(tmm_) << endl;
+    
     // Convert from vector to list to enable push_front()
     std::list<TMMVertex> sol_path_vertex_list;
     for(TMMVertex v = tmm_goal_; ; v = sol_path_vertex_vec[v]) 

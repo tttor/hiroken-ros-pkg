@@ -339,7 +339,7 @@ convert_tg_tmm(const TaskGraph& tg)
 {
     // Set joint_spaces 
   std::list<std::string> jspaces;
-  jspaces.push_back("rarm");
+//  jspaces.push_back("rarm");
   jspaces.push_back("rarm_U_chest");
   
   TaskMotionMultigraph tmm;
