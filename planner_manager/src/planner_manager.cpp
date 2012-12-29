@@ -13,10 +13,6 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
   nh_(nh)
 {
   ros::service::waitForService("plan_grasp");
-    
-  set_tidy_config();
-  
-  ROS_INFO("PlannerManager: Up and Running ...");
 }
 //! A destructor.
 /*!
@@ -28,7 +24,7 @@ PlannerManager::~PlannerManager()
 void 
 PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::ConstPtr& msg)
 {
-  ROS_INFO("I heard: [%s]", msg->id.c_str());
+  ROS_DEBUG_STREAM("Heard= " << msg->id.c_str());
   
   // Filter unmovable_object
   if( !strcmp(msg->id.c_str(), "table")
@@ -39,7 +35,13 @@ PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::
     return;
   }
   
-  messy_cfg_.insert( std::pair<std::string, arm_navigation_msgs::CollisionObject>(msg->id, *msg) );
+  std::map<std::string, arm_navigation_msgs::CollisionObject>::iterator it;
+  bool inserted;
+  
+  boost::tie(it,inserted) = messy_cfg_.insert( std::pair<std::string, arm_navigation_msgs::CollisionObject>(msg->id, *msg) );
+  
+  if(!inserted)
+    it->second = *msg;// Update with the newer one
 }
 
 bool
@@ -61,10 +63,11 @@ PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_man
 bool
 PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajectory>* man_plan)
 {
-  // Clear the tmm_
-  TaskMotionMultigraph tmm;
-  tmm_ = tmm;
+  // Init
+  tmm_ = TaskMotionMultigraph();
   
+  set_tidy_config();
+    
   std::string data_path;
   if( !ros::param::get("/data_path", data_path) )
     ROS_WARN("Can not get /data_path, use the default value instead");
@@ -346,7 +349,8 @@ main(int argc, char **argv)
 
   ros::ServiceServer plan_srv;
   plan_srv = nh.advertiseService("/plan", &PlannerManager::plan_srv_handle, &pm);
-
+  
+  ROS_INFO("PlannerManager: Up and Running ...");
   ros::spin();
   
   return 0;
