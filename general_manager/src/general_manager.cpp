@@ -48,27 +48,24 @@ GeneralManager(ros::NodeHandle& nh)
 bool
 sense(const std::string& path)
 {
-  // At least 3 times, otherwise the planner_manager will miss collission object publications.
-  for(size_t i=0; i<1; ++i)
+  // NOTE: may need at least 3 times (?), otherwise the planner_manager will miss collission object publications.
+  ros::service::waitForService("/sense");
+    
+  ros::ServiceClient sense_client;
+  sense_client = nh_.serviceClient<sensor_manager::Sense> ("/sense");
+
+  sensor_manager::Sense::Request req;
+  sensor_manager::Sense::Response res;
+
+  req.id = 1;
+  req.uint_args.push_back(false);// randomized=false
+  req.uint_args.push_back(0);// any number, meaningless here
+  req.string_args.push_back(path);
+
+  if( !sense_client.call(req,res) ) 
   {
-    ros::service::waitForService("/sense");
-      
-    ros::ServiceClient sense_client;
-    sense_client = nh_.serviceClient<sensor_manager::Sense> ("/sense");
-    
-    sensor_manager::Sense::Request req;
-    sensor_manager::Sense::Response res;
-    
-    req.id = 1;
-    req.uint_args.push_back(false);// randomized=false
-    req.uint_args.push_back(0);// any number, meaningless here
-    req.string_args.push_back(path);
-    
-    if( !sense_client.call(req,res) ) 
-    {
-      ROS_WARN("A call to /sense srv: FAILED");
-      return false;
-    }
+    ROS_WARN("A call to /sense srv: FAILED");
+    return false;
   }
   
   return true;
