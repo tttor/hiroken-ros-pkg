@@ -45,6 +45,7 @@ GeneralManager(ros::NodeHandle& nh)
 ~GeneralManager()
 { }
 
+//! Sense with test-bed messy cfgs
 bool
 sense(const std::string& path)
 {
@@ -74,9 +75,9 @@ sense(const std::string& path)
 bool
 sense(const size_t& n)
 {
-  // At least 3 times, otherwise the planner_manager will miss collission object publications.
-  for(size_t i=0; i<3; ++i)
-  {
+//  // At least 3 times, otherwise the planner_manager will miss collission object publications.
+//  for(size_t i=0; i<3; ++i)
+//  {
     ros::service::waitForService("/sense");
       
     ros::ServiceClient sense_client;
@@ -95,7 +96,7 @@ sense(const size_t& n)
       ROS_WARN("A call to /sense srv: FAILED");
       return false;
     }
-  }
+//  }
   
   return true;
 }
@@ -199,10 +200,10 @@ main(int argc, char **argv)
   std::string base_data_path;// The base_data_path is a constant
   if( !ros::param::get("/base_data_path", base_data_path) )
     ROS_WARN("Can not get /base_data_path, use the default value instead");  
-    
+        
   switch(mode)
   {
-    case 1:// SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS.
+    case 1:// SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
     {
       std::string suffix_data_path;
       if( !ros::param::get("/suffix_data_path", suffix_data_path) )
@@ -234,7 +235,7 @@ main(int argc, char **argv)
       epi_log.close();
       break;
     }
-    case 2:// SENSE-ACT with any existing manipulation plan in the data center
+    case 2:// SENSE-ACT with any existing manipulation plan in the base_data_path
     {
       gm.sense(std::string(base_data_path+"/messy.cfg"));
       gm.act();
@@ -248,14 +249,51 @@ main(int argc, char **argv)
 //      gm.train(tmm_paths);
       break;
     }
-    case 4:// randomized-SENSE only, messy.cfg is written in base_data_path
+    case 4:// randomized-SENSE only, messy.cfg is written in the base_data_path
     {
       gm.sense(n_obj);
       break;
     }
-    case 5:// SENSE TIDY-cfg only
+    case 5:// SENSE TIDY-cfg only, assume that the cfg file is under base_data_path
     {
-      gm.sense(std::string(base_data_path+"/tidy_tb1.cfg"));
+      std::string tidy_cfg_filename;
+      if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
+        ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead"); 
+    
+      gm.sense(std::string(base_data_path+tidy_cfg_filename));
+      break;
+    }
+    case 6:// messy_tb-SENSE only, assume that the cfg file is under base_data_path
+    {
+      std::string messy_cfg_filename;
+      if( !ros::param::get("/messy_cfg_filename",messy_cfg_filename) )
+        ROS_WARN("Can not get /messy_cfg_filename, use the default value instead"); 
+        
+      gm.sense(std::string(base_data_path+messy_cfg_filename));      
+      break;
+    }
+    case 7:
+    {
+      std::string suffix_data_path;
+      if( !ros::param::get("/suffix_data_path", suffix_data_path) )
+        ROS_WARN("Can not get /suffix_data_path, use the default value instead");  
+
+      std::string data_path;
+      data_path = base_data_path + suffix_data_path;
+      ros::param::set("/data_path",data_path);
+      
+      boost::filesystem::create_directories(data_path);
+      
+      // Sense the messy_cfg     
+      std::string messy_cfg_filename;
+      if( !ros::param::get("/messy_cfg_filename",messy_cfg_filename) )
+        ROS_WARN("Can not get /messy_cfg_filename, use the default value instead"); 
+        
+      gm.sense(std::string(base_data_path+messy_cfg_filename));
+      
+      // Plan
+      gm.plan(1);// mode=1 -> UCS, no learning 
+      
       break;
     }
     default:
