@@ -317,11 +317,16 @@ PlannerManager::set_tidy_config()
 {
   ObjCfg tidy_cfg;
   
+  // Read the given tidy_cfg under base_data_path
   std::string base_data_path;
   if( !ros::param::get("/base_data_path", base_data_path) )
-    ROS_WARN("Can not get /data_path, use the default value instead");
+    ROS_WARN("Can not get /base_data_path, use the default value instead");
     
-  if( !read_obj_cfg(std::string(base_data_path+ "/tidy_tb1.cfg"),&tidy_cfg) )
+  std::string tidy_cfg_filename;// The base_data_path is a constant
+  if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
+    ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead"); 
+    
+  if( !read_obj_cfg(std::string(base_data_path+tidy_cfg_filename),&tidy_cfg) )
   {
     ROS_ERROR("Can not find the tidy*.cfg file.");
     return false;
@@ -329,7 +334,7 @@ PlannerManager::set_tidy_config()
   
   for(ObjCfg::iterator i=tidy_cfg.begin(); i!=tidy_cfg.end(); ++i)
     tidy_cfg_[i->id] = *i; 
-  
+
   return true;
 }
 

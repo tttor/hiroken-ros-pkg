@@ -19,7 +19,7 @@ static const std::string GET_ROBOT_STATE_SRV_NAME = "/environment_server/get_rob
 static const std::string TRAJECTORY_FILTER_SRV_NAME = "/trajectory_filter_server/filter_trajectory_with_constraints";
 
 static const size_t NUM_PLANNING_ATTEMPTS = 1;
-static const double ALLOWED_PLANNING_TIME = 1. * 60.;
+static const double ALLOWED_PLANNING_TIME = 0.1 * 60.;
 static const double ALLOWED_SMOOTHING_TIME = 2.0;
 static const size_t MAX_JSPACE_DIM = 7;
 
@@ -858,7 +858,7 @@ reset_planning_env()
       return false;
     }
     
-    // Note that this brutal eset leads to: e.g.
+    // Note that this brutal reset leads to: e.g.
     //[WARN] No attached body CAN1 attached to link link_rhand_palm
     //Sanity check failing - no entry in acm for collision space object CAN1
     //No entry in default collision matrix for attached body CAN1 when there really should be.

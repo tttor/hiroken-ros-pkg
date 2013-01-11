@@ -341,6 +341,8 @@ convert_tg_tmm(const TaskGraph& tg)
   std::list<std::string> jspaces;
 //  jspaces.push_back("rarm");
   jspaces.push_back("rarm_U_chest");
+//  jspaces.push_back("larm");
+//  jspaces.push_back("larm_U_chest");
   
   TaskMotionMultigraph tmm;
   std::map<std::string, TMMVertex> name_vertex_map;

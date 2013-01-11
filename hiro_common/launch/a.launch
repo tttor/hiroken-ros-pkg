@@ -8,9 +8,15 @@
     <param name="base_data_path" value="$(arg data_path)"/>
     <param name="data_path" value="$(arg data_path)"/>
 
-  <arg name="suffix_data_path" default="/run.20121227.test" />
-    <param name="suffix_data_path" value="$(arg suffix_data_path)"/>
-    
+  <arg name="suffix" default="/run.20121227.test" />
+    <param name="suffix_data_path" value="$(arg suffix)"/>
+
+  <arg name="tidy_cfg" default="/tidy_tb1.cfg" />
+    <param name="tidy_cfg_filename" value="$(arg tidy_cfg)"/>
+
+  <arg name="messy_cfg" default="/messy_tb1.cfg" />
+    <param name="messy_cfg_filename" value="$(arg messy_cfg)"/>
+            
   <arg name="mode" default="2" />
     <param name="mode" value="$(arg mode)"/>
 
@@ -19,7 +25,8 @@
 
   <arg name="n_run" default="1" />
     <param name="n_run" value="$(arg n_run)"/>    
-    
+
+  <!-- for finding recorded task plans resulted by shop2 planner in advance -->
   <param name="task_planner_path" value="$(find task_planner)"/>
   
   <group if="$(arg is_online)">          

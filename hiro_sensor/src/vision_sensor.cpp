@@ -541,7 +541,14 @@ see_obj_cfg_replay(const std::string& path)
  
   for(ObjCfg::iterator i=cfg.begin(); i!=cfg.end(); ++i)
     sense_movable_object(*i);
-  
+
+  // Re-write the messy_cfg
+  std::string  data_path= ".";
+  if( !ros::param::get("/data_path", data_path) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
+    
+  write_obj_cfg( cfg,std::string(data_path+"/messy.cfg") );
+    
   return true;
 }
 
