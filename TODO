@@ -1,10 +1,23 @@
->> grasp planner can use randomized sampling strategy for discretization.
+>> re-do motion planning for the cheapest almost-solution path
+>> refine get_goal_set( target(e,pm_->tmm_),get(edge_jspace,pm_->tmm_,e) ); the first param only should be enough
+>> grasp planner can use uniform/biased sampling strategy for discretization.
 >> migrate to MoveIt! on Groovy
 >> typedef typename graph_traits<GPMGraph>::vertex_descriptor Vertex; VS typedef typename GPMGraph::vertex_descriptor Vertex;
+>> automate the way we set how many robots/eofs are in-duty
 ===
+Done...
 >> grasp_planner should receive information about jspace used. 
 >> data path, dot paths, e.g. task graph, tmm should be in global variables set at .launch or centralized
 >> adjust hiro_joint_controller.cpp to accept different jspaces
 >> build object config. file + its parser
 >> debug for tidying up with >= 5objects
 >> geometric planning cost HAVE TO consider jspace
+===
+Notes...
+whenever change hiro_arm_navigation, modify:
+>> constraint_aware_kinematics.launch
+  add arm_kinematic_2
+>> hiro_planning_environment.launch
+  <param name="robot_description" command="$(find xacro)/xacro.py '$(find hiro_common)/urdf/hiro.urdf.xacro'" /> 
+  
+[ERROR] [1358341780.344459193]: No latest time for transforming link_LARM_palm to link_base

@@ -96,20 +96,20 @@ template<typename NameMap>
 class VertexPropWriter_1
 {
 public:
-  VertexPropWriter_1(NameMap name)
-    : name_(name)
+  VertexPropWriter_1(NameMap name_map)
+    : name_map_(name_map)
   {}
   
   template <typename Vertex>
   void operator()(ostream& out, const Vertex& v) const
   {
-//    out << "["
-//        << "label=\"" << name_[v] << "\""
-//        << "\",fontsize=\"10\"" 
-//        << "]";
+    out << "["
+        << "label=\"" << name_map_[v] << "\""
+        << ",fontsize=\"10\"" 
+        << "]";
   }
 private:
-  NameMap name_;
+  NameMap name_map_;
 };
 
 template <typename NameMap, typename WeightMap>
@@ -128,7 +128,8 @@ public:
     out << "["
     << "label=\"" << name_map_[e] 
     << "\\" << "n" << weight_map_[e] 
-    << "\",fontsize=\"10\""
+    << "\""
+    << ",fontsize=\"10\""
     << "]";
   }
 private:

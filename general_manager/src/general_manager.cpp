@@ -1,3 +1,13 @@
+/*
+MODES
+case 1:// SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
+
+case 6:
+  $ roslaunch hiro_common a.launch mode:=6 messy_cfg:=/messy_hot.cfg
+  
+case 7:
+  $ roslaunch hiro_common a.launch mode:=7 messy_cfg:=/messy_hot.cfg tidy_cfg:=/tidy_tb3.r.cfg suffix:=/run.3obj.20130122.c
+*/
 #include <ros/ros.h>
 #include <arm_navigation_msgs/RobotTrajectory.h>
 
@@ -272,7 +282,7 @@ main(int argc, char **argv)
       gm.sense(std::string(base_data_path+messy_cfg_filename));      
       break;
     }
-    case 7:
+    case 7:// SENSE-PLAN(UCS) with a test-bed messy config under the base_data_path one time only
     {
       std::string suffix_data_path;
       if( !ros::param::get("/suffix_data_path", suffix_data_path) )
@@ -284,6 +294,10 @@ main(int argc, char **argv)
       
       boost::filesystem::create_directories(data_path);
       
+      std::string tidy_cfg_filename;
+      if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
+        ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead"); 
+        
       // Sense the messy_cfg     
       std::string messy_cfg_filename;
       if( !ros::param::get("/messy_cfg_filename",messy_cfg_filename) )

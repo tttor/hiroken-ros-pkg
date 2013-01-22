@@ -18,11 +18,9 @@
 #include <vector>
 #include <boost/math/constants/constants.hpp>
 #include <math.h>
+#include <algorithm>
 
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
-
-static const std::string LINK_BASE_R = "/link_base";
-static const std::string LINK_TIP_R = "/link_rhand_palm";
 
 class Helper
 {
@@ -42,15 +40,47 @@ Helper(ros::NodeHandle nh):
   collision_models_ = new planning_environment::CollisionModels("robot_description");
   planning_scene_state_ = NULL;
 }
+
 ~Helper()
 {
   delete[] collision_models_;// why does this: delete collision_models_; w/o [] seems to block the program
 }
 
 void
-motion_plan_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
+motion_plan_subs_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
 {
- // Visualize the motion plan     
+  visualize_path(*msg);
+//  visualize_motion_plan(*msg);
+}
+
+bool
+benchmark_path_srv_cb(hiro_common::BenchmarkPath::Request& req, hiro_common::BenchmarkPath::Response& res)
+{
+  if(req.trajectory.points.empty())
+  {
+    res.length = 0.;  
+  }
+  else
+  {
+    std::vector<geometry_msgs::Point> path;
+    path = convert_to_cartesian(req.trajectory,std::string("/link_base"));
+    
+    // Length
+    double len = 0.0;
+    for (size_t i = 1 ; i < path.size() ; ++i)
+        len += distance(path[i-1], path[i]);
+        
+    res.length = len;
+  }
+  
+  return true;
+}
+
+private:
+//! Visualize the motion plan
+void
+visualize_path(const trajectory_msgs::JointTrajectory& path)
+{
   visualization_msgs::Marker edges;
   
   edges.header.frame_id = "/link_base";
@@ -65,24 +95,22 @@ motion_plan_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
   edges.pose.orientation.w = 1.0;
   
   // Obtain the jspace
-  // This is a simplistic method
   std::string jspace;
-  if(msg->joint_names.size()==7)
-    jspace = "rarm_U_chest";
-  else if(msg->joint_names.size()==6)
-    jspace = "rarm";
+  jspace = get_jspace(path.joint_names);
+  ROS_DEBUG_STREAM("jspace= " << jspace);
+  ROS_DEBUG_STREAM("tip_link= " << get_tip_link(jspace));
   
-  if( msg->points.empty() )
+  if( path.points.empty() )
   { 
     edges.action = visualization_msgs::Marker::DELETE;
     filtered_path_marker_pub_.publish(edges);
     return;
   }
-
-  for(size_t i=0; i < msg->points.size(); ++i)
+    
+  for(size_t i=0; i < path.points.size(); ++i)
   {
     kinematics_msgs::GetPositionFK::Response fk_response;
-    fk_response = solve_fk(msg->points.at(i),jspace);
+    fk_response = solve_fk(path.points.at(i),jspace,edges.header.frame_id,get_tip_link(jspace));
     
     //ROS_INFO_STREAM("fk_response.pose_stamped.size= " << fk_response.pose_stamped.size());
     // For now, there actually is only 1 stamp 
@@ -108,29 +136,22 @@ motion_plan_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
       edges.points.push_back(p);
     } 
     filtered_path_marker_pub_.publish(edges);
-  }
-  
-  // Visualize the plan 
-//  visualizePlan(*msg);
+  }// end of: for-each point in the path
 }
 
 std::vector<geometry_msgs::Point>
-convert_to_cartesian(const trajectory_msgs::JointTrajectory& joint_trajectory)
+convert_to_cartesian(const trajectory_msgs::JointTrajectory& joint_trajectory,const std::string& ref_frame)
 {
   // Obtain the jspace
-  // This is a simplistic method
   std::string jspace;
-  if(joint_trajectory.joint_names.size()==7)
-    jspace = "rarm_U_chest";
-  else if(joint_trajectory.joint_names.size()==6)
-    jspace = "rarm";
+  jspace = get_jspace(joint_trajectory.joint_names);
     
   std::vector<geometry_msgs::Point> cartesian_trajectory;
   
   for(size_t i=0; i < joint_trajectory.points.size(); ++i)
   {
     kinematics_msgs::GetPositionFK::Response fk_response;
-    fk_response = solve_fk(joint_trajectory.points.at(i),jspace);
+    fk_response = solve_fk(joint_trajectory.points.at(i),jspace,ref_frame,get_tip_link(jspace));
     
     //ROS_INFO_STREAM("fk_response.pose_stamped.size= " << fk_response.pose_stamped.size());
     // For now, there actually is only 1 stamp 
@@ -182,42 +203,6 @@ benchmark_path(const std::vector<geometry_msgs::Point>& path)
   
   path_quality_pub_.publish(path_quality);
 }
-
-bool
-benchmark_path_srv_cb(hiro_common::BenchmarkPath::Request& req, hiro_common::BenchmarkPath::Response& res)
-{
-  if(req.trajectory.points.empty())
-  {
-    res.length = 0.;  
-  }
-  else
-  {
-    std::vector<geometry_msgs::Point> path;
-    path = convert_to_cartesian(req.trajectory);
-    
-    // Length
-    double len = 0.0;
-    for (size_t i = 1 ; i < path.size() ; ++i)
-        len += distance(path[i-1], path[i]);
-        
-    res.length = len;
-  }
-  
-  return true;
-}
-
-private:
-ros::NodeHandle nh_;
-
-ros::Publisher path_marker_pub_;
-ros::Publisher filtered_path_marker_pub_;
-ros::Publisher display_filtered_path_pub_;
-ros::Publisher path_quality_pub_;
-
-ros::ServiceClient set_planning_scene_diff_client_;
-
-planning_environment::CollisionModels* collision_models_;
-planning_models::KinematicState* planning_scene_state_;
 
 double
 distance(const geometry_msgs::Point& point_1, const geometry_msgs::Point& point_2)
@@ -276,46 +261,48 @@ revertPlanningScene()
   return true;
 }
 
+//! visualize motion plan with the whole body
 void 
-visualizePlan(const trajectory_msgs::JointTrajectory& trajectory)
+visualize_motion_plan(const trajectory_msgs::JointTrajectory& trajectory)
 {
-  arm_navigation_msgs::DisplayTrajectory d_path;
-  
-  std::string group_name;
-  
-  if( !ros::param::get("/hiro_move_rarm/group", group_name) )
-  {
-    ROS_ERROR("Can not get /hiro_move_rarm/group");
-    return;
-  }
-  
-  d_path.model_id = group_name;
-  d_path.trajectory.joint_trajectory = trajectory;
-  
-  arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
-  arm_navigation_msgs::SetPlanningSceneDiff::Response planning_scene_res;
-  
-  revertPlanningScene();
-      
-  if(!set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res)) {
-    ROS_WARN("Can't get planning scene");
-    return;
-  }
-  
-  planning_scene_state_ = collision_models_->setPlanningScene(planning_scene_res.planning_scene);
+//  arm_navigation_msgs::DisplayTrajectory d_path;
+//  
+//  std::string group_name;
+//  
+//  if( !ros::param::get("/hiro_move_rarm/group", group_name) )
+//  {
+//    ROS_ERROR("Can not get /hiro_move_rarm/group");
+//    return;
+//  }
+//  
+//  d_path.model_id = group_name;
+//  d_path.trajectory.joint_trajectory = trajectory;
+//  
+//  arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
+//  arm_navigation_msgs::SetPlanningSceneDiff::Response planning_scene_res;
+//  
+//  revertPlanningScene();
+//      
+//  if(!set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res)) {
+//    ROS_WARN("Can't get planning scene");
+//    return;
+//  }
+//  
+//  planning_scene_state_ = collision_models_->setPlanningScene(planning_scene_res.planning_scene);
 
-  planning_environment::setRobotStateAndComputeTransforms(planning_scene_res.planning_scene.robot_state, *planning_scene_state_);
-  
-  planning_environment::convertKinematicStateToRobotState(*planning_scene_state_,
-                                                          ros::Time::now(),
-                                                          collision_models_->getWorldFrameId(),
-                                                          d_path.robot_state);
-  display_filtered_path_pub_.publish(d_path);
+//  planning_environment::setRobotStateAndComputeTransforms(planning_scene_res.planning_scene.robot_state, *planning_scene_state_);
+//  
+//  planning_environment::convertKinematicStateToRobotState(*planning_scene_state_,
+//                                                          ros::Time::now(),
+//                                                          collision_models_->getWorldFrameId(),
+//                                                          d_path.robot_state);
+//  display_filtered_path_pub_.publish(d_path);
 }
 
 kinematics_msgs::GetPositionFK::Response
-solve_fk(const trajectory_msgs::JointTrajectoryPoint& point, const std::string& jspace)
+solve_fk(const trajectory_msgs::JointTrajectoryPoint& point, const std::string& jspace, const std::string& ref_frame, const std::string& target_link)
 {
+  // Sanity checks: Get the info, ...
   std::string get_fk_solver_info_str = "hiro_" + jspace + "_kinematics_2/get_fk_solver_info";
   std::string get_fk_str = "hiro_" + jspace + "_kinematics_2/get_fk";
     
@@ -330,11 +317,8 @@ solve_fk(const trajectory_msgs::JointTrajectoryPoint& point, const std::string& 
   
   if(get_fk_solver_info_client.call(request,response))
   {
-    for(unsigned int i=0; i< response.kinematic_solver_info.joint_names.size(); i++)
-    {
-      ROS_DEBUG("Joint: %d %s", i,
-       response.kinematic_solver_info.joint_names[i].c_str());
-    }
+//    for(unsigned int i=0; i< response.kinematic_solver_info.joint_names.size(); i++)
+//      ROS_DEBUG("Joint: %d %s", i,response.kinematic_solver_info.joint_names[i].c_str());
   }
   else
   {
@@ -343,12 +327,13 @@ solve_fk(const trajectory_msgs::JointTrajectoryPoint& point, const std::string& 
     exit(1);
   }
   
+  // Get the real work: the fk solution
   kinematics_msgs::GetPositionFK::Request  fk_request;
   kinematics_msgs::GetPositionFK::Response fk_response;
   
-  fk_request.header.frame_id = LINK_BASE_R;
+  fk_request.header.frame_id = ref_frame;
   fk_request.fk_link_names.resize(1);
-  fk_request.fk_link_names[0] = LINK_TIP_R;
+  fk_request.fk_link_names[0] = target_link;
   
   fk_request.robot_state.joint_state.position.resize(response.kinematic_solver_info.joint_names.size());
   fk_request.robot_state.joint_state.name = response.kinematic_solver_info.joint_names;
@@ -368,6 +353,70 @@ solve_fk(const trajectory_msgs::JointTrajectoryPoint& point, const std::string& 
 
   return fk_response;
 }
+
+std::string
+get_tip_link(const std::string& jspace)
+{
+  std::string tip_link;
+  if( !strcmp(jspace.c_str(),std::string("rarm").c_str()) or !strcmp(jspace.c_str(),std::string("rarm_U_chest").c_str()) )
+  {
+    tip_link = "/link_rhand_palm";
+  }
+  else if( !strcmp(jspace.c_str(),std::string("larm").c_str()) or !strcmp(jspace.c_str(),std::string("larm_U_chest").c_str()) )
+  {
+    tip_link = "/link_lhand_palm";
+  }
+  
+  return tip_link;
+}
+
+std::string
+get_jspace(std::vector<std::string> jnames)
+{
+  std::string jspace;
+
+  std::vector<std::string>::iterator it;
+  it = std::find(jnames.begin(),jnames.end(),std::string("joint_rwrist_roll"));// the joint name to match to is arbitratily chosen
+  
+  ROS_DEBUG_STREAM("jnames.size()= " << jnames.size());
+  
+  if(it==jnames.end())//DOES NOT contains link_rhand_palm
+  {
+    if(jnames.size()==7)
+    {
+      jspace = "larm_U_chest";
+    }
+    else if(jnames.size()==6)
+    {
+      jspace = "larm";
+    }  
+  }
+  else//contains link_rhand_palm
+  {
+    if(jnames.size()==7)
+    {
+      jspace = "rarm_U_chest";
+    }
+    else if(jnames.size()==6)
+    {
+      jspace = "rarm";
+    }  
+  }
+  
+  return jspace;
+}
+
+ros::NodeHandle nh_;
+
+ros::Publisher path_marker_pub_;
+ros::Publisher filtered_path_marker_pub_;
+ros::Publisher display_filtered_path_pub_;
+ros::Publisher path_quality_pub_;
+
+ros::ServiceClient set_planning_scene_diff_client_;
+
+planning_environment::CollisionModels* collision_models_;
+planning_models::KinematicState* planning_scene_state_;
 };//end of: class Helper
 
 int 
@@ -378,8 +427,11 @@ main(int argc, char** argv)
 
   Helper helper(nh);
   
-  ros::Subscriber display_filtered_path_sub = nh.subscribe("rarm_controller/command", 1, &Helper::motion_plan_cb, &helper);
-  ros::Subscriber motion_plan_sub = nh.subscribe("motion_plan", 1, &Helper::motion_plan_cb, &helper);
+//  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
+//  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
+  
+  ros::Subscriber display_filtered_path_sub = nh.subscribe("rarm_controller/command", 1, &Helper::motion_plan_subs_cb, &helper);
+  ros::Subscriber motion_plan_sub = nh.subscribe("motion_plan", 1, &Helper::motion_plan_subs_cb, &helper);
   
   ros::ServiceServer benchmark_path_srv;
   benchmark_path_srv = nh.advertiseService("benchmark_motion_plan", &Helper::benchmark_path_srv_cb, &helper);
