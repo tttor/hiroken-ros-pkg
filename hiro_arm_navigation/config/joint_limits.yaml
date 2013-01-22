@@ -1,4 +1,53 @@
 joint_limits:
+  joint_lshoulder_yaw:
+    has_position_limits: true
+    has_velocity_limits: true
+    max_velocity: 0.5
+    has_acceleration_limits: true
+    max_acceleration: 1
+    angle_wraparound: false
+  joint_lshoulder_pitch:
+    has_position_limits: true
+    has_velocity_limits: true
+    max_velocity: 0.5
+    has_acceleration_limits: true
+    max_acceleration: 1
+    angle_wraparound: false
+  joint_lelbow_pitch:
+    has_position_limits: true
+    has_velocity_limits: true
+    max_velocity: 0.5
+    has_acceleration_limits: true
+    max_acceleration: 1
+    angle_wraparound: false
+  joint_lwrist_yaw:
+    has_position_limits: true
+    has_velocity_limits: true
+    max_velocity: 0.5
+    has_acceleration_limits: true
+    max_acceleration: 1
+    angle_wraparound: false
+  joint_lwrist_pitch:
+    has_position_limits: true
+    has_velocity_limits: true
+    max_velocity: 0.5
+    has_acceleration_limits: true
+    max_acceleration: 1
+    angle_wraparound: false
+  joint_lwrist_roll:
+    has_position_limits: true
+    has_velocity_limits: true
+    max_velocity: 0.5
+    has_acceleration_limits: true
+    max_acceleration: 1
+    angle_wraparound: false
+  joint_chest_yaw:
+    has_position_limits: true
+    has_velocity_limits: true
+    max_velocity: 0.5
+    has_acceleration_limits: true
+    max_acceleration: 1
+    angle_wraparound: false
   joint_rshoulder_yaw:
     has_position_limits: true
     has_velocity_limits: true
@@ -35,13 +84,6 @@ joint_limits:
     max_acceleration: 1
     angle_wraparound: false
   joint_rwrist_roll:
-    has_position_limits: true
-    has_velocity_limits: true
-    max_velocity: 0.5
-    has_acceleration_limits: true
-    max_acceleration: 1
-    angle_wraparound: false
-  joint_chest_yaw:
     has_position_limits: true
     has_velocity_limits: true
     max_velocity: 0.5

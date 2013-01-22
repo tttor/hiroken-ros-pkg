@@ -223,7 +223,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
       if( !strcmp(get(edge_color,tmm_,*i).c_str(),"red") )
       {
         // TODO may re-do motion planning here for this edge
-        
+      
         recheck = false;
       }
       else if( !strcmp(get(edge_color,tmm_,*i).c_str(),"green") )
@@ -245,6 +245,8 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     }
     else
     {
+      // TODO bypass unimplementable edges, needs to replan the motion
+      
       man_plan->clear();
       
       cout << "SolPathCost= UNDEFINED" << endl;

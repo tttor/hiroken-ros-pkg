@@ -4,6 +4,12 @@ multi_dof_joints:
     parent_frame_id: link_base
     child_frame_id: link_base
 groups:
+  - name: larm
+    base_link: link_chest_yaw
+    tip_link: link_lhand_palm
+  - name: larm_U_chest
+    base_link: link_base
+    tip_link: link_lhand_palm
   - name: rarm
     base_link: link_chest_yaw
     tip_link: link_rhand_palm
@@ -130,9 +136,6 @@ default_collision_operations:
     operation: disable  # Never in collision
   - object1: link_lwrist_roll
     object2: link_lwrist_yaw
-    operation: disable  # Never in collision
-  - object1: link_lwrist_yaw
-    object2: link_neck_yaw
     operation: disable  # Never in collision
   - object1: link_lwrist_yaw
     object2: link_rshoulder_yaw

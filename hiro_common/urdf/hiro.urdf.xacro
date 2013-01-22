@@ -12,8 +12,10 @@
 	<xacro:base />    
 	<xacro:chest />      
 	<xacro:head />
+	
   <xacro:arm side="r" reflect="1" />
-  <xacro:hand side="r" reflect="1" />
+  <xacro:hand side="r" reflect="1" reflect2="0" />
+
   <xacro:arm side="l" reflect="-1" />
-  <xacro:hand side="l" reflect="-1" />
+  <xacro:hand side="l" reflect="-1" reflect2="1" />
 </robot>

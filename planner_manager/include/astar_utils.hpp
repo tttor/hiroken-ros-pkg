@@ -43,29 +43,29 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
     gpm_->plan(*oei);
   }
   
-  // Update jstates of adjacent vertex av of this vertex v, which will follows the cheapest just-planned edge
+  // Update jstates of adjacent vertex av of this vertex v to the cheapest just-planned edge
   gpm_->set_av_jstates(v);
   
-  if(mode_!=1)
-  {
-    // Train incrementally
-    Data samples;
-    gpm_->get_samples(v,&samples);// get samples from paths from (root,root+1, ..., v) to adjacent of v
-    
-    for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
-    {
-      doubleVec x;
-      x = i->first;
-      
-      doubleVec y(1);
-      y.at(0) = i->second;
+//  if(mode_!=1)
+//  {
+//    // Train incrementally
+//    Data samples;
+//    gpm_->get_samples(v,&samples);// get samples from paths from (root,root+1, ..., v) to adjacent of v
+//    
+//    for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
+//    {
+//      doubleVec x;
+//      x = i->first;
+//      
+//      doubleVec y(1);
+//      y.at(0) = i->second;
 
-  //    doubleVec yp;
-  //    yp = learner_->update( x,y );
-    }
-  }
-  else
-  { }
+//  //    doubleVec yp;
+//  //    yp = learner_->update( x,y );
+//    }
+//  }
+//  else
+//  { }
 
   // Set its color to black=examined
   gpm_->mark_vertex(v);
@@ -98,8 +98,7 @@ AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManag
 CostType 
 operator()(Vertex v)
 {
-  cerr << "Compute h(" << v << "): BEGIN" << endl;
-  
+//  cerr << "Compute h(" << v << "): BEGIN" << endl;
   double h;
       
   if( (v==goal_)or(mode_==1) )// or mode=UCS, no learning
@@ -108,22 +107,22 @@ operator()(Vertex v)
   }
   else
   {
-    // Extract feature x
-    Input x;
-    gpm_->get_feature(v,&x);
-    cerr << "x.size()= " << x.size() << endl;
-    
-//    // Predict yp
-//    doubleVec yp;
-//    yp = learner_->predict(x);
+//    // Extract feature x
+//    Input x;
+//    gpm_->get_feature(v,&x);
+//    cerr << "x.size()= " << x.size() << endl;
 //    
-//    h = yp[0];
-    h = 0.;
+////    // Predict yp
+////    doubleVec yp;
+////    yp = learner_->predict(x);
+////    
+////    h = yp[0];
+//    h = 0.;
   }
 
   gpm_->put_heu(v,h);
   
-  cerr << "Compute h(" << v << "): END" << endl;
+//  cerr << "Compute h(" << v << "): END" << endl;
   return h;
 }
 

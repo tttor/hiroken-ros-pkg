@@ -59,27 +59,35 @@ GeometricPlannerManager(PlannerManager* pm)
 bool
 plan(TMMEdge e)
 {
-  // Get the start point /subseteq vertex_jstates (source of e)
+  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
+  
+  // Get the start point /subseteq vertex_jstates (source of e) based on jspace of this edge e
   sensor_msgs::JointState start_state;
   start_state = get_jstate_subset(  get(edge_jspace, pm_->tmm_, e), get(vertex_jstates, pm_->tmm_, source(e, pm_->tmm_))  );
   ROS_DEBUG("start_state: SET");
   
-  // Determine all possible goal poses using grasp(if GRASPED_) or ungrasp(if RELEASED_) planner
-  std::vector<sensor_msgs::JointState> goal_set;// Note that we do not use std::set because of ros an msg constraint that is an array[] is handled as a vector
-  if(target(e,pm_->tmm_)==pm_->tmm_goal_)
+  // Determine all possible goal poses
+  std::vector<sensor_msgs::JointState> goal_set;// Note that we do not use std::set because of a ros-msg constraint that is an array[] is handled as a vector
+  
+  std::vector<std::string> target_vertex_name_parts;
+  boost::split( target_vertex_name_parts,get(vertex_name,pm_->tmm_,target(e,pm_->tmm_)),boost::is_any_of("_"),boost::token_compress_on );
+
+  std::string main_state_str = target_vertex_name_parts.at(0);
+  if( !strcmp(main_state_str.c_str(),"Grasped") or !strcmp(main_state_str.c_str(),"Released") )
+  {
+    // Call grasp/ungrasp planner here!
+    goal_set = get_goal_set( target(e,pm_->tmm_),get(edge_jspace,pm_->tmm_,e) ); 
+  }
+  else// must be either TidyHome or TmpHome[xxx]
   {
     // Get a subset of initial jstates stored in the goal vertex, which is the home pose
     goal_set.push_back(   get_jstate_subset(  get(edge_jspace, pm_->tmm_, e), get(vertex_jstates, pm_->tmm_, target(e, pm_->tmm_))  )   );
   }
-  else
-  {
-    // Call grasp/ungrasp planner here!
-    goal_set = get_goal_set( target(e,pm_->tmm_),get(edge_jspace,pm_->tmm_,e) );  
-  }
   ROS_DEBUG_STREAM("goal_set.size()= " << goal_set.size());
   
   // Prepare the planning environment to do motion planning
-  set_planning_env( source(e,pm_->tmm_), true );
+  bool for_motion_planning = true;
+  set_planning_env( source(e,pm_->tmm_),for_motion_planning );
   
   // Put the geometric config of source vertex set above into edge prop.
   put( edge_srcstate,pm_->tmm_,e,get_planning_env(e) );
@@ -95,6 +103,9 @@ plan(TMMEdge e)
   // For calculating iter_cost
   size_t n_success = 0;
   size_t n_failure = 0;
+  
+  // For suppressing the planning time
+  const size_t expected_n_success = 1;
   
   // Try to plan a motion for all possible goal states in the goal set. Then, take the best among them.
   // This means that we consider a goal set not only a single goal state.
@@ -130,6 +141,14 @@ plan(TMMEdge e)
     {
       ROS_WARN("A call to /ompl_planning/plan_kinematic_path and or /benchmark_motion_plan: FAILED.");
     }
+    
+    // TODO MUST be commented on real runs
+    if(n_success >= expected_n_success )
+    {
+      ROS_WARN("motion planning attempt is suppressed!");
+      break;
+    }
+    
   }
   ROS_INFO_STREAM("n_success= " << n_success);
   ROS_INFO_STREAM("n_failure= " << n_failure);
@@ -159,12 +178,12 @@ plan(TMMEdge e)
   // Put the best motion plan of this edge e and its geo. planning cost
   put(edge_plan, pm_->tmm_, e, best_plan);
   put(edge_planstr, pm_->tmm_,e,get_planstr(best_plan));
-  put(edge_weight, pm_->tmm_, e, cheapest_cost.total(0.9));// Thus, process_cost is 4 times worth it than result_cost; 0.8:0.2
+  put(edge_weight, pm_->tmm_, e, cheapest_cost.total(0.5));// Thus, process_cost is 4 times worth it than result_cost; 0.8:0.2
 
   // Reset the planning environment
   reset_planning_env();
     
-  ROS_DEBUG_STREAM("Geo. planning for " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e) << " ends successfully.");
+  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END.");  
   return true;
 }
 //! Obtain samples as the search progresses
@@ -343,12 +362,13 @@ get_planstr(const trajectory_msgs::JointTrajectory& plan )
 }
 //! Set joint states of adjacent vertex of the given vertex v
 /*!
-  ...
+  The given vertex is the just-examined vertex.
+  Update jstates of adjacent vertex av of this vertex v to the cheapest just-planned edge
 */
 bool
 set_av_jstates(TMMVertex v)
 {
-  ROS_DEBUG_STREAM("set_av_jstates for v= " << get(vertex_name,pm_->tmm_,v) << ": Begin.");
+  ROS_DEBUG_STREAM("Updating adjacent_vertices of v  " << get(vertex_name,pm_->tmm_,v) << ": Begin.");
   
   // Determine the cheapest in_edge of the adjacent vertices of v
   std::map<TMMVertex,TMMEdge> av_ce_map;// av = adjacent_vertices to ce = cheapest_edge map
@@ -366,37 +386,40 @@ set_av_jstates(TMMVertex v)
       it->second = *oei;
     }
   }
+  ROS_DEBUG_STREAM("av_ce_map.size()= " << av_ce_map.size());
+  for(std::map<TMMVertex,TMMEdge>::iterator i=av_ce_map.begin(); i!=av_ce_map.end(); ++i)
+    ROS_DEBUG_STREAM(get(vertex_name,pm_->tmm_,i->first) << " <---> " << get(edge_jspace,pm_->tmm_,i->second));
   
   // Update the adjacent vertices's jstates using av_ce_map
-  ROS_DEBUG("Updating av's jstates");
-  
   graph_traits<TaskMotionMultigraph>::adjacency_iterator avi, avi_end;
-  for(tie(avi,avi_end)=adjacent_vertices(v, pm_->tmm_); avi!=avi_end; ++avi )
+  for(std::map<TMMVertex,TMMEdge>::iterator i=av_ce_map.begin(); i!=av_ce_map.end(); ++i)  
   {
-    sensor_msgs::JointState joint_state;
-    joint_state = get(vertex_jstates, pm_->tmm_, *avi);
+    ROS_DEBUG_STREAM("Cheapest edge of av " << get(vertex_name,pm_->tmm_,i->first) << "= " << get(edge_jspace,pm_->tmm_,i->second));
     
-    // The updating_joint_state is at the last point of the mp of an edge
+    sensor_msgs::JointState joint_state;
+    joint_state = get(vertex_jstates,pm_->tmm_,i->first);
+    
+    // The updating_joint_state is at the last point (=goal point) of the motion planning (path/trajectory) of the action of an edge
     trajectory_msgs::JointTrajectory motion_plan;
-    motion_plan = get(edge_plan, pm_->tmm_, av_ce_map[*avi]);
+    motion_plan = get(edge_plan,pm_->tmm_,i->second);
     
     if(motion_plan.points.size()==0)
       continue;
       
     trajectory_msgs::JointTrajectoryPoint goal_point = motion_plan.points.back();
     
-    for(std::vector<std::string>::const_iterator i=motion_plan.joint_names.begin(); i!=motion_plan.joint_names.end(); ++i)
+    for(std::vector<std::string>::const_iterator ii=motion_plan.joint_names.begin(); ii!=motion_plan.joint_names.end(); ++ii)
     {
       std::vector<std::string>::iterator j;
-      j = std::find(joint_state.name.begin(), joint_state.name.end(), *i);
+      j = std::find(joint_state.name.begin(), joint_state.name.end(), *ii);
       
-      joint_state.position.at(j-joint_state.name.begin()) = goal_point.positions.at(i-motion_plan.joint_names.begin());
+      joint_state.position.at(j-joint_state.name.begin()) = goal_point.positions.at(ii-motion_plan.joint_names.begin());
     }
     
-    put(vertex_jstates, pm_->tmm_, *avi, joint_state);
-  }
+    put(vertex_jstates,pm_->tmm_,i->first,joint_state);
+  }// end of: each avi in av_ce_map
   
-  ROS_DEBUG_STREAM("set_av_jstates for v= " << get(vertex_name,pm_->tmm_,v) << ": End.");
+  ROS_DEBUG_STREAM("Updating adjacent_vertices of v " << get(vertex_name,pm_->tmm_,v) << ": End.");
   return true;
 }
   
@@ -406,6 +429,12 @@ mark_vertex(const TMMVertex& v)
   put(vertex_color, pm_->tmm_, v, color_traits<boost::default_color_type>::black());// for examined vertex
 }
 
+//! Obtain the description of the planning environment in the form of string
+/*!
+  There are 2 descriptors of the planning environment, namely:
+  (1) wstate: workspace state, poses of manipulated objects
+  (2) jstate: joint states
+*/
 std::string
 get_planning_env(const TMMEdge& e)
 {
@@ -427,6 +456,7 @@ get_planning_env(const TMMEdge& e)
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).orientation.z) + ",";
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).orientation.w) + ";";// The last one use ";", instead of ","
   }
+  ROS_DEBUG_STREAM("wstate was copied!");
   
   // Put joint states
   // Note that instead of using res.planning_scene.robot_state.joint_state, we use get(vertex_jstates, pm_->tmm_, source(e, pm_->tmm_).
@@ -440,7 +470,8 @@ get_planning_env(const TMMEdge& e)
     state_str += boost::lexical_cast<std::string>( joint_state.position.at(i-joint_state.name.begin()) ) + ";";
   }
   boost::erase_last(state_str,";");
-  
+  ROS_DEBUG_STREAM("jstate was copied!");
+    
   return state_str;
 } 
 //!
@@ -520,6 +551,17 @@ get_jstate_subset(const std::string& jspace, sensor_msgs::JointState& jstates)
     subset_jstates.name.push_back("joint_rwrist_pitch");
     subset_jstates.name.push_back("joint_rwrist_roll");
   }
+  if( !strcmp(jspace.c_str(), "larm_U_chest") )
+  {
+    subset_jstates.name.push_back("joint_chest_yaw");
+    
+    subset_jstates.name.push_back("joint_lshoulder_yaw");
+    subset_jstates.name.push_back("joint_lshoulder_pitch");
+    subset_jstates.name.push_back("joint_lelbow_pitch");
+    subset_jstates.name.push_back("joint_lwrist_yaw");
+    subset_jstates.name.push_back("joint_lwrist_pitch");
+    subset_jstates.name.push_back("joint_lwrist_roll");
+  }
   else if( !strcmp(jspace.c_str(), "rarm") )
   {
     subset_jstates.name.push_back("joint_rshoulder_yaw");
@@ -528,6 +570,15 @@ get_jstate_subset(const std::string& jspace, sensor_msgs::JointState& jstates)
     subset_jstates.name.push_back("joint_rwrist_yaw");
     subset_jstates.name.push_back("joint_rwrist_pitch");
     subset_jstates.name.push_back("joint_rwrist_roll");
+  }
+  else if( !strcmp(jspace.c_str(), "larm") )
+  {
+    subset_jstates.name.push_back("joint_lshoulder_yaw");
+    subset_jstates.name.push_back("joint_lshoulder_pitch");
+    subset_jstates.name.push_back("joint_lelbow_pitch");
+    subset_jstates.name.push_back("joint_lwrist_yaw");
+    subset_jstates.name.push_back("joint_lwrist_pitch");
+    subset_jstates.name.push_back("joint_lwrist_roll");
   }
   
   subset_jstates.position.resize(subset_jstates.name.size());
@@ -847,7 +898,6 @@ reset_planning_env()
 {
   for(std::map<std::string, arm_navigation_msgs::CollisionObject>::iterator i=pm_->messy_cfg_.begin(); i!=pm_->messy_cfg_.end(); ++i)
   {
-    
     i->second.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     collision_object_pub_.publish( i->second );
     ros::Duration(COL_OBJ_PUB_TIME).sleep();
@@ -865,7 +915,27 @@ reset_planning_env()
     //Must already have an entry in allowed collision matrix for CAN1
     
     arm_navigation_msgs::AttachedCollisionObject att_object;
-  
+    
+    // For the lhand
+    att_object.link_name = "link_lhand_palm";
+    //att_object.touch_links.push_back("l_gripper_palm_link");
+    att_object.object.id = i->first;
+    att_object.object.header.frame_id = "link_lhand_palm";
+    att_object.object.header.stamp = ros::Time::now();
+    att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::DETACH_AND_ADD_AS_OBJECT;
+    
+    att_collision_object_pub_.publish(att_object);
+    ros::Duration(COL_OBJ_PUB_TIME).sleep();
+    
+    ROS_INFO("waitForService(SET_PLANNING_SCENE_DIFF_SRV_NAME)");
+    ros::service::waitForService(SET_PLANNING_SCENE_DIFF_SRV_NAME);
+
+    if(!set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_)) {
+      ROS_WARN("Can't get planning scene");
+      return false;
+    }
+    
+    // For the rhand
     att_object.link_name = "link_rhand_palm";
     //att_object.touch_links.push_back("r_gripper_palm_link");
     att_object.object.id = i->first;
@@ -892,16 +962,17 @@ reset_planning_env()
 bool
 set_planning_env(const TMMVertex& v, const bool& for_motion_planning=false)
 {
-  //==========
+  //===========================================================================================
   // This part only sets tidied objects (everything inside ...[]) to tidied positions
+  // Only set the workspace; excluding the robot
   std::string name = get(vertex_name, pm_->tmm_, v);
   
   std::vector<std::string> name_parts;
   boost::split( name_parts, name, boost::is_any_of("[") );// e.g from "GRASPED_CAN1[CAN2.CAN3.]" to "GRASPED_CAN1" and "CAN2.CAN3.]"
   
-  if(name_parts.size() < 2)// for e.g. "MessyHome"
+  if( !strcmp(name_parts.at(0).c_str(),"MessyHome") )
     return true;
-  
+    
   std::vector<std::string> tidied_object_ids;
   boost::split( tidied_object_ids, name_parts.at(1), boost::is_any_of(".") );// e.g. from "CAN2.CAN3.]" to CAN2 and CAN3 and ]
   tidied_object_ids.erase(tidied_object_ids.end()-1);//remove a "]"
@@ -918,8 +989,8 @@ set_planning_env(const TMMVertex& v, const bool& for_motion_planning=false)
     if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
       ROS_WARN("Can't get planning scene. Env can not be configured correctly");
   }
-  //==========  
-  if(!for_motion_planning)
+  //===========================================================================================  
+  if(!for_motion_planning or !strcmp(name_parts.at(0).c_str(),"TmpHome"))
     return true;
   
   std::vector<std::string> name_parts_0;
@@ -927,6 +998,7 @@ set_planning_env(const TMMVertex& v, const bool& for_motion_planning=false)
 
   std::string state_name = name_parts_0.at(0);
   std::string object_id = name_parts_0.at(1);
+  std::string eof_name =name_parts_0.at(2);
 
   if( !strcmp(state_name.c_str(), "Released") )// If source state of edge e is RELEASED then the released_objects _must_ be in tidyspot, this is for TRANSIT
   {
@@ -946,13 +1018,15 @@ set_planning_env(const TMMVertex& v, const bool& for_motion_planning=false)
     // Update planning_environment
     arm_navigation_msgs::AttachedCollisionObject att_object;
     
-    att_object.link_name = "link_rhand_palm";
+    att_object.link_name = "link_"+eof_name+"_palm";
     //att_object.touch_links.push_back("r_gripper_palm_link");
     
     att_object.object = pm_->messy_cfg_[object_id];// Assume that Grasped_XXX is always at messy_cfg_
-//    att_object.object.header.frame_id = "link_rhand_palm";
+//    att_object.object.header.frame_id = "link_"+eof_name+"_palm";
     att_object.object.header.stamp = ros::Time::now();
-    att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ATTACH_AND_REMOVE_AS_OBJECT;    
+    att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ATTACH_AND_REMOVE_AS_OBJECT;
+    
+    //TODO is below necessary?
 //    // update (overwrite) the pose to conform with frame_id=link_rhand_palm
 //    geometry_msgs::Pose pose;
 //    pose.position.x = 0.0;

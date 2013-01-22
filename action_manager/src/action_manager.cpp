@@ -77,15 +77,16 @@ discover_vertex(typename boost::graph_traits<Graph>::vertex_descriptor v,Graph& 
   
   std::string op = act_str_parts.at(0);
   std::string obj_id = act_str_parts.at(1);
+  std::string rbt_id = act_str_parts.at(2);
   
   // Call grasp()
   if( !strcmp(op.c_str(),"Grasped") )
   {
-    commit_grasp(obj_id);
+    commit_grasp(obj_id,rbt_id);
   }
   else if( !strcmp(op.c_str(),"Released") )
   {
-    commit_ungrasp(obj_id);
+    commit_ungrasp(obj_id,rbt_id);
   }
 }
 
@@ -288,15 +289,30 @@ commit_motion(const trajectory_msgs::JointTrajectory& plan)
   \return whether successful
 */
 bool
-commit_grasp(const std::string& obj_id)
+commit_grasp(const std::string& obj_id,const std::string& rbt_id)
 {
+  std::string link_name;
+  
+  if( !strcmp(rbt_id.c_str(),"RARM") )
+  {
+    link_name = "link_rhand_palm";
+  }
+  else if( !strcmp(rbt_id.c_str(),"LARM") )
+  {
+    link_name = "link_lhand_palm";
+  }
+  else
+  {
+    ROS_ERROR("rbt_id is undefined, cannot commit the grasp.");
+    return false;
+  }
+  
   arm_navigation_msgs::AttachedCollisionObject att_object;
   
-  att_object.link_name = "link_rhand_palm";
-  //att_object.touch_links.push_back("r_gripper_palm_link");
+  att_object.link_name = link_name;
 
   att_object.object.id = obj_id;
-  att_object.object.header.frame_id = "link_rhand_palm";
+  att_object.object.header.frame_id = link_name;
   att_object.object.header.stamp = ros::Time::now();
   att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ATTACH_AND_REMOVE_AS_OBJECT;    
   
@@ -347,15 +363,30 @@ commit_grasp(const std::string& obj_id)
   \return whether successful
 */
 bool
-commit_ungrasp(const std::string& obj_id)
+commit_ungrasp(const std::string& obj_id,const std::string& rbt_id)
 {
+  std::string link_name;
+  
+  if( !strcmp(rbt_id.c_str(),"RARM") )
+  {
+    link_name = "link_rhand_palm";
+  }
+  else if( !strcmp(rbt_id.c_str(),"LARM") )
+  {
+    link_name = "link_lhand_palm";
+  }
+  else
+  {
+    ROS_ERROR("rbt_id is undefined, cannot commit the grasp.");
+    return false;
+  }
+  
   arm_navigation_msgs::AttachedCollisionObject att_object;
   
-  att_object.link_name = "link_rhand_palm";
-  //att_object.touch_links.push_back("r_gripper_palm_link");
+  att_object.link_name = link_name;
 
   att_object.object.id = obj_id;
-  att_object.object.header.frame_id = "link_rhand_palm";
+  att_object.object.header.frame_id = link_name;
   att_object.object.header.stamp = ros::Time::now();
   att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::DETACH_AND_ADD_AS_OBJECT;    
   

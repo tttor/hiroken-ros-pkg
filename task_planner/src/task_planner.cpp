@@ -50,8 +50,9 @@ TaskPlanner(ros::NodeHandle& nh)
   task_planner_path_ = ".";
   if( !ros::param::get("/task_planner_path", task_planner_path_) )
     ROS_WARN("Can not get /task_planner_path, use the default value instead");
-     
-  ROS_INFO("TaskPlanner: Up and Running...");
+  
+//  // For testing only, should be commented on normal runs
+//  plan(2);
 }
 
 ~TaskPlanner()
@@ -68,7 +69,7 @@ TaskPlanner(ros::NodeHandle& nh)
 bool
 handle_plan_task_srv(task_planner::PlanTask::Request& req, task_planner::PlanTask::Response& res)
 {
-  return plan(req.objects);
+  return plan( req.objects.size() );
 }
 //! Brief ...
 /*!
@@ -78,15 +79,23 @@ handle_plan_task_srv(task_planner::PlanTask::Request& req, task_planner::PlanTas
   For now, up to Oct 13, 2012, the communication with a CommonLisp-based HTN plannner is done via a file; hardcoded!
   In the same vein, the commomunication with the planner manager is also done via a file; hardcoded!.
   
+  Note that the plan structure that is writtent in a plan file is different between single-arm and dual-arm, why?
+  in that for dual-arm plans we donot have to: Remove the head "(" and the tail ")"; the most outer ones
+  
+  Note that intentionally, we make changes in the operator args list:
+  FROM (!GRASP R CAN1 MESSY-SPOT) TO (!GRASP CAN1 MESSY-SPOT RARM)
+  
+  \n_obj number of objects, which determines the planning horizon
   \return whether successful
 */
 bool
-plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
+plan(const size_t& n_obj)
 {
-  std::string plan_path = task_planner_path_ + "/with_shop2/plans/" ;
-  for(size_t i=0; i<objs.size(); ++i)
+//  std::string plan_path = task_planner_path_ + "/with_shop2/plans/" ;
+  std::string plan_path = "/home/vektor/hiroken-ros-pkg/task_planner/with_shop2/plans.dual-arm/" ;
+  for(size_t i=0; i<n_obj; ++i)
     plan_path += boost::lexical_cast<std::string>(i+1) + ".";
-  plan_path += "plan";
+  plan_path += "plan";// the file extension foo.plan
   
   std::ifstream file(plan_path.c_str());
 
@@ -109,21 +118,24 @@ plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
     return false;
   }
 
-  // Remove the head "(" and the tail ")"; the most outer ones
-  boost::trim(lines);
-
-  boost::erase_head(lines, 1);
-  boost::erase_tail(lines, 1);
+//  // Remove the head "(" and the tail ")"; the most outer ones
+//  boost::trim(lines);
+//  boost::erase_head(lines, 1);
+//  boost::erase_tail(lines, 1);
   
-  // Replacement for an easy splitting; "((" separates plans
+  // Replacement for an easy splitting; "((" that separates plans
   boost::replace_all(lines, "((", "#");
     
   // Parse into plans
   std::vector<std::string> plans;
   boost::split( plans, lines, boost::is_any_of("#") );
   
-  // Erase the first element of the vector plans, it contains an empty string, because there is # at the beginning
+  // Erase the first element of the vector plans, it contains an empty string, because there is a # at the beginning
   plans.erase( plans.begin() );
+  
+  ROS_DEBUG_STREAM("plans.size()=" << plans.size());
+//  for(std::vector<std::string>::iterator i=plans.begin(); i!=plans.end(); ++i)
+//    ROS_DEBUG_STREAM(*i);
   
   // Construct a task graph
   TaskGraph g;// for the task graph.
@@ -131,18 +143,21 @@ plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
   
   for(std::vector<std::string>::iterator plan_it=plans.begin(); plan_it!=plans.end(); ++plan_it)
   {
-    // Replace "!" with "(!" in each plan AND erase the tail ")"
+    // Replace the first "!" with "(!" in each plan AND erase the tail ")"
     boost::trim(*plan_it);
-      
     boost::replace_first(*plan_it, "!", "(!");
     boost::erase_tail(*plan_it,1);
     
-    // Parsing for plans.tmg
+    // Parsing for a plan
     std::vector<std::string> raw_actions;
     std::vector<Action> actions;
       
     boost::split( raw_actions, *plan_it, boost::is_any_of("(!"), boost::algorithm::token_compress_on );
     raw_actions.erase( raw_actions.begin() );
+    
+//    ROS_DEBUG_STREAM("raw_actions.size()=" << raw_actions.size());
+//    for(std::vector<std::string>::iterator i=raw_actions.begin(); i!=raw_actions.end(); ++i)
+//      ROS_DEBUG_STREAM(*i);
     
     for(std::vector<std::string>::iterator i=raw_actions.begin(); i!=raw_actions.end(); ++i)
     {
@@ -165,26 +180,73 @@ plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
       actions.push_back(hla);
     }
     
-    // For book-keeping which object has been released.
+    // Remove unnecesary TRANSITs here, if any
+    // e.g. TRANSIT_RARM_TIDY-SPOT_HOME -> TRANSIT_RARM_HOME_MESSY-SPO
+    std::vector< std::vector<Action>::iterator > tobe_erased_actions;
+    for(std::vector<Action>::iterator i=actions.begin(); i!=actions.end()-1; ++i)
+    {
+      std::string op = i->op;
+      std::string next_op = (i+1)->op;
+      
+      if( !strcmp(op.c_str(),"TRANSIT") and !strcmp(next_op.c_str(),"TRANSIT") )
+      {
+        std::string rbt_id = i->args.at(0);
+        std::string next_rbt_id = (i+1)->args.at(0);
+        
+        if( !strcmp(rbt_id.c_str(),next_rbt_id.c_str()) )
+        {
+          Action act;
+          
+          act.op = std::string("TRANSIT");
+          
+          act.args.resize(3);
+          act.args.at(0) = i->args.at(0);// rbt_id
+          act.args.at(1) = i->args.at(1);// from_location
+          act.args.at(2) = (i+1)->args.at(2);// to_location
+          
+          // Replace
+          *i = act;
+          
+          // Prepare for deletions
+          tobe_erased_actions.push_back( (i+1) );
+        }
+      }
+    }
+    
+    for(std::vector< std::vector<Action>::iterator >::const_iterator i=tobe_erased_actions.begin(); i!=tobe_erased_actions.end(); ++i)
+    {
+      size_t n_deletion_so_far = i-tobe_erased_actions.begin();
+      
+      actions.erase( (*i)-(n_deletion_so_far) ); 
+    }
+    
+    ROS_DEBUG_STREAM("actions.size()=" << actions.size());
+    for(std::vector<Action>::iterator i=actions.begin(); i!=actions.end(); ++i)
+      ROS_DEBUG_STREAM(i->id());
+    
+    // For book-keeping which object has been released (put at the tidy-spot)
     // This is necessary to differentiate nodes.
+    // note that the contents of the released_objects vector include some dots, which is there to make parsing easier
     std::vector<std::string> released_objects;
     
     for(std::vector<Action>::iterator i=actions.begin(); i!=actions.end(); ++i)
     {
-      TGVertex source_vertex;
-      TGVertex target_vertex;
+      // Infer the states before and after an action; Infer the connectivity in plans from SHOP2 planner
+      std::vector<Action>::iterator pre_i = i-1;
+      std::vector<Action>::iterator post_i = i+1;
       
       std::string source_vertex_name;
       std::string target_vertex_name;
       
+      tie(source_vertex_name, target_vertex_name) = infer(i, pre_i, post_i, n_obj, &released_objects);
+      
+      // Build the task graph
       TGEdge edge;
       std::map<std::string, TGVertex>::iterator name_vertex_map_it;
       bool inserted;
       
-      std::vector<Action>::iterator pre_i = i-1;
-      std::vector<Action>::iterator post_i = i+1;
-      
-      tie(source_vertex_name, target_vertex_name) = infer(i, pre_i, post_i, &released_objects);
+      TGVertex source_vertex;
+      TGVertex target_vertex;
       
       tie(name_vertex_map_it, inserted) = name_vertex_map.insert( std::make_pair(source_vertex_name, TGVertex()) );
       if(inserted)
@@ -240,9 +302,9 @@ plan(const std::vector<arm_navigation_msgs::CollisionObject>& objs)
   
   task_graph_dot.close();
 
-  // Convert to Task Motion Multigraph
+  // Convert the task graph to the Task Motion Multigraph
   TaskMotionMultigraph tmm;
-  tmm = convert_tg_tmm(g);
+  tmm = convert_tg2tmm(g);
   
   // Write the tmm.dot
   std::string tmm_dot_path = data_path + "/vanilla_tmm.dot";
@@ -335,34 +397,47 @@ create_metadata(const TaskMotionMultigraph& tmm, const size_t& n)
   \return the resulted tmm
 */
 TaskMotionMultigraph
-convert_tg_tmm(const TaskGraph& tg)
+convert_tg2tmm(const TaskGraph& tg)
 {
-    // Set joint_spaces 
-  std::list<std::string> jspaces;
-//  jspaces.push_back("rarm");
-  jspaces.push_back("rarm_U_chest");
-//  jspaces.push_back("larm");
-//  jspaces.push_back("larm_U_chest");
+  // Set joint_spaces==================================================================================
+  // Note: rbt_id must be 4 characters AND UPPER_CASE
+  std::map< std::string,std::set<std::string> > rbt_jspaces_map;
+
+  // For robot-1: RARM----------------------------
+  std::set<std::string> rarm_jspaces;
   
+  rarm_jspaces.insert("rarm");
+  rarm_jspaces.insert("rarm_U_chest");
+  
+  rbt_jspaces_map["RARM"] = rarm_jspaces;
+
+  // For robot-2: LARM----------------------------
+  std::set<std::string> larm_jspaces;
+  
+  larm_jspaces.insert("larm");
+  larm_jspaces.insert("larm_U_chest");
+  
+  rbt_jspaces_map["LARM"] = larm_jspaces;
+  
+  // Build the TMM=====================================================================================
   TaskMotionMultigraph tmm;
-  std::map<std::string, TMMVertex> name_vertex_map;
+  std::map<std::string,TMMVertex> name_vertex_map;
   
   graph_traits<TaskGraph>::edge_iterator ei, ei_end;
   for(tie(ei,ei_end) = edges(tg); ei != ei_end; ++ei)
   {
-    std::string name;
-    name = get(edge_name, tg, *ei);
+    // The TMM only consider an edge that requires motion planning    
+    std::vector<std::string> edge_name_parts;
+    boost::split( edge_name_parts, get(edge_name, tg, *ei), boost::is_any_of("_"), boost::token_compress_on );
     
-    std::vector<std::string> name_parts;
-    boost::split( name_parts, name, boost::is_any_of("_"), boost::token_compress_on );
-    
-    if( !strcmp(name_parts.at(0).c_str(), std::string("GRASP").c_str()) or !strcmp(name_parts.at(0).c_str(), std::string("UNGRASP").c_str()) )
+    if( !strcmp(edge_name_parts.at(0).c_str(), std::string("GRASP").c_str()) or !strcmp(edge_name_parts.at(0).c_str(), std::string("UNGRASP").c_str()) )
       continue;
-
+    
+    // For keeping only unique vertex names
     std::map<std::string, TMMVertex>::iterator name_vertex_map_it;
     bool inserted;
     
-    // Determine the source vertex
+    // Determine the source vertex=========================================================================
     TMMVertex source_vertex;
     std::string source_vertex_name = get(vertex_name, tg, source(*ei,tg));
     
@@ -379,23 +454,36 @@ convert_tg_tmm(const TaskGraph& tg)
       source_vertex = name_vertex_map_it->second;
     }
     
-    // Determine the target vertex
+    // Determine the target vertex=======================================================================
     TMMVertex target_vertex;
-    std::string target_vertex_name;     
+    std::vector<std::string> target_vertex_name_vec;// a vector because if a bypassing happens, there may be more than one adjacent vertices
     
-    bool goal_vertex = false;
-    if( out_degree(target(*ei,tg), tg)==0 )
-      goal_vertex = true;
+    target_vertex_name_vec.push_back( get(vertex_name,tg,target(*ei,tg)) );
     
-    graph_traits<TaskGraph>::adjacency_iterator avi, avi_end;
-    for(tie(avi, avi_end) = adjacent_vertices( target(*ei,tg),tg ); (avi != avi_end) or goal_vertex; ++avi)
+    // The target_vertex_name may be either CanGrasp_O_R[] or Grasped_O_R[] or CanRelease_O_R[] or Released_O_R[] or TidyHome or TmpHome[xxx]
+    // The first four are bypassed, but the rest is not.
+    std::vector<std::string> target_vertex_name_parts;
+    boost::split( target_vertex_name_parts,target_vertex_name_vec.at(0),boost::is_any_of("_"),boost::token_compress_on );
+    
+    std::string main_state_str = target_vertex_name_parts.at(0);
+    if( !strcmp(main_state_str.c_str(),"CanGrasp") or !strcmp(main_state_str.c_str(),"Grasped") or !strcmp(main_state_str.c_str(),"CanRelease") or !strcmp(main_state_str.c_str(),"Released") )
     {
-      if(goal_vertex)
-        target_vertex_name = get(vertex_name, tg, target(*ei,tg));
-      else
-        target_vertex_name = get(vertex_name, tg, *avi);
+      target_vertex_name_vec.clear();
+      
+      // The vertices that are adjacent with the target vertex of this edge are used because the target vertex of this edge is bypassed
+      graph_traits<TaskGraph>::adjacency_iterator avi, avi_end;
+      for(tie(avi, avi_end) = adjacent_vertices( target(*ei,tg),tg ); avi != avi_end; ++avi)
+        target_vertex_name_vec.push_back( get(vertex_name, tg, *avi) );
+    }
+    else// must be either TidyHome or TmpHome[xxx]
+    { }
+    
+    for(std::vector<std::string>::const_iterator i=target_vertex_name_vec.begin(); i!=target_vertex_name_vec.end(); ++i)
+    {
+      std::string target_vertex_name = *i;
       
       tie(name_vertex_map_it, inserted) = name_vertex_map.insert(  std::make_pair( target_vertex_name,TMMVertex() )  );
+      
       if(inserted)
       {
         target_vertex = add_vertex(tmm);
@@ -408,18 +496,45 @@ convert_tg_tmm(const TaskGraph& tg)
         target_vertex = name_vertex_map_it->second;
       }
       
-      for(std::list<std::string>::const_iterator i=jspaces.begin(); i!=jspaces.end(); ++i)
+      // Build the edges===================================================================================
+      // Get the eof/rbt_id from either source_vertex_name or targer_vertex_name
+      // Examples of source/targer_vertex_name: MessyHome, TidyHome, GRASPED_CAN1_RARM[], RELEASED_CAN1_RARM[]
+      // NOTE that the rbt_id is limited to only 4 characters at most, the rest is truncated.
+      std::string raw_rbt_id;
+      
+      std::vector<std::string> vertex_name_parts;
+      boost::split( vertex_name_parts,get(vertex_name,tmm,source_vertex),boost::is_any_of("_"),boost::token_compress_on );
+
+      if(vertex_name_parts.size()==3)//NOTE that a valid parsing iff ...parts.size()==3
       {
+        raw_rbt_id = vertex_name_parts.at(2);// with "[xxx]"
+      }
+      else
+      {
+        boost::split( vertex_name_parts,get(vertex_name,tmm,target_vertex),boost::is_any_of("_"),boost::token_compress_on );
+        raw_rbt_id = vertex_name_parts.at(2);// with "[xxx]"
+      }
+      boost::trim(raw_rbt_id);
+      
+      // The rbt_id is limited to only 4 characters at most and at least, the rest, if any, is truncated 
+      std::string rbt_id = raw_rbt_id.substr(0,4);
+      
+      for(std::set<std::string>::const_iterator j=rbt_jspaces_map[rbt_id].begin(); j!=rbt_jspaces_map[rbt_id].end(); ++j)
+      {
+        if(j->length()==0)
+        {
+          ROS_WARN("jspace is blank, the rbt_id may be undefined");
+          continue;
+        }
+        
         TMMEdge edge;
         tie(edge, inserted) = add_edge(source_vertex, target_vertex, tmm);
         
         put( edge_name, tmm, edge, get(edge_name, tg, *ei) );
-        put(  edge_weight, tmm, edge, get(edge_weight, tg, *ei) + (!goal_vertex * get(edge_weight,tg,*ei))  );// Plus 1*edge_weight because it bypasses an edge
+        put( edge_weight,tmm,edge,get(edge_weight,tg,*ei) + get(edge_weight,tg,*ei) );
         
-        put( edge_jspace, tmm, edge, *i);
+        put( edge_jspace, tmm, edge, *j);
       }
-      
-      if(goal_vertex) break;// Do it exactly once.
     }
   }// end of: FOR each edge in a task graph tg
   
@@ -432,82 +547,144 @@ convert_tg_tmm(const TaskGraph& tg)
   \param &i the iterator of an action
   \param &pre_i the pre-iterator of an action
   \param &post_i the post-iterator of an action
+  \param &n_obj the number of involved objects, which is equal to the maximum number of released objects
   \param *released_objects a bookeeper variable storing which object has been released
   \return a pair of source_vertex_name and targer_vertex_name
 */
 std::pair<std::string, std::string>
-infer(const std::vector<Action>::iterator& i, const std::vector<Action>::iterator& pre_i, const std::vector<Action>::iterator& post_i, std::vector<std::string>* released_objects)
+infer(const std::vector<Action>::iterator& i,const std::vector<Action>::iterator& pre_i,const std::vector<Action>::iterator& post_i,const size_t& n_obj,std::vector<std::string>* released_objects)
 {
   std::string source_vertex_name;
   std::string target_vertex_name;
   
+  // ==================================================================================="TRANSIT"
   if( !strcmp(i->op.c_str(), "TRANSIT") )
   {
     // Infer the source vertex name
-    if( !strcmp(i->args.at(1).c_str(), "HOME") )
+    std::string source_loc = i->args.at(1);
+    
+    if( !strcmp(source_loc.c_str(), "HOME") )
     {
-      source_vertex_name = "MessyHome";
+      if(released_objects->empty())
+      {
+        source_vertex_name = "MessyHome";
+      }
+      else
+      {
+        std::string ps;
+        for(std::vector<std::string>::const_iterator k=released_objects->begin(); k!=released_objects->end(); ++k)
+          ps += *k;
+        
+        source_vertex_name = std::string("TmpHome[") + ps + "]";
+      }
     }
-    else// Assume that an Act "TRANSIT" is always after a state "Released_XXX"
+    else
     {
-      std::string ps;//  Note that k is incremented up to 
+      // Assume that an Act "TRANSIT" is always after a state "Released_XXX"
+      
+      //  Note that k is incremented up to just before end()-2 because .....
+      // (1) the goal here is to get the source state, which is before "Released_XXX" happens, however, we are here after it, therefore the just released objects should be ignored
+      // (2) note that the contents of the released_objects vector include some dots, which is there to make parsing easier
+      std::string ps;
       for(std::vector<std::string>::const_iterator k=released_objects->begin(); k!=(released_objects->end()-2); ++k)
         ps += *k;
-        
-      source_vertex_name = "Released_" + pre_i->args.at(1) + "[" + ps + "]";
+      
+      std::string released_obj_id = pre_i->args.at(0);
+      std::string released_rbt_id = pre_i->args.at(2);
+      
+      source_vertex_name = "Released_" + released_obj_id + "_" + released_rbt_id + "[" + ps + "]";
     }
     
     // Infer the target_vertex name
-    if( !strcmp(i->args.at(2).c_str(), "HOME") )
+    std::string target_loc = i->args.at(2);
+    
+    if( !strcmp(target_loc.c_str(), "HOME") )
     {
-      target_vertex_name = "TidyHome";
+      if((released_objects->size()/2) == n_obj)// Divide by two because the contents of the released_objects vector include some dots, see more on its note
+      {
+        target_vertex_name = "TidyHome";
+      }
+      else
+      {
+        std::string ps;
+        for(std::vector<std::string>::const_iterator k=released_objects->begin(); k!=released_objects->end(); ++k)
+          ps += *k;
+        
+        target_vertex_name = std::string("TmpHome[") + ps + "]";
+      }
     }
-    else// Assume that an Act "TRANSIT" is always followed by a state "CanGrasp_XXX"
+    else
     {
+      // Assume that an Act "TRANSIT" is always followed by a state "CanGrasp_XXX"
+      
       std::string ps;
       for(std::vector<std::string>::const_iterator k=released_objects->begin(); k!=released_objects->end(); ++k)
         ps += *k;
       
-      target_vertex_name = "CanGrasp_" + post_i->args.at(1) + "[" + ps + "]";
+      std::string cangrasp_obj_id = post_i->args.at(0);
+      std::string cangrasp_rbt_id = post_i->args.at(2);
+      
+      target_vertex_name = "CanGrasp_" + cangrasp_obj_id + "_" + cangrasp_rbt_id + "[" + ps + "]";
     }
   }
   
+  //==================================================================================="TRANSFER"
   if( !strcmp(i->op.c_str(), "TRANSFER") )
   {
     std::string ps;
     for(std::vector<std::string>::const_iterator k=released_objects->begin(); k!=released_objects->end(); ++k)
       ps += *k;
   
-    // Assume that an Act "TRANSFER" is always following a state "Grasped_XXX".
-    source_vertex_name = "Grasped_" + i->args.at(1) + "[" + ps + "]";
+    // Assume that an Act "TRANSFER" is always following the state of "Grasped_XXX".
+    std::string grasped_obj_id = i->args.at(1);
+    std::string grasped_rbt_id = i->args.at(0);
+    
+    source_vertex_name = "Grasped_" + grasped_obj_id + "_" + grasped_rbt_id + "[" + ps + "]";
             
     // Assume that "TRANSFER" is always followed by a state "CanRelease_XXX".
-    target_vertex_name = "CanRelease_" + post_i->args.at(1) + "[" + ps + "]";
+    std::string canrelease_obj_id = post_i->args.at(0);
+    std::string canrelease_rbt_id = post_i->args.at(2);
+    
+    target_vertex_name = "CanRelease_" + canrelease_obj_id + "_" +  canrelease_rbt_id + "[" + ps + "]";
   }
   
+  //==================================================================================="GRASP"
   if( !strcmp(i->op.c_str(), "GRASP") )
   {
     std::string ps;
     for(std::vector<std::string>::const_iterator k=released_objects->begin(); k!=released_objects->end(); ++k)
       ps += *k;
   
-    source_vertex_name = "CanGrasp_" + i->args.at(1) + "[" + ps + "]";
+    std::string cangrasp_obj_id = i->args.at(0);
+    std::string cangrasp_rbt_id = i->args.at(2);
     
-    target_vertex_name = "Grasped_" + i->args.at(1) + "[" + ps + "]";
+    source_vertex_name = "CanGrasp_" + cangrasp_obj_id + "_" + cangrasp_rbt_id + "[" + ps + "]";
+    
+    std::string grasped_obj_id = i->args.at(0);
+    std::string grasped_rbt_id = i->args.at(2);    
+    
+    target_vertex_name = "Grasped_" + grasped_obj_id + "_" + grasped_rbt_id + "[" + ps + "]";
   }
   
+  //==================================================================================="UNGRASP"
   if( !strcmp(i->op.c_str(), "UNGRASP") )
   {
     std::string ps;
     for(std::vector<std::string>::const_iterator k=released_objects->begin(); k!=released_objects->end(); ++k)
       ps += *k;
+    
+    std::string canrelease_obj_id = i->args.at(0);
+    std::string canrelease_rbt_id = i->args.at(2);
+    
+    source_vertex_name = "CanRelease_" + canrelease_obj_id + "_" + canrelease_rbt_id + "[" + ps + "]";
   
-    source_vertex_name = "CanRelease_" + i->args.at(1) + "[" + ps + "]";
-  
-    target_vertex_name = "Released_" + i->args.at(1) + "[" + ps + "]";
+    std::string released_obj_id = i->args.at(0);
+    std::string released_rbt_id = i->args.at(2);
+    
+    target_vertex_name = "Released_" + released_obj_id + "_" + released_rbt_id + "[" + ps + "]";
     
     // For the book-keeper
-    released_objects->push_back(i->args.at(1));
+    released_objects->push_back(released_obj_id);
     released_objects->push_back(".");// Put a delimiter to make parsing easier.
   }
   
@@ -529,11 +706,15 @@ main(int argc, char **argv)
   ros::init(argc, argv, "task_planner");
   ros::NodeHandle nh;
   
+//  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
+//  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
+  
   TaskPlanner tp(nh);
   
   ros::ServiceServer plan_task_srv;
   plan_task_srv = nh.advertiseService("plan_task", &TaskPlanner::handle_plan_task_srv, &tp);
-  
+ 
+  ROS_INFO("TaskPlanner: Up and Running..."); 
   ros::spin();
   
   return 0;
