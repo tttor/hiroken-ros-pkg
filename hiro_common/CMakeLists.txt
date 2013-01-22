@@ -29,4 +29,4 @@ rosbuild_gensrv()
 
 rosbuild_add_executable(helper src/helper.cpp)
 
-#target_link_libraries(example ${PROJECT_NAME})
+target_link_libraries(helper log4cxx)

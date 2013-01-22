@@ -32,4 +32,4 @@ rosbuild_gensrv()
 
 rosbuild_add_executable(tasker src/task_planner.cpp)
 
-#target_link_libraries(example ${PROJECT_NAME})
+target_link_libraries(tasker log4cxx)

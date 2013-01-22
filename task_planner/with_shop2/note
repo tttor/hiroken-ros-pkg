@@ -1,3 +1,33 @@
+==============================DUAL-ARM========================================================================
+6objects
+
+Defining domain TIDYING-UP...
+WARNING: Redefining domain named #<DOMAIN TIDYING-UP>
+
+Defining problem AFTER-PARTY-PROBLEM ...
+
+---------------------------------------------------------------------------
+Heap exhausted during garbage collection: 0 bytes available, 16 requested.
+ Gen StaPg UbSta LaSta LUbSt Boxed Unboxed LB   LUB  !move  Alloc  Waste   Trig    WP  GCs Mem-age
+   0:     0     0     0     0     0     0     0     0     0        0     0 53687091    0   0  0.0000
+   1:     0     0     0     0     0     0     0     0     0        0     0 53687091    0   0  0.0000
+   2: 29101 28962     0     0  8511  2133     0     0     0 348531728 250864 53687091    0   0  1.0026
+   3: 28266 28263     0     0 10777  2690     0     0    58 440972640 314016  2000000 10719   0  0.0000
+   4:     0     0     0     0     0     0     0     0     0        0     0  2000000    0   0  0.0000
+   5:     0     0     0     0     0     0     0     0     0        0     0  2000000    0   0  0.0000
+   6:     0     0     0     0  1172   166     0     0     0 43843584     0  2000000 1111   0  0.0000
+   Total bytes allocated    = 1073044176
+   Dynamic-space-size bytes = 1073741824
+GC control variables:
+   *GC-INHIBIT* = true
+   *GC-PENDING* = in progress
+   *STOP-FOR-GC-PENDING* = false
+fatal error encountered in SBCL pid 6745(tid 140737353918240):
+Heap exhausted, game over.
+
+Welcome to LDB, a low-level debugger for the Lisp runtime environment.
+
+==============================SINGLE-ARM========================================================================
 5 objects
 ---------------------------------------------------------------------------
 Problem AFTER-PARTY-PROBLEM with :WHICH = :ALL, :VERBOSE = :LONG-PLANS

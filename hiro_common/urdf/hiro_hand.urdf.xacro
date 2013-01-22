@@ -1,11 +1,11 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="hiro_hand">
-  <xacro:macro name="hand" params="side reflect">
+  <xacro:macro name="hand" params="side reflect reflect2">
 	  <joint name="joint_${side}hand_palm" type="fixed">
 		  <parent link="link_${side}wrist_roll"/>
 		  <child link="link_${side}hand_palm"/>
 		  <!--origin xyz="${(-1*(0.130/2))+(-1*(0.010/2))} ${(-1*(0.055/2))+(-1*(0.035/2))} 0" rpy="0 0 0"/-->
-		  <origin xyz="${-1*((0.130/2)+(0.010/2))} ${reflect*-1*((0.055/2)+(0.035/2))} 0" rpy="0 0 0"/>		  
+		  <origin xyz="${-1*((0.130/2)+(0.010/2))} ${reflect*-1*((0.055/2)+(0.035/2))} 0" rpy="0 0 ${reflect2*M_PI}"/>		  
 		  <!-- 
 		    Origin x is shifted a half of x-dimension of hand_palm plus a half of x-dimension of link_${side}wrist_roll in the appropriate direction
 		    Origin y is shifted a half of y-dimension of hand_palm plus a half of y-dimension of link_${side}wrist_roll in the appropriate direction		    
