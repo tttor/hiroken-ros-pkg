@@ -22,6 +22,8 @@ static const size_t NUM_PLANNING_ATTEMPTS = 1;
 static const double ALLOWED_PLANNING_TIME = 0.1 * 60.;
 static const double ALLOWED_SMOOTHING_TIME = 2.0;
 static const size_t MAX_JSPACE_DIM = 7;
+static const double EST_HIGHEST_RESULT_COST = 5.0;
+static const double MOTION_PLANNING_FAILURE_PENALTY = ALLOWED_SMOOTHING_TIME + EST_HIGHEST_RESULT_COST;
 
 struct GeoPlanningCost
 {
@@ -32,13 +34,16 @@ struct GeoPlanningCost
   double process;
   double result;
   
-  double w_p;
-  double w_r;
-  
   double
   total(const double& w)
   {
     return ( (w*process) + ((1.0-w)*result) );
+  }
+  
+  double
+  total(const double& wp,const double& wr)
+  {
+    return ( (wp*process) + (wr*result) );
   }
 };
 
@@ -84,7 +89,16 @@ plan(TMMEdge e)
     goal_set.push_back(   get_jstate_subset(  get(edge_jspace, pm_->tmm_, e), get(vertex_jstates, pm_->tmm_, target(e, pm_->tmm_))  )   );
   }
   ROS_DEBUG_STREAM("goal_set.size()= " << goal_set.size());
+      
+  if(goal_set.empty())
+  {
+    ROS_INFO("goal_set is empty, no further motion planning, return!");
+    return false;
+  }
+  else
+  { }
   
+  // MOTION PLANNING ================================================================================================
   // Prepare the planning environment to do motion planning
   bool for_motion_planning = true;
   set_planning_env( source(e,pm_->tmm_),for_motion_planning );
@@ -99,6 +113,10 @@ plan(TMMEdge e)
   GeoPlanningCost cheapest_cost;// Initialize with a high value because it serves as a base for comparison
   cheapest_cost.result = std::numeric_limits<double>::max();
   cheapest_cost.process = std::numeric_limits<double>::max();
+  
+  // Set the weight for process and result costs
+  double wp = 1.0;
+  double wr = 1.0;
 
   // For calculating iter_cost
   size_t n_success = 0;
@@ -119,23 +137,18 @@ plan(TMMEdge e)
 
     if(  plan_motion( start_state,*i,get(edge_jspace,pm_->tmm_,e),&plan,&cost,&found )  )
     {
-      if(found)
+      if( cost.total(wp,wr) < cheapest_cost.total(wp,wr) )
       {
-        ++n_success;
-        ROS_DEBUG_STREAM("cost.total(0.5)= " << cost.total(0.5));
+        ROS_DEBUG("The new plan is better. If this is the first, the new plan may even empty (motion planning fail).");
         
-        if( cost.total(0.5) < cheapest_cost.total(0.5) )
-        {
-          ROS_DEBUG("The new plan is better");
-          
-          cheapest_cost = cost;
-          best_plan = plan;
-        }
-      } 
-      else
-      {
-        ++n_failure;
+        cheapest_cost = cost;
+        best_plan = plan;
       }
+        
+      if(found)
+        ++n_success;
+      else
+        ++n_failure;
     }
     else
     {
@@ -145,7 +158,7 @@ plan(TMMEdge e)
     // TODO MUST be commented on real runs
     if(n_success >= expected_n_success )
     {
-      ROS_WARN("motion planning attempt is suppressed!");
+      ROS_WARN_STREAM("motion planning attempt is suppressed with expected_n_success= " << expected_n_success);
       break;
     }
     
@@ -153,12 +166,14 @@ plan(TMMEdge e)
   ROS_INFO_STREAM("n_success= " << n_success);
   ROS_INFO_STREAM("n_failure= " << n_failure);
  
-  if(n_success==0) 
+  if(n_success==0) // even after considering all goal poses in the goal_set
   {
     ROS_INFO_STREAM("No motion plan for " << goal_set.size() << " goals for e= " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e));
-        
-    cheapest_cost.result = 0.;
-    cheapest_cost.process = (ALLOWED_PLANNING_TIME*NUM_PLANNING_ATTEMPTS) + ALLOWED_SMOOTHING_TIME + exp(MAX_JSPACE_DIM/MAX_JSPACE_DIM);
+    
+//    // Have to reinforce these values, otherwise it will use cheapest_cost.X = std::numeric_limits<double>::max();
+//    cheapest_cost.result = 0.;
+//    cheapest_cost.process = (ALLOWED_PLANNING_TIME*NUM_PLANNING_ATTEMPTS) + ALLOWED_SMOOTHING_TIME + exp(MAX_JSPACE_DIM/MAX_JSPACE_DIM);
+    
     put(edge_color,pm_->tmm_,e,std::string("red"));// geometrically validated but no motion plan
   }
   else
@@ -168,17 +183,12 @@ plan(TMMEdge e)
   
   // Calculate the cost of iterating over the goal set
   double iter_cost;
-  if( goal_set.empty() )
-    iter_cost = 0.;
-  else
-   iter_cost = exp( (double)n_failure/(double)(n_success+n_failure) );
-  
-  cheapest_cost.process += iter_cost;
+  iter_cost = exp( (double)n_failure/(double)(n_success+n_failure) );// (n_success+n_failure) = goal_set.size()
 
   // Put the best motion plan of this edge e and its geo. planning cost
   put(edge_plan, pm_->tmm_, e, best_plan);
   put(edge_planstr, pm_->tmm_,e,get_planstr(best_plan));
-  put(edge_weight, pm_->tmm_, e, cheapest_cost.total(0.5));// Thus, process_cost is 4 times worth it than result_cost; 0.8:0.2
+  put(edge_weight, pm_->tmm_, e, cheapest_cost.total(wp,wr) + (wp*iter_cost) );// Thus, process_cost is 4 times worth it than result_cost; 0.8:0.2
 
   // Reset the planning environment
   reset_planning_env();
@@ -533,6 +543,13 @@ put_heu(TMMVertex v, const double& h)
   put(vertex_heu,pm_->tmm_,v,h);
 }
 
+void
+remove_ungraspable_edge(TMMEdge e)
+{
+  ROS_DEBUG_STREAM("Remove e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]");
+  remove_edge(e,pm_->tmm_);
+}
+
 private:
 sensor_msgs::JointState
 get_jstate_subset(const std::string& jspace, sensor_msgs::JointState& jstates)
@@ -771,23 +788,27 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
   {
     double planning_time;
     planning_time = (ros::Time::now()-planning_begin).toSec();
+
+    // Calculate jspace_cost
+    size_t jspace_dim;
+    jspace_dim = start_state.name.size(); // _must_ be equal to goal_state.name.size()
     
+    double jspace_cost;
+    jspace_cost = exp( (double)jspace_dim/(double)MAX_JSPACE_DIM );
+          
     if ( res.trajectory.joint_trajectory.points.empty() )
     {
       ROS_INFO_STREAM("Motion planner was unable to plan a path to goal, joint_trajectory.points.size()= " << res.trajectory.joint_trajectory.points.size());
       *found = false;
+      
+      // Accumulate the cost 
+      cost->result = 0.;
+      cost->process = jspace_cost + planning_time + MOTION_PLANNING_FAILURE_PENALTY;
     }
     else
     {
       ROS_INFO("Motion planning succeeded");
       *found = true;
-      
-      // Calculate jspace_cost
-      size_t jspace_dim;
-      jspace_dim = start_state.name.size(); // _must_ be equal to goal_state.name.size()
-      
-      double jspace_cost;
-      jspace_cost = exp( (double)jspace_dim/(double)MAX_JSPACE_DIM );
       
       // Filter(smooth) the raw motion plan
       trajectory_msgs::JointTrajectory filtered_trajectory;
@@ -821,8 +842,8 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
       }
   
       // Accumulate the cost 
-      cost->result = benchmark_path_res.length;
-      cost->process = planning_time + smoothing_time + jspace_cost;
+      cost->result = benchmark_path_res.length;// + benchmark_path_res.smoothness + benchmark_path_res.clearance
+      cost->process = jspace_cost + (planning_time + smoothing_time);// in the text, smoothing time is included within planning_time
       
       // Put the resulted plan
       *plan = filtered_trajectory;
@@ -836,7 +857,7 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
   }
   else
   {
-    ROS_ERROR("Motion planning service failed on %s",planning_client.getService().c_str());
+    ROS_ERROR("Motion planning service call failed on %s",planning_client.getService().c_str());
     return false;// Although not truly appropriate, this must indicate that the call to this function is unsuccessful.
   }
 }

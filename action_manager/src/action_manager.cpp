@@ -61,9 +61,6 @@ discover_vertex(typename boost::graph_traits<Graph>::vertex_descriptor v,Graph& 
 {
   ROS_DEBUG_STREAM("Discover v= " << get(vertex_name,g,v));
     
-  if( !strcmp(get(vertex_name,g,v).c_str(),"MessyHome") or !strcmp(get(vertex_name,g,v).c_str(),"TidyHome") )
-    return;
-  
   // Intrepret the symbolic state in v
   std::string name = get(vertex_name,g,v);
   
@@ -72,6 +69,9 @@ discover_vertex(typename boost::graph_traits<Graph>::vertex_descriptor v,Graph& 
   
   std::string act_str = name_parts.at(0);
   
+  if( !strcmp(act_str.c_str(),"MessyHome") or !strcmp(act_str.c_str(),"TidyHome") or !strcmp(act_str.c_str(),"TmpHome"))
+    return;
+    
   std::vector<std::string> act_str_parts;
   boost::split( act_str_parts, act_str, boost::is_any_of("_") );
   
