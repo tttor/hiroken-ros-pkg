@@ -306,6 +306,17 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   write_graphviz_dp( sol_tmm_dot, sol_tmm, sol_tmm_dp, std::string("vertex_id"));
   sol_tmm_dot.close();
   
+  // Addition info. for perf.log
+  std::string base_data_path;
+  if( !ros::param::get("/base_data_path", base_data_path) )
+    ROS_WARN("Can not get /base_data_path, use the default value instead");
+    
+  std::string tidy_cfg_filename;// The base_data_path is a constant
+  if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
+    ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead"); 
+  
+  perf_log << "tidy.cfg= " << base_data_path << tidy_cfg_filename;
+  
   perf_log.close();
   return true;
 }

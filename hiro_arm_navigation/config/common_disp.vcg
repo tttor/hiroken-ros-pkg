@@ -1,7 +1,7 @@
 Background\ ColorB=0
 Background\ ColorG=0
 Background\ ColorR=0
-Camera\ Config=0.2898 6.1464 2.45268 -0.235511 0.223222 0.988008
+Camera\ Config=0.4348 0.848214 1.57722 -0.235511 0.223222 0.988008
 Camera\ Type=rviz::OrbitViewController
 FilteredPath.Alpha=0.6
 FilteredPath.Collision\ Enabled=0
@@ -48,7 +48,6 @@ PathPlan.Queue\ Size=0
 PlanningScene.CAN1=1
 PlanningScene.CAN2=1
 PlanningScene.CAN3=1
-PlanningScene.CAN4=1
 PlanningScene.Enabled=1
 PlanningScene.Marker\ Topic=/planning_scene_markers
 PlanningScene.Queue\ Size=0

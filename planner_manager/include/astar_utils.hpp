@@ -36,14 +36,24 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   if(v == goal_)
     throw FoundGoalSignal();
   
-  // Do geometric planning for each out-edge of this vertex v
+  // Do geometric planning (grasp and motion planning) for each out-edge of this vertex v
+  std::vector<typename Graph::edge_descriptor> ungraspable_edges;// invalid because no grasp/ungrasp pose as the goal pose for the motion planning
+  
   typename graph_traits<Graph>::out_edge_iterator oei, oei_end;
   for(tie(oei,oei_end) = out_edges(v, g); oei!=oei_end; ++oei)
   {
-    gpm_->plan(*oei);
+    bool success = false;
+    
+    success = gpm_->plan(*oei);
+    
+    if(!success)
+      ungraspable_edges.push_back(*oei);
   }
   
-  // Update jstates of adjacent vertex av of this vertex v to the cheapest just-planned edge
+  for(typename std::vector<typename Graph::edge_descriptor>::iterator i=ungraspable_edges.begin(); i!=ungraspable_edges.end(); ++i)
+    gpm_->remove_ungraspable_edge(*i);
+  
+  // Update jstates of adjacent vertex av of this vertex v to the cheapest existing-just-planned edge
   gpm_->set_av_jstates(v);
   
 //  if(mode_!=1)
