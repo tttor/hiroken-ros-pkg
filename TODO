@@ -1,3 +1,5 @@
+>> put texts in objects
+>> solve in go-home, why the arm hit the vase (at the goal pose), especially when using only J_arm see run.3obj.20130122.d
 >> re-do motion planning for the cheapest almost-solution path
 >> refine get_goal_set( target(e,pm_->tmm_),get(edge_jspace,pm_->tmm_,e) ); the first param only should be enough
 >> grasp planner can use uniform/biased sampling strategy for discretization.
@@ -12,12 +14,3 @@ Done...
 >> build object config. file + its parser
 >> debug for tidying up with >= 5objects
 >> geometric planning cost HAVE TO consider jspace
-===
-Notes...
-whenever change hiro_arm_navigation, modify:
->> constraint_aware_kinematics.launch
-  add arm_kinematic_2
->> hiro_planning_environment.launch
-  <param name="robot_description" command="$(find xacro)/xacro.py '$(find hiro_common)/urdf/hiro.urdf.xacro'" /> 
-  
-[ERROR] [1358341780.344459193]: No latest time for transforming link_LARM_palm to link_base

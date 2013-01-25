@@ -92,7 +92,7 @@ bool
 plan(const size_t& n_obj)
 {
 //  std::string plan_path = task_planner_path_ + "/with_shop2/plans/" ;
-  std::string plan_path = "/home/vektor/hiroken-ros-pkg/task_planner/with_shop2/plans.dual-arm/" ;
+  std::string plan_path = task_planner_path_ + "/with_shop2/plans.dual-arm/" ;
   for(size_t i=0; i<n_obj; ++i)
     plan_path += boost::lexical_cast<std::string>(i+1) + ".";
   plan_path += "plan";// the file extension foo.plan
@@ -114,7 +114,7 @@ plan(const size_t& n_obj)
   }
   else 
   {
-    ROS_ERROR("Unable to open a task plan file");
+    ROS_ERROR_STREAM("Unable to open a task plan file from " << plan_path);
     return false;
   }
 
@@ -496,7 +496,7 @@ convert_tg2tmm(const TaskGraph& tg)
         target_vertex = name_vertex_map_it->second;
       }
       
-      // Build the edges===================================================================================
+      // Build the edges======================================================================================================
       // Get the eof/rbt_id from either source_vertex_name or targer_vertex_name
       // Examples of source/targer_vertex_name: MessyHome, TidyHome, GRASPED_CAN1_RARM[], RELEASED_CAN1_RARM[]
       // NOTE that the rbt_id is limited to only 4 characters at most, the rest is truncated.
@@ -527,6 +527,11 @@ convert_tg2tmm(const TaskGraph& tg)
           continue;
         }
         
+        // Force to return TidyHome with the full joint space
+        if( !strcmp(get(vertex_name,tmm,target_vertex).c_str(),"TidyHome") )
+          if( !strcmp(j->c_str(),"rarm") or !strcmp(j->c_str(),"larm") )
+            continue;
+                    
         TMMEdge edge;
         tie(edge, inserted) = add_edge(source_vertex, target_vertex, tmm);
         

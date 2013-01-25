@@ -8,7 +8,7 @@
     <param name="base_data_path" value="$(arg data_path)"/>
     <param name="data_path" value="$(arg data_path)"/>
 
-  <arg name="suffix" default="/run.20121227.test" />
+  <arg name="suffix" default="/run.test" />
     <param name="suffix_data_path" value="$(arg suffix)"/>
 
   <arg name="tidy_cfg" default="/tidy_tb1.cfg" />

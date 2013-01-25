@@ -1,0 +1,7 @@
+whenever change hiro_arm_navigation, modify:
+>> constraint_aware_kinematics.launch
+  add arm_kinematic_2
+>> hiro_planning_environment.launch
+  <param name="robot_description" command="$(find xacro)/xacro.py '$(find hiro_common)/urdf/hiro.urdf.xacro'" /> 
+  
+[ERROR] [1358341780.344459193]: No latest time for transforming link_LARM_palm to link_base
