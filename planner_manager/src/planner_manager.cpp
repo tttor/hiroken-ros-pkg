@@ -66,7 +66,11 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   // Init
   tmm_ = TaskMotionMultigraph();
   
-  set_tidy_config();
+  if ( !set_tidy_config() )
+  {
+    ROS_ERROR("Can not set the tidy_cfg!");
+    return false;
+  }
     
   std::string data_path;
   if( !ros::param::get("/data_path", data_path) )
@@ -77,7 +81,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   
   if( !spm.plan(*this) )
   {
-    ROS_ERROR("Can not construct TMM");
+    ROS_ERROR("Can not construct TMM!");
     return false;
   }
   else
@@ -348,6 +352,13 @@ PlannerManager::set_tidy_config()
   for(ObjCfg::iterator i=tidy_cfg.begin(); i!=tidy_cfg.end(); ++i)
     tidy_cfg_[i->id] = *i; 
 
+  // Write the randomized obj_cfg
+  std::string  data_path= ".";
+  if( !ros::param::get("/data_path", data_path) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
+    
+  write_obj_cfg( tidy_cfg,std::string(data_path+"/tidy.cfg") );
+  
   return true;
 }
 

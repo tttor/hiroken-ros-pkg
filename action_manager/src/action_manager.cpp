@@ -11,6 +11,7 @@
 #include <boost/graph/depth_first_search.hpp>
 #include <boost/algorithm/string.hpp>
 #include "tmm_utils.hpp"
+#include "hiro_utils.hpp"
 
 static const double COL_OBJ_PUB_TIME = 1.0;
 static const std::string SET_PLANNING_SCENE_DIFF_SRV_NAME = "/environment_server/set_planning_scene_diff";
@@ -292,20 +293,7 @@ bool
 commit_grasp(const std::string& obj_id,const std::string& rbt_id)
 {
   std::string link_name;
-  
-  if( !strcmp(rbt_id.c_str(),"RARM") )
-  {
-    link_name = "link_rhand_palm";
-  }
-  else if( !strcmp(rbt_id.c_str(),"LARM") )
-  {
-    link_name = "link_lhand_palm";
-  }
-  else
-  {
-    ROS_ERROR("rbt_id is undefined, cannot commit the grasp.");
-    return false;
-  }
+  link_name = get_eof_link(rbt_id);
   
   arm_navigation_msgs::AttachedCollisionObject att_object;
   
@@ -366,20 +354,7 @@ bool
 commit_ungrasp(const std::string& obj_id,const std::string& rbt_id)
 {
   std::string link_name;
-  
-  if( !strcmp(rbt_id.c_str(),"RARM") )
-  {
-    link_name = "link_rhand_palm";
-  }
-  else if( !strcmp(rbt_id.c_str(),"LARM") )
-  {
-    link_name = "link_lhand_palm";
-  }
-  else
-  {
-    ROS_ERROR("rbt_id is undefined, cannot commit the grasp.");
-    return false;
-  }
+  link_name = get_eof_link(rbt_id);
   
   arm_navigation_msgs::AttachedCollisionObject att_object;
   

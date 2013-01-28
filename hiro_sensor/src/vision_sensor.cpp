@@ -97,6 +97,7 @@ see_srv_handle(hiro_sensor::See::Request& req, hiro_sensor::See::Response& res)
   return true;
 }
 
+//! This is publishing the tf for objects at forever till the ros is dead of this node is shut down
 void
 run()
 {

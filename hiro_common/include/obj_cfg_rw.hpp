@@ -101,7 +101,7 @@ read_obj_cfg(const std::string& cfg_path,ObjCfg* cfg)
   }
   else
   {
-   cerr << "Unable to open file";
+   cerr << "Unable to open the foo.cfg file" << endl;
    return false;
   }
   

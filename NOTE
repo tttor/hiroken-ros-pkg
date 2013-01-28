@@ -3,5 +3,52 @@ whenever change hiro_arm_navigation, modify:
   add arm_kinematic_2
 >> hiro_planning_environment.launch
   <param name="robot_description" command="$(find xacro)/xacro.py '$(find hiro_common)/urdf/hiro.urdf.xacro'" /> 
-  
+
+===TO BE RECOVERED ERRORs==========================================================================================================================================  
+===
+Node: /environment_server
+Time: 1359166967.295782856
+Severity: Error
+Location: /tmp/buildd/ros-fuerte-arm-navigation-1.1.11/debian/ros-fuerte-arm-navigation/opt/ros/fuerte/stacks/arm_navigation/planning_environment/src/monitors/planning_monitor.cpp:PlanningMonitor::getCompletePlanningScene:80
+Published Topics: /rosout, /hiro_rarm_kinematics/sync_planning_scene/goal, /hiro_rarm_kinematics/sync_planning_scene/cancel, /ompl_planning/sync_planning_scene/goal, /ompl_planning/sync_planning_scene/cancel, /hiro_larm_U_chest_kinematics/sync_planning_scene/goal, /hiro_larm_U_chest_kinematics/sync_planning_scene/cancel, /hiro_rarm_U_chest_kinematics/sync_planning_scene/goal, /hiro_rarm_U_chest_kinematics/sync_planning_scene/cancel, /planning_scene_validity_server/sync_planning_scene/goal, /planning_scene_validity_server/sync_planning_scene/cancel, /hiro_larm_kinematics/sync_planning_scene/goal, /hiro_larm_kinematics/sync_planning_scene/cancel, /trajectory_filter_server/sync_planning_scene/goal, /trajectory_filter_server/sync_planning_scene/cancel
+
+Sanity check failing - no entry in acm for collision space object CAN1
+
+===
+Node: /ompl_planning
+Time: 1359186520.700143520
+Severity: Error
+Location: /tmp/buildd/ros-fuerte-arm-navigation-1.1.11/debian/ros-fuerte-arm-navigation/opt/ros/fuerte/stacks/arm_navigation/ompl_ros_interface/src/helpers/ompl_ros_conversions.cpp:getJointStateToOmplStateMapping:473
+Published Topics: /rosout, /ompl_planning/sync_planning_scene/result, /ompl_planning/sync_planning_scene/feedback, /ompl_planning/sync_planning_scene/status
+
+Could not find mapping for joint_state joint_chest_yaw
+
+This error appears even when using one arm.
+===
+Node: /ompl_planning
+Time: 1359186520.700201534
+Severity: Error
+Location: /tmp/buildd/ros-fuerte-arm-navigation-1.1.11/debian/ros-fuerte-arm-navigation/opt/ros/fuerte/stacks/arm_navigation/ompl_ros_interface/src/planners/ompl_ros_joint_planner.cpp:OmplRosJointPlanner::setJointGoal:200
+Published Topics: /rosout, /ompl_planning/sync_planning_scene/result, /ompl_planning/sync_planning_scene/feedback, /ompl_planning/sync_planning_scene/status
+
+Could not convert joint space constraints to ompl state
+
+This error appears even when using one arm.
+===RECOVERED ERRORs===============================================================================================================================================  
 [ERROR] [1358341780.344459193]: No latest time for transforming link_LARM_palm to link_base
+
+Node: /environment_server
+Time: 1359118122.404004996
+Severity: Error
+Location: /tmp/buildd/ros-fuerte-arm-navigation-1.1.11/debian/ros-fuerte-arm-navigation/opt/ros/fuerte/stacks/arm_navigation/planning_environment/src/monitors/monitor_utils.cpp:getLatestIdentityTransform:63
+Published Topics: /rosout, /hiro_larm_U_chest_kinematics/sync_planning_scene/goal, /hiro_larm_U_chest_kinematics/sync_planning_scene/cancel, /hiro_larm_kinematics/sync_planning_scene/goal, /hiro_larm_kinematics/sync_planning_scene/cancel, /ompl_planning/sync_planning_scene/goal, /ompl_planning/sync_planning_scene/cancel, /hiro_rarm_U_chest_kinematics/sync_planning_scene/goal, /hiro_rarm_U_chest_kinematics/sync_planning_scene/cancel, /hiro_rarm_kinematics/sync_planning_scene/goal, /hiro_rarm_kinematics/sync_planning_scene/cancel, /planning_scene_validity_server/sync_planning_scene/goal, /planning_scene_validity_server/sync_planning_scene/cancel, /trajectory_filter_server/sync_planning_scene/goal, /trajectory_filter_server/sync_planning_scene/cancel
+
+No latest time for transforming link_LARM_palm to link_
+
+Node: /environment_server
+Time: 1359159514.698877507
+Severity: Error
+Location: /tmp/buildd/ros-fuerte-arm-navigation-1.1.11/debian/ros-fuerte-arm-navigation/opt/ros/fuerte/stacks/arm_navigation/planning_environment/src/monitors/monitor_utils.cpp:getLatestIdentityTransform:63
+Published Topics: /rosout, /hiro_rarm_kinematics/sync_planning_scene/goal, /hiro_rarm_kinematics/sync_planning_scene/cancel, /ompl_planning/sync_planning_scene/goal, /ompl_planning/sync_planning_scene/cancel, /hiro_larm_U_chest_kinematics/sync_planning_scene/goal, /hiro_larm_U_chest_kinematics/sync_planning_scene/cancel, /planning_scene_validity_server/sync_planning_scene/goal, /planning_scene_validity_server/sync_planning_scene/cancel, /hiro_larm_kinematics/sync_planning_scene/goal, /hiro_larm_kinematics/sync_planning_scene/cancel, /hiro_rarm_U_chest_kinematics/sync_planning_scene/goal, /hiro_rarm_U_chest_kinematics/sync_planning_scene/cancel, /trajectory_filter_server/sync_planning_scene/goal, /trajectory_filter_server/sync_planning_scene/cancel
+
+No latest time for transforming link_RARM_palm to link_base

@@ -2,6 +2,8 @@
 MODES
 case 1:// SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
 
+case 4:// randomized-SENSE only, messy.cfg is written in the base_data_path
+
 case 5:// SENSE TIDY-cfg only, assume that the cfg file is under base_data_path
   $ roslaunch hiro_common a.launch mode:=5 tidy_cfg:=/tidy_tb2.l.cfg
 
