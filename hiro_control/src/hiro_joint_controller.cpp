@@ -23,7 +23,7 @@ public:
 HiroJointController(ros::NodeHandle nh):
   nh_(nh)
 {
-  joint_states_cmd_pub_ = nh_.advertise<sensor_msgs::JointState>("rarm_joint_state_cmd", 1);
+  joint_states_cmd_pub_ = nh_.advertise<sensor_msgs::JointState>("joint_state_cmd", 1);
 
   joint_states_feedback_pub_ = nh_.advertise<control_msgs::FollowJointTrajectoryFeedback>("rarm_controller/feedback_states", 1);
   
