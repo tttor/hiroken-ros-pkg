@@ -242,6 +242,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     cout << endl;
     perf_log << endl;
     
+    // TODO confirming step
     if(recheck)
     {
       cout << "SolPathCost= " << sol_path_cost[tmm_goal_] << endl;
@@ -319,7 +320,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
     ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead"); 
   
-  perf_log << "tidy.cfg= " << base_data_path << tidy_cfg_filename;
+  perf_log << "tidy.cfg=" << base_data_path << tidy_cfg_filename;
   
   perf_log.close();
   return true;

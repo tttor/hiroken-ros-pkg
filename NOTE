@@ -4,7 +4,16 @@ whenever change hiro_arm_navigation, modify:
 >> hiro_planning_environment.launch
   <param name="robot_description" command="$(find xacro)/xacro.py '$(find hiro_common)/urdf/hiro.urdf.xacro'" /> 
 
-===TO BE RECOVERED ERRORs==========================================================================================================================================  
+===TO BE RECOVERED ERRORs==========================================================================================================================================
+===
+when running v.2.10
+...
+environment_server: /opt/ros/fuerte/include/actionlib/managed_list.h:163: bool actionlib::ManagedList<T>::Handle::operator==(const actionlib::ManagedList<T>::Handle&) [with T = boost::shared_ptr<actionlib::CommStateMachine<arm_navigation_msgs::SyncPlanningSceneAction_<std::allocator<void> > > >, actionlib::ManagedList<T>::Handle = actionlib::ManagedList<boost::shared_ptr<actionlib::CommStateMachine<arm_navigation_msgs::SyncPlanningSceneAction_<std::allocator<void> > > > >::Handle]: Assertion `valid_' failed.
+[ WARN] [1359367848.303418035]: Can't get planning scene
+[DEBUG] [1359367848.305305308]: Succeeded to call plan_grasp service
+[environment_server-3] process has died [pid 6200, exit code -6, cmd /opt/ros/fuerte/stacks/arm_navigation/planning_environment/bin/environment_server __name:=environment_server __log:=/home/vektor/.ros/log/8080947c-692d-11e2-b112-180373d9afe5/environment_server-3.log].
+log file: /home/vektor/.ros/log/8080947c-692d-11e2-b112-180373d9afe5/environment_server-3*.log
+
 ===
 Node: /environment_server
 Time: 1359166967.295782856
@@ -14,6 +23,7 @@ Published Topics: /rosout, /hiro_rarm_kinematics/sync_planning_scene/goal, /hiro
 
 Sanity check failing - no entry in acm for collision space object CAN1
 
+===RECOVERED ERRORs===============================================================================================================================================  
 ===
 Node: /ompl_planning
 Time: 1359186520.700143520
@@ -23,8 +33,6 @@ Published Topics: /rosout, /ompl_planning/sync_planning_scene/result, /ompl_plan
 
 Could not find mapping for joint_state joint_chest_yaw
 
-This error appears even when using one arm.
-===
 Node: /ompl_planning
 Time: 1359186520.700201534
 Severity: Error
@@ -33,10 +41,11 @@ Published Topics: /rosout, /ompl_planning/sync_planning_scene/result, /ompl_plan
 
 Could not convert joint space constraints to ompl state
 
-This error appears even when using one arm.
-===RECOVERED ERRORs===============================================================================================================================================  
-[ERROR] [1358341780.344459193]: No latest time for transforming link_LARM_palm to link_base
-
+> This error appears even when using a subset of state space, e.g. "larm", "rarm"
+> This occurs inside plan_motion()
+> This is because get_jstate_subset() does not differentiate between "larm" and "larm_U_chest" but plan_motion() uses a special planning group for those jspace 
+> Fix in v.2.11 by some changes on get_jstate_subset()
+===
 Node: /environment_server
 Time: 1359118122.404004996
 Severity: Error
@@ -52,3 +61,7 @@ Location: /tmp/buildd/ros-fuerte-arm-navigation-1.1.11/debian/ros-fuerte-arm-nav
 Published Topics: /rosout, /hiro_rarm_kinematics/sync_planning_scene/goal, /hiro_rarm_kinematics/sync_planning_scene/cancel, /ompl_planning/sync_planning_scene/goal, /ompl_planning/sync_planning_scene/cancel, /hiro_larm_U_chest_kinematics/sync_planning_scene/goal, /hiro_larm_U_chest_kinematics/sync_planning_scene/cancel, /planning_scene_validity_server/sync_planning_scene/goal, /planning_scene_validity_server/sync_planning_scene/cancel, /hiro_larm_kinematics/sync_planning_scene/goal, /hiro_larm_kinematics/sync_planning_scene/cancel, /hiro_rarm_U_chest_kinematics/sync_planning_scene/goal, /hiro_rarm_U_chest_kinematics/sync_planning_scene/cancel, /trajectory_filter_server/sync_planning_scene/goal, /trajectory_filter_server/sync_planning_scene/cancel
 
 No latest time for transforming link_RARM_palm to link_base
+============================================================================================================================================================
+revision log
+v.2.11
+> get_jstate_subset()

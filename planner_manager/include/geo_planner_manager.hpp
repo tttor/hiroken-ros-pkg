@@ -560,13 +560,20 @@ remove_ungraspable_edge(TMMEdge e)
 }
 
 private:
+//! Obtain jstate subset from the whole joint-state of the robot 
+/*!
+  Note that this dual-arm robot entirely has 6+6+1+2=15 joints.
+  Therefore, to activate one arm at a time, we have to obtain a subset for the activated arm from the while joint space.
+  
+  In addition, in one activated arm, there are 2 possible joint space: "rarm_U_chest" and "rarm".
+*/
 sensor_msgs::JointState
 get_jstate_subset(const std::string& jspace, sensor_msgs::JointState& jstates)
 {
   sensor_msgs::JointState subset_jstates;
   
   // Interpret jspace names
-  if( !strcmp(jspace.c_str(), "rarm_U_chest") or !strcmp(jspace.c_str(), "rarm"))
+  if( !strcmp(jspace.c_str(), "rarm_U_chest") )
   {
     subset_jstates.name.push_back("joint_chest_yaw");
     
@@ -577,7 +584,7 @@ get_jstate_subset(const std::string& jspace, sensor_msgs::JointState& jstates)
     subset_jstates.name.push_back("joint_rwrist_pitch");
     subset_jstates.name.push_back("joint_rwrist_roll");
   }
-  else if( !strcmp(jspace.c_str(), "larm_U_chest") or !strcmp(jspace.c_str(), "larm") )
+  else if( !strcmp(jspace.c_str(), "larm_U_chest") )
   {
     subset_jstates.name.push_back("joint_chest_yaw");
     
@@ -588,24 +595,24 @@ get_jstate_subset(const std::string& jspace, sensor_msgs::JointState& jstates)
     subset_jstates.name.push_back("joint_lwrist_pitch");
     subset_jstates.name.push_back("joint_lwrist_roll");
   }
-//  else if( !strcmp(jspace.c_str(), "rarm") )
-//  {
-//    subset_jstates.name.push_back("joint_rshoulder_yaw");
-//    subset_jstates.name.push_back("joint_rshoulder_pitch");
-//    subset_jstates.name.push_back("joint_relbow_pitch");
-//    subset_jstates.name.push_back("joint_rwrist_yaw");
-//    subset_jstates.name.push_back("joint_rwrist_pitch");
-//    subset_jstates.name.push_back("joint_rwrist_roll");
-//  }
-//  else if( !strcmp(jspace.c_str(), "larm") )
-//  {
-//    subset_jstates.name.push_back("joint_lshoulder_yaw");
-//    subset_jstates.name.push_back("joint_lshoulder_pitch");
-//    subset_jstates.name.push_back("joint_lelbow_pitch");
-//    subset_jstates.name.push_back("joint_lwrist_yaw");
-//    subset_jstates.name.push_back("joint_lwrist_pitch");
-//    subset_jstates.name.push_back("joint_lwrist_roll");
-//  }
+  else if( !strcmp(jspace.c_str(), "rarm") )
+  {
+    subset_jstates.name.push_back("joint_rshoulder_yaw");
+    subset_jstates.name.push_back("joint_rshoulder_pitch");
+    subset_jstates.name.push_back("joint_relbow_pitch");
+    subset_jstates.name.push_back("joint_rwrist_yaw");
+    subset_jstates.name.push_back("joint_rwrist_pitch");
+    subset_jstates.name.push_back("joint_rwrist_roll");
+  }
+  else if( !strcmp(jspace.c_str(), "larm") )
+  {
+    subset_jstates.name.push_back("joint_lshoulder_yaw");
+    subset_jstates.name.push_back("joint_lshoulder_pitch");
+    subset_jstates.name.push_back("joint_lelbow_pitch");
+    subset_jstates.name.push_back("joint_lwrist_yaw");
+    subset_jstates.name.push_back("joint_lwrist_pitch");
+    subset_jstates.name.push_back("joint_lwrist_roll");
+  }
   
   subset_jstates.position.resize(subset_jstates.name.size());
   
