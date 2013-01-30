@@ -231,8 +231,9 @@ main(int argc, char **argv)
       // Open a log file for this episode
       std::ofstream epi_log;
       epi_log.open(std::string(base_data_path+suffix_data_path+".log").c_str());
-
-      epi_log << "successful_run_idx= " << endl;
+      
+      epi_log << "n_run= " << n_run << endl;
+      epi_log << "successful_run_idx= ";
       for(size_t j=0; j<(size_t)n_run; ++j)
       {
         std::string data_path;
@@ -244,8 +245,9 @@ main(int argc, char **argv)
         gm.sense(n_obj);
         
         if( gm.plan(1) )// mode=1 -> UCS, no learning 
-          epi_log << j << endl;
+          epi_log << j << ",";
       }
+      epi_log << endl;
       
       epi_log.close();
       break;

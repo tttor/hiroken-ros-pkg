@@ -58,8 +58,9 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   
 //  if(mode_!=1)
 //  {
-//    // Train incrementally
+//    // Train online during search
 //    Data samples;
+
 //    gpm_->get_samples(v,&samples);// get samples from paths from (root,root+1, ..., v) to adjacent of v
 //    
 //    for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
