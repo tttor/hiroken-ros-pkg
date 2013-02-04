@@ -7,7 +7,7 @@ case 4:// randomized-SENSE only, messy.cfg is written in the base_data_path
 case 5:// SENSE TIDY-cfg only, assume that the cfg file is under base_data_path
   $ roslaunch hiro_common a.launch mode:=5 tidy_cfg:=/tidy_tb2.l.cfg
 
-case 6:
+case 6:// messy_tb-SENSE only, assume that the cfg file is under base_data_path
   $ roslaunch hiro_common a.launch mode:=6 messy_cfg:=/messy_hot.cfg
   
 case 7:
@@ -286,7 +286,7 @@ main(int argc, char **argv)
       if( !ros::param::get("/messy_cfg_filename",messy_cfg_filename) )
         ROS_WARN("Can not get /messy_cfg_filename, use the default value instead"); 
         
-      gm.sense(std::string(base_data_path+messy_cfg_filename));      
+      gm.sense(std::string(base_data_path+messy_cfg_filename));
       break;
     }
     case 7:// SENSE-PLAN(UCS) with a test-bed messy config under the base_data_path one time only

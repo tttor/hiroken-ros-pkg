@@ -1,3 +1,4 @@
+>> include smoothness and clearance in measuring path quality
 >> why is there an inf edge cost? likely from: iter_cost = exp( (double)n_failure/(double)(n_success+n_failure) );// (n_success+n_failure) = goal_set.size()
 >> what if there is really no path in the goal, rethink removing an edge
 >> put texts in objects
