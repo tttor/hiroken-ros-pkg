@@ -6,6 +6,10 @@ whenever change hiro_arm_navigation, modify:
 
 ===TO BE RECOVERED ERRORs==========================================================================================================================================
 ===
+[ERROR] [1359775481.094752156]: Exception thrown while processing service call: Duration is out of dual 32-bit range
+[ERROR] [1359775481.094898337]: Service call failed: service [/trajectory_filter_server/filter_trajectory_with_constraints] responded with an error: Duration is out of dual 32-bit range
+
+===
 when running v.2.10
 ...
 environment_server: /opt/ros/fuerte/include/actionlib/managed_list.h:163: bool actionlib::ManagedList<T>::Handle::operator==(const actionlib::ManagedList<T>::Handle&) [with T = boost::shared_ptr<actionlib::CommStateMachine<arm_navigation_msgs::SyncPlanningSceneAction_<std::allocator<void> > > >, actionlib::ManagedList<T>::Handle = actionlib::ManagedList<boost::shared_ptr<actionlib::CommStateMachine<arm_navigation_msgs::SyncPlanningSceneAction_<std::allocator<void> > > > >::Handle]: Assertion `valid_' failed.
