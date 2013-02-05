@@ -85,7 +85,7 @@ plan(TMMEdge e)
     // Call grasp/ungrasp planner here!
     goal_set = get_goal_set( source(e,pm_->tmm_),target(e,pm_->tmm_),get(edge_jspace,pm_->tmm_,e) ); 
   }
-  else// must be either TidyHome or TmpHome[xxx]
+  else// must be either TidyHome or TmpHome_RBTID[xxx]
   {
     // Get a subset of initial jstates stored in the goal vertex, which is the home pose
     goal_set.push_back(   get_jstate_subset(  get(edge_jspace, pm_->tmm_, e), get(vertex_jstates, pm_->tmm_, target(e, pm_->tmm_))  )   );
@@ -1154,7 +1154,7 @@ set_workspace(const TMMVertex& v,const bool sim_grasped_or_released=false)
     
   }
   
-  if( !sim_grasped_or_released or !strcmp(name_parts.at(0).c_str(),"TmpHome") )
+  if( !sim_grasped_or_released or !strcmp(name_parts.at(0).substr(0,7).c_str(),"TmpHome") )// Note the actual name is TmpHome_RBT
     return true;
     
  // Set the workspace for simulate grasping or released=======================================================================================

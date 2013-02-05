@@ -3,12 +3,10 @@
 >> what if there is really no path in the goal, rethink removing an edge
 >> put texts in objects
 >> refine randomized messy_cfg
->> re-do motion planning for the cheapest almost-solution path
->> refine get_goal_set( target(e,pm_->tmm_),get(edge_jspace,pm_->tmm_,e) ); the first param only should be enough
+>> re-do motion planning for the cheapest almost-solution path, at the confirming step
 >> grasp planner can use uniform/biased sampling strategy for discretization.
 >> migrate to MoveIt! on Groovy
 >> typedef typename graph_traits<GPMGraph>::vertex_descriptor Vertex; V.S. typedef typename GPMGraph::vertex_descriptor Vertex;
->> automate the way we set how many robots/eofs are in-duty
 ===
 Done...
 >> grasp_planner should receive information about jspace used. 
@@ -20,3 +18,4 @@ Done...
 >> refine commit_grasp() in action_manager: the way to get eof_link
 >> adjust hiro_joint_controller for dual arms, "rarm_joint_state_cmd" should be general, e.g. "joint_state_cmd", plus at the launch file for <rosparam param="source_list">['rarm_joint_state_cmd']</rosparam>
 >> solve in go-home, why the arm hit the vase (at the goal pose), especially when using only J_arm see run.3obj.20130122.d
+>> automate the way we set how many robots/eofs are in-duty

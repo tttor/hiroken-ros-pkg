@@ -50,6 +50,28 @@ TaskPlanner(ros::NodeHandle& nh)
   task_planner_path_ = ".";
   if( !ros::param::get("/task_planner_path", task_planner_path_) )
     ROS_WARN("Can not get /task_planner_path, use the default value instead");
+    
+  XmlRpc::XmlRpcValue v;
+  nh_.param("rbt_ids", v, v);
+  for(int i=0; i < v.size(); i++)
+  {
+    std::string v_str = v[i];
+    // Parsing v.at(i) = RARM[rarm,rarm_U_chest]
+    std::vector<std::string> parts;
+    
+    boost::split( parts,v_str, boost::is_any_of(":") );
+    std::string rbt_id = parts.at(0);
+    
+    std::vector<std::string> jspaces;    
+    boost::split( jspaces,parts.at(1), boost::is_any_of(",") );
+    
+    // Assign
+    std::set<std::string> jspace_set;
+    for(std::vector<std::string>::const_iterator j=jspaces.begin(); j!=jspaces.end(); ++j)
+      jspace_set.insert(*j);
+    
+    rbt_jspaces_map_.insert( std::make_pair(rbt_id,jspace_set) );
+  }
   
 //  // For testing only, should be commented on normal runs
 //  plan(2);
@@ -399,26 +421,6 @@ create_metadata(const TaskMotionMultigraph& tmm, const size_t& n)
 TaskMotionMultigraph
 convert_tg2tmm(const TaskGraph& tg)
 {
-  // Set joint_spaces==================================================================================
-  // Note: rbt_id must be 4 characters AND UPPER_CASE
-  std::map< std::string,std::set<std::string> > rbt_jspaces_map;
-
-  // For robot-1: RARM----------------------------
-  std::set<std::string> rarm_jspaces;
-  
-  rarm_jspaces.insert("rarm");
-  rarm_jspaces.insert("rarm_U_chest");
-  
-  rbt_jspaces_map["RARM"] = rarm_jspaces;
-
-  // For robot-2: LARM----------------------------
-  std::set<std::string> larm_jspaces;
-  
-  larm_jspaces.insert("larm");
-  larm_jspaces.insert("larm_U_chest");
-  
-  rbt_jspaces_map["LARM"] = larm_jspaces;
-  
   // Build the TMM=====================================================================================
   TaskMotionMultigraph tmm;
   std::map<std::string,TMMVertex> name_vertex_map;
@@ -460,8 +462,7 @@ convert_tg2tmm(const TaskGraph& tg)
     
     target_vertex_name_vec.push_back( get(vertex_name,tg,target(*ei,tg)) );
     
-    // The target_vertex_name may be either CanGrasp_O_R[] or Grasped_O_R[] or CanRelease_O_R[] or Released_O_R[] or TidyHome or TmpHome[xxx]
-    // The first four are bypassed, but the rest is not.
+    // The target_vertex_name may be either CanGrasp_O_R[] or Grasped_O_R[] or CanRelease_O_R[] or Released_O_R[] or TidyHome or TmpHome_RBTID[xxx]
     std::vector<std::string> target_vertex_name_parts;
     boost::split( target_vertex_name_parts,target_vertex_name_vec.at(0),boost::is_any_of("_"),boost::token_compress_on );
     
@@ -475,7 +476,7 @@ convert_tg2tmm(const TaskGraph& tg)
       for(tie(avi, avi_end) = adjacent_vertices( target(*ei,tg),tg ); avi != avi_end; ++avi)
         target_vertex_name_vec.push_back( get(vertex_name, tg, *avi) );
     }
-    else// must be either TidyHome or TmpHome[xxx]
+    else// must be either TidyHome or TmpHome_RBTID[xxx]
     { }
     
     for(std::vector<std::string>::const_iterator i=target_vertex_name_vec.begin(); i!=target_vertex_name_vec.end(); ++i)
@@ -519,7 +520,7 @@ convert_tg2tmm(const TaskGraph& tg)
       // The rbt_id is limited to only 4 characters at most and at least, the rest, if any, is truncated 
       std::string rbt_id = raw_rbt_id.substr(0,4);
       
-      for(std::set<std::string>::const_iterator j=rbt_jspaces_map[rbt_id].begin(); j!=rbt_jspaces_map[rbt_id].end(); ++j)
+      for(std::set<std::string>::const_iterator j=rbt_jspaces_map_[rbt_id].begin(); j!=rbt_jspaces_map_[rbt_id].end(); ++j)
       {
         if(j->length()==0)
         {
@@ -570,7 +571,7 @@ infer(const std::vector<Action>::iterator& i,const std::vector<Action>::iterator
     
     if( !strcmp(source_loc.c_str(), "HOME") )
     {
-      if(released_objects->empty())
+      if(released_objects->empty())// have not yet tidied anything
       {
         source_vertex_name = "MessyHome";
       }
@@ -580,7 +581,18 @@ infer(const std::vector<Action>::iterator& i,const std::vector<Action>::iterator
         for(std::vector<std::string>::const_iterator k=released_objects->begin(); k!=released_objects->end(); ++k)
           ps += *k;
         
-        source_vertex_name = std::string("TmpHome[") + ps + "]";
+        std::string rbt_id = i->args.at(0);
+        for(std::map< std::string,std::set<std::string> >::const_iterator i=rbt_jspaces_map_.begin(); i!=rbt_jspaces_map_.end(); ++i)
+        {
+          // update rbt_id with another value, only valid iff there are only 2 rbt_ids
+          if( strcmp(i->first.c_str(),rbt_id.c_str()) )//if *i is not the same as rbt_id, then ...
+          {
+            rbt_id = i->first;
+            break;
+          }
+        }
+            
+        source_vertex_name = "TmpHome_" + rbt_id + "[" + ps + "]";
       }
     }
     else
@@ -615,7 +627,9 @@ infer(const std::vector<Action>::iterator& i,const std::vector<Action>::iterator
         for(std::vector<std::string>::const_iterator k=released_objects->begin(); k!=released_objects->end(); ++k)
           ps += *k;
         
-        target_vertex_name = std::string("TmpHome[") + ps + "]";
+        std::string rbt_id = i->args.at(0);
+        
+        target_vertex_name = "TmpHome_" + rbt_id + "[" + ps + "]";
       }
     }
     else
@@ -703,6 +717,9 @@ infer(const std::vector<Action>::iterator& i,const std::vector<Action>::iterator
 ros::NodeHandle nh_;
 
 std::string task_planner_path_;
+
+std::map< std::string,std::set<std::string> > rbt_jspaces_map_;
+
 };// End of: TaskPlanner class
 
 int 
