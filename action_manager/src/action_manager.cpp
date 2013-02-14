@@ -70,7 +70,7 @@ discover_vertex(typename boost::graph_traits<Graph>::vertex_descriptor v,Graph& 
   
   std::string act_str = name_parts.at(0);
   
-  if( !strcmp(act_str.c_str(),"MessyHome") or !strcmp(act_str.c_str(),"TidyHome") or !strcmp(act_str.c_str(),"TmpHome"))
+  if( !strcmp(act_str.c_str(),"MessyHome") or !strcmp(act_str.c_str(),"TidyHome") or !strcmp(act_str.substr(0,7).c_str(),"TmpHome"))
     return;
     
   std::vector<std::string> act_str_parts;

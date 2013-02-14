@@ -9,11 +9,12 @@ import geometry_msgs.msg
 import std_msgs.msg
 
 class PlanGraspRequest(genpy.Message):
-  _md5sum = "54df94bfc96cf22a032153787903e218"
+  _md5sum = "5b7445fabcc35cbb8f0b55382d1d8830"
   _type = "grasp_planner/PlanGraspRequest"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """
 arm_navigation_msgs/CollisionObject object
+string rbt_id
 string jspace
 
 ================================================================================
@@ -138,8 +139,8 @@ float64 z
 float64 w
 
 """
-  __slots__ = ['object','jspace']
-  _slot_types = ['arm_navigation_msgs/CollisionObject','string']
+  __slots__ = ['object','rbt_id','jspace']
+  _slot_types = ['arm_navigation_msgs/CollisionObject','string','string']
 
   def __init__(self, *args, **kwds):
     """
@@ -149,7 +150,7 @@ float64 w
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       object,jspace
+       object,rbt_id,jspace
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -160,10 +161,13 @@ float64 w
       #message fields cannot be None, assign default values for those that are
       if self.object is None:
         self.object = arm_navigation_msgs.msg.CollisionObject()
+      if self.rbt_id is None:
+        self.rbt_id = ''
       if self.jspace is None:
         self.jspace = ''
     else:
       self.object = arm_navigation_msgs.msg.CollisionObject()
+      self.rbt_id = ''
       self.jspace = ''
 
   def _get_types(self):
@@ -220,6 +224,12 @@ float64 w
         _v2 = val1.orientation
         _x = _v2
         buff.write(_struct_4d.pack(_x.x, _x.y, _x.z, _x.w))
+      _x = self.rbt_id
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
       _x = self.jspace
       length = len(_x)
       if python3 or type(_x) == unicode:
@@ -322,6 +332,15 @@ float64 w
       start = end
       end += length
       if python3:
+        self.rbt_id = str[start:end].decode('utf-8')
+      else:
+        self.rbt_id = str[start:end]
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
         self.jspace = str[start:end].decode('utf-8')
       else:
         self.jspace = str[start:end]
@@ -379,6 +398,12 @@ float64 w
         _v6 = val1.orientation
         _x = _v6
         buff.write(_struct_4d.pack(_x.x, _x.y, _x.z, _x.w))
+      _x = self.rbt_id
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
       _x = self.jspace
       length = len(_x)
       if python3 or type(_x) == unicode:
@@ -476,6 +501,15 @@ float64 w
         end += 32
         (_x.x, _x.y, _x.z, _x.w,) = _struct_4d.unpack(str[start:end])
         self.object.poses.append(val1)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.rbt_id = str[start:end].decode('utf-8')
+      else:
+        self.rbt_id = str[start:end]
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -845,6 +879,6 @@ _struct_2I = struct.Struct("<2I")
 _struct_d = struct.Struct("<d")
 class PlanGrasp(object):
   _type          = 'grasp_planner/PlanGrasp'
-  _md5sum = 'baedc1f1c41f8bb1d906ca306945570f'
+  _md5sum = 'c3b61166dd2ad999b94bf9a333f32d7b'
   _request_class  = PlanGraspRequest
   _response_class = PlanGraspResponse

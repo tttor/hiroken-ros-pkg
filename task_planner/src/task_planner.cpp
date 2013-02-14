@@ -56,7 +56,8 @@ TaskPlanner(ros::NodeHandle& nh)
   for(int i=0; i < v.size(); i++)
   {
     std::string v_str = v[i];
-    // Parsing v.at(i) = RARM[rarm,rarm_U_chest]
+    
+    // Parsing v.at(i),e.g. RARM:rarm,rarm_U_chest
     std::vector<std::string> parts;
     
     boost::split( parts,v_str, boost::is_any_of(":") );

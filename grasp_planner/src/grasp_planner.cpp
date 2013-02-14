@@ -16,6 +16,8 @@
 
 #include "grasp_planner/PlanGrasp.h"
 
+#include "hiro_utils.hpp"
+
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 static const double GRASP_PADDING = 0.070;
 static const size_t YAW_STEP = (360./5.);// It means each step is (2*M_PI)/YAW_STEP radian = (360)/YAW_STEP degree
@@ -33,25 +35,19 @@ GraspPlanner(ros::NodeHandle& nh)
 { }
 
 bool
-plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request  &req, grasp_planner::PlanGrasp::Response &res)
+plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request &req, grasp_planner::PlanGrasp::Response &res)
 {
   ROS_DEBUG_STREAM("Grasp planning: BEGIN for " << req.object.id.c_str() << " in " << req.jspace );
   
-  // Sanity checks  
   std::string get_ik_solver_info_str = "hiro_" + req.jspace + "_kinematics_2/get_ik_solver_info";
-  std::string get_ik_str = "hiro_" + req.jspace + "_kinematics_2/get_ik";
-    
   ros::service::waitForService(get_ik_solver_info_str);
-  ros::service::waitForService(get_ik_str);
   
-  ros::ServiceClient ik_info_client = nh_.serviceClient<kinematics_msgs::GetKinematicSolverInfo>(get_ik_solver_info_str);
-  ros::ServiceClient ik_client = nh_.serviceClient<kinematics_msgs::GetPositionIK>(get_ik_str);
+  ros::ServiceClient ik_solver_info_client = nh_.serviceClient<kinematics_msgs::GetKinematicSolverInfo>(get_ik_solver_info_str);
 
-  // define the service messages
   kinematics_msgs::GetKinematicSolverInfo::Request gksi_req;
   kinematics_msgs::GetKinematicSolverInfo::Response gksi_res;
 
-  if( !ik_info_client.call(gksi_req, gksi_res) )
+  if( !ik_solver_info_client.call(gksi_req, gksi_res) )
   {
     ROS_ERROR("Could not call IK info query service");
     return false;
@@ -61,7 +57,7 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request  &req, grasp_planner::Pl
   const double yaw_step_ang = (2*M_PI)/yaw_step;
   size_t num_grasp_plan = 0;
     
-//  tf::TransformListener tf_listener;
+  //  tf::TransformListener tf_listener;
   tf::TransformBroadcaster tf_bc;// Must be outside the loop where it is used
   
   ROS_DEBUG("Start looping over yaw_steps");
@@ -101,7 +97,7 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request  &req, grasp_planner::Pl
     kinematics_msgs::GetPositionIK::Response gpik_res;
   
     gpik_req.timeout = ros::Duration(5.0);
-    gpik_req.ik_request.ik_link_name = "link_rhand_palm";
+    gpik_req.ik_request.ik_link_name = get_eof_link(req.rbt_id);
     gpik_req.ik_request.pose_stamped.header.frame_id = "table";
 
     gpik_req.ik_request.pose_stamped.pose.position.x = grasp_tf.getOrigin().x();
@@ -120,7 +116,12 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request  &req, grasp_planner::Pl
       gpik_req.ik_request.ik_seed_state.joint_state.position[j] = (gksi_res.kinematic_solver_info.limits[j].min_position + gksi_res.kinematic_solver_info.limits[j].max_position)/2.0;
     }
   
-    if(ik_client.call(gpik_req, gpik_res))
+    std::string get_ik_solver_str = "hiro_" + req.jspace + "_kinematics_2/get_ik";
+    ros::service::waitForService(get_ik_solver_str);
+    
+    ros::ServiceClient ik_solver_client = nh_.serviceClient<kinematics_msgs::GetPositionIK>(get_ik_solver_str);
+    
+    if(ik_solver_client.call(gpik_req, gpik_res))
     {
       if(gpik_res.error_code.val == gpik_res.error_code.SUCCESS)
       {
@@ -243,8 +244,8 @@ main(int argc, char** argv)
 
   GraspPlanner gp(nh);
   
-  ros::ServiceServer plan_grasp_srv_;
-  plan_grasp_srv_ = nh.advertiseService("plan_grasp", &GraspPlanner::plan_grasp_srv_handle, &gp);
+  ros::ServiceServer plan_grasp_srv;
+  plan_grasp_srv = nh.advertiseService("plan_grasp", &GraspPlanner::plan_grasp_srv_handle, &gp);
   
   ROS_INFO("Ready to plan grasps.");
   ros::spin();
