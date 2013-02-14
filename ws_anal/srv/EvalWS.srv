@@ -1,0 +1,5 @@
+string rbt_id
+string jspace
+string path
+---
+string msg

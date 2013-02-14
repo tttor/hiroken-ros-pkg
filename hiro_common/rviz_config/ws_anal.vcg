@@ -1,24 +1,9 @@
 Background\ ColorB=0
 Background\ ColorG=0
 Background\ ColorR=0
-Camera\ Config=-0.285198 0.448145 0.894247 -0.154216 0.132307 1.12573
+Camera\ Config=0.275201 0.806344 2.42838 -0.100338 0.0187931 0.887949
 Camera\ Type=rviz::OrbitViewController
-FilteredPath.Alpha=0.6
-FilteredPath.Collision\ Enabled=0
-FilteredPath.Enabled=0
-FilteredPath.Loop\ Display=1
-FilteredPath.Robot\ Description=robot_description
-FilteredPath.State\ Display\ Time=0.005
-FilteredPath.Topic=/display_filtered_path
-FilteredPath.Visual\ Enabled=1
-FilteredPathPlan.Enabled=1
-FilteredPathPlan.Marker\ Topic=/filtered_path
-FilteredPathPlan.Queue\ Size=100
-FilteredPathPlan.filtered_trajectory=1
 Fixed\ Frame=/link_base
-GraspPlan.Enabled=1
-GraspPlan.Marker\ Array\ Topic=/state_validity_markers_array
-GraspPlan.Queue\ Size=100
 Grid.Alpha=1
 Grid.Cell\ Size=0.5
 Grid.ColorB=1
@@ -34,30 +19,17 @@ Grid.OffsetZ=0
 Grid.Plane=0
 Grid.Plane\ Cell\ Count=4
 Grid.Reference\ Frame=<Fixed Frame>
-JointGoal.Alpha=0.6
-JointGoal.Collision\ Enabled=1
-JointGoal.Enabled=0
-JointGoal.Loop\ Display=0
-JointGoal.Robot\ Description=robot_description
-JointGoal.State\ Display\ Time=0.05
-JointGoal.Topic=/display_joint_goal
-JointGoal.Visual\ Enabled=1
-PathPlan.Enabled=0
-PathPlan.Marker\ Topic=/planned_path
-PathPlan.Queue\ Size=0
-PlanningScene.CAN1=1
-PlanningScene.CAN2=1
-PlanningScene.CAN3=1
-PlanningScene.CAN4=1
-PlanningScene.Enabled=1
-PlanningScene.Marker\ Topic=/planning_scene_markers
-PlanningScene.Queue\ Size=0
-PlanningScene.collision_map_markers=1
-PlanningScene.table=1
-PlanningScene.vase=1
+GridMap.Enabled=1
+GridMap.Marker\ Topic=/grid_marker
+GridMap.Queue\ Size=100
+GridMap.points=1
+GridMap.sphere=1
+IK_Validity.Enabled=1
+IK_Validity.Marker\ Array\ Topic=/state_validity_markers_array
+IK_Validity.Queue\ Size=100
 Property\ Grid\ Splitter=838,107
-Property\ Grid\ State=expanded=.Global Options,RobotModel.Enabled,TF.Enabled,TF.Frames,RoughPath.Enabled,FilteredPath.Enabled,PathPlan.Enabled,FilteredPathPlan.Enabled,GraspPlan.Enabled;splitterratio=0.599214
-QMainWindow=000000ff00000000fd00000002000000000000017f00000403fc0200000001fc0000001d00000403000000ee00fffffffa000000010100000002fb0000000800540069006d00650000000000ffffffff000002bf00fffffffb000000100044006900730070006c0061007900730100000000000002bf0000011d00ffffff000000010000013000000403fc0200000003fb0000001e0054006f006f006c002000500072006f0070006500720074006900650073000000001d000001ff0000006700fffffffb0000000a0056006900650077007300000001670000016f000000bb00fffffffb0000001200530065006c0065006300740069006f006e000000001d000004030000006700ffffff000005fb0000040300000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+Property\ Grid\ State=expanded=TF.Enabled,GridMap.Enabled,GridMap.Namespaces;splitterratio=0.599214
+QMainWindow=000000ff00000000fd0000000200000000000001b000000403fc0200000001fc0000001d00000403000000ee00fffffffa000000010100000002fb0000000800540069006d00650000000000ffffffff000002bf00fffffffb000000100044006900730070006c0061007900730100000000000002bf0000011d00ffffff000000010000013000000403fc0200000003fb0000001e0054006f006f006c002000500072006f0070006500720074006900650073000000001d000001ff0000006700fffffffb0000000a0056006900650077007300000001670000016f000000bb00fffffffb0000001200530065006c0065006300740069006f006e000000001d000004030000006700ffffff000005ca0000040300000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
 Robot\:\ RobotModel\ Link\ link_baseAlpha=1
 Robot\:\ RobotModel\ Link\ link_baseEnabled=1
 Robot\:\ RobotModel\ Link\ link_baseShow\ Axes=0
@@ -137,14 +109,6 @@ RobotModel.Robot\ Description=robot_description
 RobotModel.TF\ Prefix=
 RobotModel.Update\ Interval=0
 RobotModel.Visual\ Enabled=0
-RoughPath.Alpha=0.7
-RoughPath.Collision\ Enabled=0
-RoughPath.Enabled=0
-RoughPath.Loop\ Display=0
-RoughPath.Robot\ Description=robot_description
-RoughPath.State\ Display\ Time=0.1
-RoughPath.Topic=/display_path
-RoughPath.Visual\ Enabled=1
 TF.All\ Enabled=0
 TF.Enabled=0
 TF.Frame\ Timeout=5
@@ -167,25 +131,10 @@ ClassName=rviz::TFDisplay
 Name=TF
 [Display3]
 ClassName=rviz::MarkerDisplay
-Name=PlanningScene
+Name=GridMap
 [Display4]
-ClassName=motion_planning_rviz_plugin::PlanningDisplay
-Name=RoughPath
-[Display5]
-ClassName=motion_planning_rviz_plugin::PlanningDisplay
-Name=FilteredPath
-[Display6]
-ClassName=motion_planning_rviz_plugin::PlanningDisplay
-Name=JointGoal
-[Display7]
-ClassName=rviz::MarkerDisplay
-Name=PathPlan
-[Display8]
-ClassName=rviz::MarkerDisplay
-Name=FilteredPathPlan
-[Display9]
 ClassName=rviz::MarkerArrayDisplay
-Name=GraspPlan
+Name=IK_Validity
 [Window]
 Height=1056
 Width=1920

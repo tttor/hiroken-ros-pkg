@@ -1,5 +1,6 @@
 # the id of the object
 arm_navigation_msgs/CollisionObject object
+string rbt_id
 string jspace
 ---
 # the possible (planned) grasp poses for an grasp-or-ungrasp action

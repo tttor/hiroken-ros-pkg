@@ -1,0 +1,18 @@
+<package>
+  <description brief="ws_anal">
+
+     ws_anal
+
+  </description>
+  <author>Vektor Dewanto</author>
+  <license>BSD</license>
+  <review status="unreviewed" notes=""/>
+  <url>http://ros.org/wiki/ws_anal</url>
+  <depend package="roscpp"/>
+  <depend package="visualization_msgs"/>
+  <depend package="tf"/>
+  <depend package="kinematics_msgs"/>
+  <depend package="planning_environment"/>
+</package>
+
+

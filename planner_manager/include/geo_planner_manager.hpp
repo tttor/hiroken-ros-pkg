@@ -757,31 +757,32 @@ get_goal_set(const TMMVertex& sv,const TMMVertex& v, const std::string& jspace)
   std::string name = get(vertex_name, pm_->tmm_, v);
   
   std::vector<std::string> name_parts;
-  boost::split( name_parts, name, boost::is_any_of("[") );// e.g from "Grasped_CAN1[CAN2.CAN3.]" to "Grasped_CAN1" and "CAN2.CAN3.]"
+  boost::split( name_parts, name, boost::is_any_of("[") );// e.g from "Grasped_CAN1_RBT[CAN2.CAN3.]" to "Grasped_CAN1_RBT" and "CAN2.CAN3.]"
   
   if( !strcmp(name_parts.at(0).c_str(),"TidyHome") )
   { }
   else
   {
     std::vector<std::string> name_parts_0;
-    boost::split( name_parts_0, name_parts.at(0), boost::is_any_of("_") );// e.g from "Grasped_CAN1" to "Grasped" and "CAN1"
+    boost::split( name_parts_0, name_parts.at(0), boost::is_any_of("_") );// e.g from "Grasped_CAN1_RBT" to "Grasped", "CAN1" and "RBT"
 
     std::string state_name = name_parts_0.at(0);
     std::string object_id = name_parts_0.at(1);
+    std::string rbt_id = name_parts_0.at(2);
     
     if( !strcmp(state_name.c_str(), "Grasped") )// Assume that GRASP is always in messy_spot
     {
       arm_navigation_msgs::CollisionObject object;
       object = pm_->messy_cfg_[object_id];
     
-      plan_grasp(object, jspace, &goal_set);
+      plan_grasp(object,rbt_id,jspace,&goal_set);
     }
     else if( !strcmp(state_name.c_str(), "Released") )// Assume that UNGRASP is always in tidy_spot
     {
       arm_navigation_msgs::CollisionObject object;
       object = pm_->tidy_cfg_[object_id];
       
-      plan_ungrasp(object, jspace, &goal_set);
+      plan_ungrasp(object,rbt_id,jspace,&goal_set);
     }
   }
   
@@ -801,29 +802,30 @@ get_goal_set(const TMMVertex& sv,const TMMVertex& v, const std::string& jspace)
   \return whether successful.
 */
 bool
-plan_grasp(arm_navigation_msgs::CollisionObject& object, const std::string& jspace, std::vector<sensor_msgs::JointState>* grasp_poses)
+plan_grasp(arm_navigation_msgs::CollisionObject& object, const std::string& rbt_id, const std::string& jspace, std::vector<sensor_msgs::JointState>* grasp_poses)
 {
   ROS_DEBUG("Grasp planning: BEGIN");
   
   // Call the plan_grasp srv
-  grasp_planner::PlanGrasp::Request plan_grasp_req;
-  grasp_planner::PlanGrasp::Response plan_grasp_res; 
+  grasp_planner::PlanGrasp::Request req;
+  grasp_planner::PlanGrasp::Response res; 
   
-  plan_grasp_req.object = object;
-  plan_grasp_req.jspace = jspace;
+  req.object = object;
+  req.rbt_id = rbt_id;
+  req.jspace = jspace;
   
   ros::service::waitForService("/plan_grasp");
-  ros::ServiceClient plan_grasp_client;
-  plan_grasp_client = pm_->nh_.serviceClient<grasp_planner::PlanGrasp>("/plan_grasp");
+  ros::ServiceClient client;
+  client = pm_->nh_.serviceClient<grasp_planner::PlanGrasp>("/plan_grasp");
     
-  if ( plan_grasp_client.call(plan_grasp_req, plan_grasp_res) )
+  if ( client.call(req,res) )
   {
     ROS_DEBUG("Succeeded to call plan_grasp service");
     
-    if( plan_grasp_res.grasp_plans.empty() )
+    if( res.grasp_plans.empty() )
       ROS_WARN("Although done successfully, but _no_ grasp plan.");
     
-    *grasp_poses = plan_grasp_res.grasp_plans;// This may be empty
+    *grasp_poses = res.grasp_plans;// This may be empty
     
     /*
     Note that the geometric planning process cost returned by plan_grasp_srv is ignored for now for simplicity.
@@ -849,7 +851,7 @@ plan_grasp(arm_navigation_msgs::CollisionObject& object, const std::string& jspa
   \return whether successful.
 */
 bool
-plan_ungrasp(arm_navigation_msgs::CollisionObject& object, const std::string& jspace, std::vector<sensor_msgs::JointState>* ungrasp_poses)
+plan_ungrasp(arm_navigation_msgs::CollisionObject& object, const std::string& rbt_id, const std::string& jspace, std::vector<sensor_msgs::JointState>* ungrasp_poses)
 {
   // Set the object in the tidy_cfg in the planning_environment
   object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
@@ -859,7 +861,7 @@ plan_ungrasp(arm_navigation_msgs::CollisionObject& object, const std::string& js
   if( !set_planning_scene_diff_client_.call(planning_scene_req_, planning_scene_res_) ) 
     ROS_WARN("Can't get planning scene. Env can not be configured correctly");
     
-  return plan_grasp(object, jspace, ungrasp_poses); 
+  return plan_grasp(object,rbt_id,jspace,ungrasp_poses); 
 }
 //! Brief ...
 /*!
