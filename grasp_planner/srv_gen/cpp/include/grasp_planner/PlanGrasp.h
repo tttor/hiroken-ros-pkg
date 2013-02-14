@@ -29,18 +29,23 @@ struct PlanGraspRequest_ {
 
   PlanGraspRequest_()
   : object()
+  , rbt_id()
   , jspace()
   {
   }
 
   PlanGraspRequest_(const ContainerAllocator& _alloc)
   : object(_alloc)
+  , rbt_id(_alloc)
   , jspace(_alloc)
   {
   }
 
   typedef  ::arm_navigation_msgs::CollisionObject_<ContainerAllocator>  _object_type;
    ::arm_navigation_msgs::CollisionObject_<ContainerAllocator>  object;
+
+  typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _rbt_id_type;
+  std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  rbt_id;
 
   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _jspace_type;
   std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  jspace;
@@ -111,12 +116,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::grasp_planner::PlanGraspRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "54df94bfc96cf22a032153787903e218";
+    return "5b7445fabcc35cbb8f0b55382d1d8830";
   }
 
   static const char* value(const  ::grasp_planner::PlanGraspRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0x54df94bfc96cf22aULL;
-  static const uint64_t static_value2 = 0x032153787903e218ULL;
+  static const uint64_t static_value1 = 0x5b7445fabcc35cbbULL;
+  static const uint64_t static_value2 = 0x8f0b55382d1d8830ULL;
 };
 
 template<class ContainerAllocator>
@@ -135,6 +140,7 @@ struct Definition< ::grasp_planner::PlanGraspRequest_<ContainerAllocator> > {
   {
     return "\n\
 arm_navigation_msgs/CollisionObject object\n\
+string rbt_id\n\
 string jspace\n\
 \n\
 ================================================================================\n\
@@ -371,6 +377,7 @@ template<class ContainerAllocator> struct Serializer< ::grasp_planner::PlanGrasp
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
     stream.next(m.object);
+    stream.next(m.rbt_id);
     stream.next(m.jspace);
   }
 
@@ -406,7 +413,7 @@ template<>
 struct MD5Sum<grasp_planner::PlanGrasp> {
   static const char* value() 
   {
-    return "baedc1f1c41f8bb1d906ca306945570f";
+    return "c3b61166dd2ad999b94bf9a333f32d7b";
   }
 
   static const char* value(const grasp_planner::PlanGrasp&) { return value(); } 
@@ -426,7 +433,7 @@ template<class ContainerAllocator>
 struct MD5Sum<grasp_planner::PlanGraspRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "baedc1f1c41f8bb1d906ca306945570f";
+    return "c3b61166dd2ad999b94bf9a333f32d7b";
   }
 
   static const char* value(const grasp_planner::PlanGraspRequest_<ContainerAllocator> &) { return value(); } 
@@ -446,7 +453,7 @@ template<class ContainerAllocator>
 struct MD5Sum<grasp_planner::PlanGraspResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "baedc1f1c41f8bb1d906ca306945570f";
+    return "c3b61166dd2ad999b94bf9a333f32d7b";
   }
 
   static const char* value(const grasp_planner::PlanGraspResponse_<ContainerAllocator> &) { return value(); } 

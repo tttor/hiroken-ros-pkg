@@ -11,6 +11,27 @@ on v.2.12
 
 ===TO BE RECOVERED ERRORs==========================================================================================================================================
 ===
+Node: /rviz
+Time: 1360750169.045167227
+Severity: Error
+Location: /tmp/buildd/ros-fuerte-geometry-1.8.2/debian/ros-fuerte-geometry/opt/ros/fuerte/stacks/geometry/tf/src/tf.cpp:Transformer::setTransform:406
+Published Topics: /rosout, /move_base_simple/goal, /initialpose
+
+TF_NAN_INPUT: Ignoring transform for child_frame_id "/eof_tf" from authority "/ws_analyzer" because of a nan value in the transform (0.000000 0.000000 0.050000) (nan nan nan nan)
+===
+environment_server: /opt/ros/fuerte/include/actionlib/managed_list.h:163: bool actionlib::ManagedList<T>::Handle::operator==(const actionlib::ManagedList<T>::Handle&) [with T = boost::shared_ptr<actionlib::CommStateMachine<arm_navigation_msgs::SyncPlanningSceneAction_<std::allocator<void> > > >, actionlib::ManagedList<T>::Handle = actionlib::ManagedList<boost::shared_ptr<actionlib::CommStateMachine<arm_navigation_msgs::SyncPlanningSceneAction_<std::allocator<void> > > > >::Handle]: Assertion `valid_' failed.
+[ WARN] [1360148977.087488173]: Can't get planning scene
+[DEBUG] [1360148977.087539999]: goal_set.size()= 4
+[DEBUG] [1360148977.087563032]: set_planning_env for MP: BEGIN
+[ INFO] [1360148977.088754164]: waitForService: Service [/environment_server/get_robot_state] could not connect to host [torPC:45291], waiting...
+[environment_server-3] process has died [pid 13207, exit code -6, cmd /opt/ros/fuerte/stacks/arm_navigation/planning_environment/bin/environment_server __name:=environment_server __log:=/home/vektor/.ros/log/5b0e3278-7047-11e2-97fa-180373d9afe5/environment_server-3.log].
+log file: /home/vektor/.ros/log/5b0e3278-7047-11e2-97fa-180373d9afe5/environment_server-3*.log
+
+===
+[hiro_larm_U_chest_kinematics_2-8] process has died [pid 627, exit code -11, cmd /home/vektor/hiroken-ros-pkg/arm_kinematics/bin/arm_kinematics __name:=hiro_larm_U_chest_kinematics_2 __log:=/home/vektor/.ros/log/fe3a6b28-7025-11e2-8f95-180373d9afe5/hiro_larm_U_chest_kinematics_2-8.log].
+log file: /home/vektor/.ros/log/fe3a6b28-7025-11e2-8f95-180373d9afe5/hiro_larm_U_chest_kinematics_2-8*.log
+
+===
 [ERROR] [1359775481.094752156]: Exception thrown while processing service call: Duration is out of dual 32-bit range
 [ERROR] [1359775481.094898337]: Service call failed: service [/trajectory_filter_server/filter_trajectory_with_constraints] responded with an error: Duration is out of dual 32-bit range
 

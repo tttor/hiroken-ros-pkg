@@ -29,5 +29,10 @@ rosbuild_gensrv()
 #target_link_libraries(${PROJECT_NAME} another_library)
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
-rosbuild_add_executable(grasper src/grasp_planner.cpp)
-target_link_libraries(grasper log4cxx)
+
+#rosbuild_add_executable(sphere src/sphere.cpp)
+#target_link_libraries(sphere log4cxx)
+
+rosbuild_add_executable(ws_analyzer src/workspace_analyzer.cpp)
+target_link_libraries(ws_analyzer log4cxx)
+
