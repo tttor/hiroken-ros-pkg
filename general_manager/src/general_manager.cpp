@@ -1,17 +1,20 @@
 /*
 MODES
 case 1:// SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
-
+  $ roslaunch hiro_common a.launch mode:=1 n_obj:=1 n_run:=1 tidy_cfg:=/tidy_baseline.1.cfg suffix:=/run.test.20130220 
+  
 case 4:// randomized-SENSE only, messy.cfg is written in the base_data_path
-
+  $ roslaunch hiro_common a.launch mode:=4 n_obj:=5
+  
 case 5:// SENSE TIDY-cfg only, assume that the cfg file is under base_data_path
   $ roslaunch hiro_common a.launch mode:=5 tidy_cfg:=/tidy_tb2.l.cfg
 
 case 6:// messy_tb-SENSE only, assume that the cfg file is under base_data_path
   $ roslaunch hiro_common a.launch mode:=6 messy_cfg:=/messy_hot.cfg
   
-case 7:
+case 7:// SENSE-PLAN(UCS) with a test-bed messy config under the base_data_path one time only
   $ roslaunch hiro_common a.launch mode:=7 messy_cfg:=/messy_hot.cfg tidy_cfg:=/tidy_tb3.r.cfg suffix:=/run.3obj.20130122.c
+  $ roslaunch hiro_common a.launch mode:=7 messy_cfg:=/messy_tb1.cfg tidy_cfg:=/tidy_baseline.1.cfg suffix:=/run.test.20130220
 */
 #include <ros/ros.h>
 #include <arm_navigation_msgs/RobotTrajectory.h>

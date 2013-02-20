@@ -1,17 +1,18 @@
 <launch>
-  <arg name="joint_gui" default="False" />
-  
   <arg name="mode" default="1" />
-    <param name="mode" value="$(arg mode)"/>
+    <param name="mode_2" value="$(arg mode)"/>
   
   <arg name="path" default="/home/vektor/rss-2013/data/ws_analysis/ws.grid" />
-    <param name="grid_path" value="$(arg path)"/>  
+    <param name="grid_path" value="$(arg path)"/>
   
-  <!-- rbt_id must be 4 characters AND UPPER_CASE -->
-  <rosparam param="rbt_ids">['RARM:rarm,rarm_U_chest','LARM:larm,larm_U_chest']</rosparam>  
-  
+  <arg name="rbt_id" default="RARM" />
+    <param name="rbt_id" value="$(arg rbt_id)"/>
+
+  <arg name="jspace" default="rarm_U_chest" />
+    <param name="jspace" value="$(arg jspace)"/>
+        
   <!-- These are parameters for joint_state_publisher -->
-  <param name="use_gui" value="$(arg joint_gui)"/>
+  <param name="use_gui" value="False"/>
   <param name="rate" value="30"/>
   <rosparam param="source_list">['joint_state_cmd','joint_state_planning']</rosparam>
 

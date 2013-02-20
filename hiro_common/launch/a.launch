@@ -27,7 +27,7 @@
     <param name="n_run" value="$(arg n_run)"/>    
 
   <!-- rbt_id must be 4 characters AND UPPER_CASE -->
-  <rosparam param="rbt_ids">['RARM:rarm,rarm_U_chest','LARM:larm,larm_U_chest']</rosparam>  
+  <rosparam param="rbt_ids">['RARM:rarm_U_chest,rarm','LARM:larm_U_chest,larm']</rosparam>   
 
   <!-- for finding recorded task plans resulted by shop2 planner in advance -->
   <param name="task_planner_path" value="$(find task_planner)"/>
@@ -75,5 +75,9 @@
     
   <node name="general_mgr" pkg="general_manager" type="general_mgr" output="screen" />
   
+  <param name="mode_2" value="2"/>
+  <param name="grid_path" value="/home/vektor/rss-2013/data/ws_analysis/ws.25.RARM.grid"/>
+  <node name="ws_analyzer" pkg="ws_anal" type="ws_analyzer" output="screen" />
+   
   <!--node name="learner" pkg="learning_machine" type="learner" output="screen" /-->
 </launch>

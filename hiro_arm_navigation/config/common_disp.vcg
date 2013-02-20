@@ -1,7 +1,7 @@
 Background\ ColorB=0
 Background\ ColorG=0
 Background\ ColorR=0
-Camera\ Config=-0.285198 0.448145 0.894247 -0.154216 0.132307 1.12573
+Camera\ Config=-0.130199 1.64999 3.69562 -0.336218 -0.0951089 1.3745
 Camera\ Type=rviz::OrbitViewController
 FilteredPath.Alpha=0.6
 FilteredPath.Collision\ Enabled=0
@@ -14,7 +14,6 @@ FilteredPath.Visual\ Enabled=1
 FilteredPathPlan.Enabled=1
 FilteredPathPlan.Marker\ Topic=/filtered_path
 FilteredPathPlan.Queue\ Size=100
-FilteredPathPlan.filtered_trajectory=1
 Fixed\ Frame=/link_base
 GraspPlan.Enabled=1
 GraspPlan.Marker\ Array\ Topic=/state_validity_markers_array
@@ -34,6 +33,19 @@ Grid.OffsetZ=0
 Grid.Plane=0
 Grid.Plane\ Cell\ Count=4
 Grid.Reference\ Frame=<Fixed Frame>
+GridMarker.Enabled=1
+GridMarker.Marker\ Topic=/grid_marker
+GridMarker.Queue\ Size=100
+GridMarker.sphere_1=0
+GridMarker.sphere_10=0
+GridMarker.sphere_2=1
+GridMarker.sphere_3=0
+GridMarker.sphere_4=0
+GridMarker.sphere_5=0
+GridMarker.sphere_6=0
+GridMarker.sphere_7=0
+GridMarker.sphere_8=0
+GridMarker.sphere_9=0
 JointGoal.Alpha=0.6
 JointGoal.Collision\ Enabled=1
 JointGoal.Enabled=0
@@ -45,18 +57,11 @@ JointGoal.Visual\ Enabled=1
 PathPlan.Enabled=0
 PathPlan.Marker\ Topic=/planned_path
 PathPlan.Queue\ Size=0
-PlanningScene.CAN1=1
-PlanningScene.CAN2=1
-PlanningScene.CAN3=1
-PlanningScene.CAN4=1
-PlanningScene.Enabled=1
+PlanningScene.Enabled=0
 PlanningScene.Marker\ Topic=/planning_scene_markers
 PlanningScene.Queue\ Size=0
-PlanningScene.collision_map_markers=1
-PlanningScene.table=1
-PlanningScene.vase=1
 Property\ Grid\ Splitter=838,107
-Property\ Grid\ State=expanded=.Global Options,RobotModel.Enabled,TF.Enabled,TF.Frames,RoughPath.Enabled,FilteredPath.Enabled,PathPlan.Enabled,FilteredPathPlan.Enabled,GraspPlan.Enabled;splitterratio=0.599214
+Property\ Grid\ State=expanded=.Global Options,RobotModel.Enabled,FilteredPathPlan.Enabled,GraspPlan.Enabled,GridMarker.Enabled,GridMarker.Namespaces;splitterratio=0.599214
 QMainWindow=000000ff00000000fd00000002000000000000017f00000403fc0200000001fc0000001d00000403000000ee00fffffffa000000010100000002fb0000000800540069006d00650000000000ffffffff000002bf00fffffffb000000100044006900730070006c0061007900730100000000000002bf0000011d00ffffff000000010000013000000403fc0200000003fb0000001e0054006f006f006c002000500072006f0070006500720074006900650073000000001d000001ff0000006700fffffffb0000000a0056006900650077007300000001670000016f000000bb00fffffffb0000001200530065006c0065006300740069006f006e000000001d000004030000006700ffffff000005fb0000040300000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
 Robot\:\ RobotModel\ Link\ link_baseAlpha=1
 Robot\:\ RobotModel\ Link\ link_baseEnabled=1
@@ -162,6 +167,9 @@ Name=RobotModel
 [Display1]
 ClassName=rviz::GridDisplay
 Name=Grid
+[Display10]
+ClassName=rviz::MarkerDisplay
+Name=GridMarker
 [Display2]
 ClassName=rviz::TFDisplay
 Name=TF
