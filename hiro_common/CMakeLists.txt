@@ -11,6 +11,9 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
 rosbuild_init()
 
+#find_package(Eigen REQUIRED)
+#include_directories(${Eigen_INCLUDE_DIRS})
+
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
@@ -22,11 +25,18 @@ rosbuild_genmsg()
 rosbuild_gensrv()
 
 #common commands for building c++ executables and libraries
-#rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
+rosbuild_add_library(${PROJECT_NAME} src/jacobian.cpp)
 #target_link_libraries(${PROJECT_NAME} another_library)
+
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 
 rosbuild_add_executable(helper src/helper.cpp)
-
+target_link_libraries(helper ${PROJECT_NAME})
 target_link_libraries(helper log4cxx)
+
+#rosbuild_add_executable(test_jacobian test/test_jacobian.cpp)
+#target_link_libraries(test_jacobian ${PROJECT_NAME})
+#target_link_libraries(test_jacobian log4cxx)
+
+

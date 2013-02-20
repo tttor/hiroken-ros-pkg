@@ -20,9 +20,9 @@
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 
 static const size_t N_POINTS_ON_SPHERE = 10;
-static const size_t N_GRID_ONE_DIM = 25;//should be an odd number, otherwise it will be added by one
+static const size_t N_GRID_ONE_DIM = 3;//should be an odd number, otherwise it will be added by one
 static const double SPHERE_RADIUS = 0.025;
-static const double SPHERE_COLOR_A = 0.7;
+static const double SPHERE_COLOR_A = 1.;
 static const double PITCH_STEP = M_PI/6.;// in rad, for rotating the frame of a point by which IK is computed
 
 typedef geometry_msgs::Point Point;
@@ -54,16 +54,6 @@ WorkspaceAnalyzer(ros::NodeHandle& nh)
   state_validity_marker_array_pub_ = nh_.advertise<visualization_msgs::MarkerArray>("state_validity_markers_array", 128);
 }
 
-bool
-ws_eval_srv_handle(ws_anal::EvalWS::Request& req,ws_anal::EvalWS::Response& res)
-{
-  if( eval_grids(req.rbt_id,req.jspace,req.path) )
-    res.msg = "Success";
-  else
-    res.msg = "Failed";
-  return true;
-}
-
 void
 vis_grids()
 {
@@ -80,40 +70,66 @@ vis_grids()
     }
   }
 }
-//! Evaluate points on a sphere grid
-/*!
-  Whether they have a valid IK
-*/
-bool
-eval_grids(const std::string& rbt_id,const std::string& jspace,const std::string& path)
+
+//! Visualize only the spheress without points in the surface
+void
+vis_grids_2()
 {
-  ROS_DEBUG("eval_grids(): BEGIN");
-  
-  for(GridMap::iterator i=grid_map_.begin(); i!=grid_map_.end(); ++i)
+  if(grid_map_.empty())
   {
-    ROS_DEBUG_STREAM("Evaluating grid ID= " << i->first  << " of " << grid_map_.size());
+    ROS_WARN("grid_map_ is empty, return.");
+    return;
+  }
+  
+  std::vector<visualization_msgs::Marker> sphere_lists( get_rank(0.)+1 );
+  
+  for(GridMap::const_iterator i=grid_map_.begin(); i!=grid_map_.end(); ++i)
+  {
+    size_t rank;
+    rank = get_rank(i->second.D);
     
-    size_t R = 0; // R is the number of valid inverse kinematics solutions recorded
-    for(std::vector<geometry_msgs::Point>::const_iterator j=i->second.points.begin(); j!=i->second.points.end(); ++j)
+    sphere_lists.at(rank).points.push_back(i->second.sphere.first);// Push the center of the sphere grid
+  }
+  
+  ros::Rate r(10.);
+  while( ros::ok() )
+  {
+    for(std::vector<visualization_msgs::Marker>::iterator i=sphere_lists.begin()+1/* bypass the undefined rank at(0) */; i!=sphere_lists.end() and ros::ok(); ++i)
     {
-      if( eval_point(*j,i->second.sphere,rbt_id,jspace) )
-        ++R;
+      size_t rank;
+      rank = i-sphere_lists.begin();
       
-      ROS_DEBUG_STREAM("Evaluated " << j-i->second.points.begin()+1  << " points of " << i->second.points.size());
+      i->header.frame_id = "/table";
+      i->header.stamp = ros::Time::now();
+      i->ns = get_ns(rank);
+      i->id = rank;
+      i->type = visualization_msgs::Marker::SPHERE_LIST;
+      i->action = visualization_msgs::Marker::ADD;
+
+      // TODO dont know the use of this pose
+      // Said that: Note that pose is still used (the points in the line will be transformed by them), and the lines will be correct relative to the frame id specified in the header.
+      i->pose.position.x = 0.;
+      i->pose.position.y = 0.;
+      i->pose.position.z = 0.;
+      i->pose.orientation.x = 0.0;
+      i->pose.orientation.y = 0.0;
+      i->pose.orientation.z = 0.0;
+      i->pose.orientation.w = 1.0;
+
+      // Set the scale of the sphere -- 1x1x1 here means 1m on a side
+      i->scale.x = 2*SPHERE_RADIUS;
+      i->scale.y = 2*SPHERE_RADIUS;
+      i->scale.z = 2*SPHERE_RADIUS;
+
+      // Set the color -- be sure to set alpha to something non-zero!
+      i->color = get_color(rank);
+
+      i->lifetime = ros::Duration();
+      
+      grid_pub_.publish(*i);
+      r.sleep();
     }
-    
-    i->second.D = (double)R / (double)i->second.points.size() * 100.;
-    ROS_DEBUG_STREAM("D= " << i->second.D);
-    
-    // Update the grid
-    vis_grid(i->first,i->second);
-    
-  }// end of: for each grid
-  
-  write_grids(path);
-  
-  ROS_DEBUG("eval_grids(): END");
-  return true;
+  }
 }
 //! Build grid_map_
 /*!
@@ -122,7 +138,7 @@ eval_grids(const std::string& rbt_id,const std::string& jspace,const std::string
   \param n_sphere the number of spheres along a dimension
 */
 bool
-build_grids(size_t n, const double radius,const std::string& path)
+build_grids(size_t n, const double radius,const std::string& rbt_id,const std::string jspace,const std::string& path)
 {
   // n must be odd
   if(!(n%2))
@@ -164,6 +180,10 @@ build_grids(size_t n, const double radius,const std::string& path)
     }
   }
   
+  // Evaluate
+  eval_grids(rbt_id,jspace,path);
+  
+  // Store
   write_grids(path);
   
   return true;
@@ -244,6 +264,36 @@ build_grids(const std::string& path)
 }
 
 private:
+//! Evaluate points on a sphere grid
+/*!
+  Whether they have a valid IK
+*/
+bool
+eval_grids(const std::string& rbt_id,const std::string& jspace,const std::string& path)
+{
+  ROS_DEBUG("eval_grids(): BEGIN");
+  
+  for(GridMap::iterator i=grid_map_.begin(); i!=grid_map_.end(); ++i)
+  {
+    ROS_DEBUG_STREAM("Evaluating grid ID= " << i->first  << " of " << grid_map_.size());
+    
+    size_t R = 0; // R is the number of valid inverse kinematics solutions recorded
+    for(std::vector<geometry_msgs::Point>::const_iterator j=i->second.points.begin(); j!=i->second.points.end(); ++j)
+    {
+      if( eval_point(*j,i->second.sphere,rbt_id,jspace) )
+        ++R;
+      
+      ROS_DEBUG_STREAM("Evaluated " << j-i->second.points.begin()+1  << " points of " << i->second.points.size());
+    }
+    
+    // D = R/N*100
+    i->second.D = (double)R / (double)i->second.points.size() * 100.;
+    ROS_DEBUG_STREAM("D= " << i->second.D);
+  }// end of: for each grid
+  
+  ROS_DEBUG("eval_grids(): END");
+  return true;
+}
 //! Eval a point
 /*
   http://demonstrations.wolfram.com/TangentPlaneToASphere/
@@ -546,7 +596,6 @@ vis_grid(const size_t& id,const Grid& grid)
   points.color.r = 1.0f;
   points.color.a = 1.0;
 
-  // Distribute points uniformly in a sphere
   points.points = grid.points;
 
   grid_pub_.publish(points);
@@ -555,19 +604,7 @@ vis_grid(const size_t& id,const Grid& grid)
 std::string
 get_ns(const size_t& rank)
 {
-  std::string ns;
-  
-  switch(rank)
-  {
-    case 1:
-      ns = "sphere_1"; break;
-    case 2:
-      ns = "sphere_2"; break;
-    default:
-      ns = "sphere";
-  }
-  
-  return ns;
+  return std::string("sphere_"+boost::lexical_cast<std::string>(rank));
 }
 
 std_msgs::ColorRGBA
@@ -579,6 +616,51 @@ get_color(const size_t& rank)
   {
     case 1:
     {
+      color.r = .5;
+      color.g = 0.;
+      color.b = 1.;
+      color.a = SPHERE_COLOR_A;
+      
+      break;
+    }
+    case 2:
+    {
+      color.r = 0.;
+      color.g = 0.;
+      color.b = 1.;
+      color.a = SPHERE_COLOR_A;
+      
+      break;
+    }
+    case 3:
+    {
+      color.r = 0.;
+      color.g = .5;
+      color.b = 1.;
+      color.a = SPHERE_COLOR_A;
+      
+      break;
+    }
+    case 4:
+    {
+      color.r = 0.;
+      color.g = 1.;
+      color.b = 1.;
+      color.a = SPHERE_COLOR_A;
+      
+      break;
+    }
+    case 5:
+    {
+      color.r = 0.;
+      color.g = 1.;
+      color.b = .5;
+      color.a = SPHERE_COLOR_A;
+      
+      break;
+    }
+    case 6:
+    {
       color.r = 0.;
       color.g = 1.;
       color.b = 0.;
@@ -586,7 +668,34 @@ get_color(const size_t& rank)
       
       break;
     }
-    case 2:
+    case 7:
+    {
+      color.r = .5;
+      color.g = 1.;
+      color.b = 0.;
+      color.a = SPHERE_COLOR_A;
+      
+      break;
+    }
+    case 8:
+    {
+      color.r = 1.;
+      color.g = 1.;
+      color.b = 0.;
+      color.a = SPHERE_COLOR_A;
+      
+      break;
+    }
+    case 9:
+    {
+      color.r = 1.;
+      color.g = .5;
+      color.b = 0.;
+      color.a = SPHERE_COLOR_A;
+      
+      break;
+    }
+    case 10:
     {
       color.r = 1.;
       color.g = 0.;
@@ -597,7 +706,8 @@ get_color(const size_t& rank)
     }
     default:
     {
-      color.r = 0.;
+      //magenta
+      color.r = 1.;
       color.g = 0.;
       color.b = 1.;
       color.a = SPHERE_COLOR_A;
@@ -616,8 +726,24 @@ get_rank(const double& D)
 {
   if( (D>=90.)and(D<101.) )
     return 1;
-  else if( (D>=0.)and(D<90.) )
+  else if( (D>=80.)and(D<90.) )
     return 2;
+  else if( (D>=70.)and(D<80.) )
+    return 3;
+  else if( (D>=60.)and(D<70.) )
+    return 4;
+  else if( (D>=50.)and(D<60.) )
+    return 5;
+  else if( (D>=40.)and(D<50.) )
+    return 6;
+  else if( (D>=30.)and(D<40.) )
+    return 7;
+  else if( (D>=20.)and(D<30.) )
+    return 8;
+  else if( (D>=10.)and(D<20.) )
+    return 9;
+  else if( (D>=0.)and(D<10.) )
+    return 10;
   else
     return 0;
 }
@@ -680,33 +806,37 @@ main(int argc, char** argv)
 
   ros::ServiceServer ws_eval_srv;// must be outside the case{} block
         
-  int mode = 0;
-  if( !ros::param::get("/mode",mode) )
-  ROS_WARN("Can not get /mode, use the default value (=0) instead");
+  int mode_2 = 0;
+  if( !ros::param::get("/mode_2",mode_2) )
+  ROS_WARN("Can not get /mode_2, use the default value (=0) instead");
   
   std::string grid_path; 
   if( !ros::param::get("/grid_path",grid_path) )
     ROS_WARN("Can not get /grid_path, use the default value instead");  
 
-  switch(mode)
+  switch(mode_2)
   {
-    case 1:// BUILD then offer evaluation
+    case 1:// BUILD and evaluate
     {
-      ws_anal.build_grids(N_GRID_ONE_DIM,SPHERE_RADIUS,grid_path);
-      
-      ws_eval_srv = nh.advertiseService("eval_ws", &WorkspaceAnalyzer::ws_eval_srv_handle, &ws_anal); 
-      
+      std::string rbt_id="RARM"; 
+      if( !ros::param::get("/rbt_id",rbt_id) )
+        ROS_WARN("Can not get /rbt_id, use them default value instead");  
+    
+      std::string jspace="rarm_U_chest"; 
+      if( !ros::param::get("/jspace",jspace) )
+        ROS_WARN("Can not get /jspace, use the default value instead");  
+        
+      ws_anal.build_grids(N_GRID_ONE_DIM,SPHERE_RADIUS,rbt_id,jspace,grid_path);
       break;
     }
     case 2:// MERELY re-build 
     {
       ws_anal.build_grids(grid_path);
-      
       break;
     }
   }
   
-  ws_anal.vis_grids();
+  ws_anal.vis_grids_2();
   
   ROS_INFO("ws_anal: spinning...");
   ros::spin();

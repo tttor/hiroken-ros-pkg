@@ -8,19 +8,29 @@
 #include <kinematics_msgs/GetConstraintAwarePositionIK.h>
 
 #include <visualization_msgs/Marker.h>
-
 #include <arm_navigation_msgs/GetPlanningScene.h>
 #include <planning_environment/models/collision_models.h>
-
 #include <sensor_msgs/JointState.h>
 
+#include <algorithm>
+
 #include "grasp_planner/PlanGrasp.h"
+#include "hiro_common/GetManipulability.h"
 
 #include "hiro_utils.hpp"
 
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 static const double GRASP_PADDING = 0.070;
 static const size_t YAW_STEP = (360./5.);// It means each step is (2*M_PI)/YAW_STEP radian = (360)/YAW_STEP degree
+
+struct GraspRanker
+{
+  bool 
+  operator()(std::pair<sensor_msgs::JointState,double> i,std::pair<sensor_msgs::JointState,double> j)
+  { 
+  return (i.second > j.second); 
+  }
+};
 
 class GraspPlanner
 {
@@ -42,16 +52,20 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request &req, grasp_planner::Pla
   std::string get_ik_solver_info_str = "hiro_" + req.jspace + "_kinematics_2/get_ik_solver_info";
   ros::service::waitForService(get_ik_solver_info_str);
   
-  ros::ServiceClient ik_solver_info_client = nh_.serviceClient<kinematics_msgs::GetKinematicSolverInfo>(get_ik_solver_info_str);
+  ros::ServiceClient ik_solver_info_client;
+  ik_solver_info_client = nh_.serviceClient<kinematics_msgs::GetKinematicSolverInfo>(get_ik_solver_info_str);
 
   kinematics_msgs::GetKinematicSolverInfo::Request gksi_req;
   kinematics_msgs::GetKinematicSolverInfo::Response gksi_res;
 
   if( !ik_solver_info_client.call(gksi_req, gksi_res) )
   {
-    ROS_ERROR("Could not call IK info query service");
+    ROS_ERROR("ik_solver_info_client.call ... FAILED");
     return false;
   }
+  
+  // For storing all possible grasp poses along with its manipulability
+  std::vector< std::pair<sensor_msgs::JointState,double> > grasp_poses;
    
   const size_t yaw_step = YAW_STEP;
   const double yaw_step_ang = (2*M_PI)/yaw_step;
@@ -62,7 +76,7 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request &req, grasp_planner::Pla
   
   ROS_DEBUG("Start looping over yaw_steps");
   ros::Rate rate(120.);// Should be higher that object_tf publishing rate (from vision_sensor))
-  for(size_t i=0; i<yaw_step;++i)
+  for(size_t i=0; i<yaw_step; ++i)
   {
 //    tf::StampedTransform object_tf;
 //    
@@ -121,99 +135,111 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request &req, grasp_planner::Pla
     
     ros::ServiceClient ik_solver_client = nh_.serviceClient<kinematics_msgs::GetPositionIK>(get_ik_solver_str);
     
-    if(ik_solver_client.call(gpik_req, gpik_res))
+    if( !ik_solver_client.call(gpik_req, gpik_res) )
     {
-      if(gpik_res.error_code.val == gpik_res.error_code.SUCCESS)
-      {
-        // Check further
-        ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
-        get_planning_scene_client_ = nh_.serviceClient<arm_navigation_msgs::GetPlanningScene>(SET_PLANNING_SCENE_DIFF_NAME);
-
-        arm_navigation_msgs::GetPlanningScene::Request planning_scene_req;
-        arm_navigation_msgs::GetPlanningScene::Response planning_scene_res;
-
-        if(!get_planning_scene_client_.call(planning_scene_req, planning_scene_res)) {
-          ROS_WARN("Can't get planning scene");
-          return -1;
-        }
-
-        planning_environment::CollisionModels collision_models("robot_description");
-
-        planning_models::KinematicState* state = collision_models.setPlanningScene(planning_scene_res.planning_scene);
-        
-        std::vector<std::string> arm_names = collision_models.getKinematicModel()->getModelGroup(req.jspace)->getUpdatedLinkModelNames();
-        std::vector<std::string> joint_names = collision_models.getKinematicModel()->getModelGroup(req.jspace)->getJointModelNames();
-        
-        std::map<std::string, double> joint_values;
-        for(size_t k=0; k<joint_names.size(); ++k)
-        {
-         joint_values[joint_names.at(k)] = gpik_res.solution.joint_state.position.at(k);
-        }
-        state->setKinematicState(joint_values);
-        
-        std_msgs::ColorRGBA good_color, collision_color, joint_limits_color;
-        good_color.a = collision_color.a = joint_limits_color.a = .8;
-
-        good_color.g = 1.0;
-        collision_color.r = 1.0;
-        joint_limits_color.b = 1.0;
-        
-        std_msgs::ColorRGBA point_markers;
-        point_markers.a = 1.0;
-        point_markers.r = 1.0;
-        point_markers.g = .8;
-
-        std_msgs::ColorRGBA color;
-        visualization_msgs::MarkerArray arr;
-        
-        if(!state->areJointsWithinBounds(joint_names)) 
-        {
-          color = joint_limits_color;
-        }
-        else if(collision_models.isKinematicStateInCollision(*state)) 
-        {
-          color = collision_color;
-          collision_models.getAllCollisionPointMarkers(*state,
-                                                       arr,
-                                                       point_markers,
-                                                       ros::Duration(0.2));
-        }
-        else 
-        {
-          color = good_color;
-          
-          ++num_grasp_plan;
-          
-          // Overwrite some stuff!
-          gpik_res.solution.joint_state.header.seq = num_grasp_plan - 1;// The index begins at 0
-          gpik_res.solution.joint_state.header.stamp = ros::Time::now();
-          
-          res.grasp_plans.push_back(gpik_res.solution.joint_state);
-        }
-
-        collision_models.getRobotMarkersGivenState(*state,
-                                                   arr,
-                                                   color,
-                                                   req.jspace,
-                                                   ros::Duration(0.2),
-                                                   &arm_names);
-        state_validity_marker_array_pub_.publish(arr);
-        collision_models.revertPlanningScene(state); 
-      }
-      else
-      {
-        //ROS_ERROR("Inverse kinematics failed");
-      }
+      ROS_ERROR("ik_solver_client.call ... FAILED");
+      continue;
     }
-    else
+    
+    if(gpik_res.error_code.val != gpik_res.error_code.SUCCESS)
     {
-      //ROS_ERROR("Inverse kinematics service call failed");
+      ROS_DEBUG_STREAM("Inverse kinematics for step= " << i << " returns no solution");// But the call is successful
+      continue;
     }
+    
+    // Check further i.e. for collision with obstacles
+    ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
+    get_planning_scene_client_ = nh_.serviceClient<arm_navigation_msgs::GetPlanningScene>(SET_PLANNING_SCENE_DIFF_NAME);
+
+    arm_navigation_msgs::GetPlanningScene::Request planning_scene_req;
+    arm_navigation_msgs::GetPlanningScene::Response planning_scene_res;
+
+    if(!get_planning_scene_client_.call(planning_scene_req, planning_scene_res)) {
+      ROS_WARN("Can't get planning scene");
+      continue;
+    }
+
+    planning_environment::CollisionModels collision_models("robot_description");
+
+    planning_models::KinematicState* state = collision_models.setPlanningScene(planning_scene_res.planning_scene);
+    
+    std::vector<std::string> arm_names = collision_models.getKinematicModel()->getModelGroup(req.jspace)->getUpdatedLinkModelNames();
+    std::vector<std::string> joint_names = collision_models.getKinematicModel()->getModelGroup(req.jspace)->getJointModelNames();
+    
+    std::map<std::string, double> joint_values;
+    for(size_t k=0; k<joint_names.size(); ++k)
+    {
+     joint_values[joint_names.at(k)] = gpik_res.solution.joint_state.position.at(k);
+    }
+    state->setKinematicState(joint_values);
+    
+    std_msgs::ColorRGBA good_color, collision_color, joint_limits_color;
+    good_color.a = collision_color.a = joint_limits_color.a = .8;
+
+    good_color.g = 1.0;
+    collision_color.r = 1.0;
+    joint_limits_color.b = 1.0;
+    
+    std_msgs::ColorRGBA point_markers;
+    point_markers.a = 1.0;
+    point_markers.r = 1.0;
+    point_markers.g = .8;
+
+    std_msgs::ColorRGBA color;
+    visualization_msgs::MarkerArray arr;
+    
+    if(!state->areJointsWithinBounds(joint_names)) 
+    {
+      color = joint_limits_color;
+    }
+    else if(collision_models.isKinematicStateInCollision(*state)) 
+    {
+      color = collision_color;
+      collision_models.getAllCollisionPointMarkers(*state,arr,point_markers,ros::Duration(0.2));
+    }
+    else 
+    {
+      color = good_color;
+      ++num_grasp_plan;
+      
+      // Overwrite some stuff!
+      gpik_res.solution.joint_state.header.seq = num_grasp_plan - 1;// The index begins at 0
+      gpik_res.solution.joint_state.header.stamp = ros::Time::now();
+      
+      // Get manipulability
+      ros::service::waitForService("get_manipulability");
+      
+      ros::ServiceClient gm_client;
+      gm_client = nh_.serviceClient<hiro_common::GetManipulability>("get_manipulability");
+      
+      hiro_common::GetManipulability::Request gm_req;
+      hiro_common::GetManipulability::Response gm_res;
+      
+      gm_req.jstate = gpik_res.solution.joint_state;
+      gm_req.jspace = req.jspace;
+      
+      if( !(gm_client.call(gm_req,gm_res)) )
+      {
+        ROS_DEBUG("GetManipulability srv call: failed");
+        return false;
+      }
+      
+      grasp_poses.push_back( std::make_pair(gpik_res.solution.joint_state,gm_res.m) );
+    }
+
+    collision_models.getRobotMarkersGivenState(*state,arr,color,req.jspace,ros::Duration(0.2),&arm_names);
+    state_validity_marker_array_pub_.publish(arr);
+    collision_models.revertPlanningScene(state); 
+ 
     rate.sleep();
   } // End of for(size_t i=0; i<yaw_step;++i)
   ROS_DEBUG("Finished looping over yaw_steps");
   
-  // Commented because there will be no significant diff. between failure and successful  
+  // TODO Order the goal poses in the goal set based on their manipulability measures
+  GraspRanker ranker;
+  std::sort(grasp_poses.begin(),grasp_poses.end(),ranker);
+  
+  // Get the process_cost for the entire grasp planning, which may return more than one grasp poses
   const double failure_w = 10.;
   const size_t n_failure = yaw_step - num_grasp_plan;
   res.process_cost = failure_w * (double) pow( (double)n_failure/yaw_step, 2 );
@@ -222,14 +248,21 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request &req, grasp_planner::Pla
   if(num_grasp_plan==0)
     res.process_cost += failure_penalty;
   
+  // Put as the response
+  for(std::vector< std::pair<sensor_msgs::JointState,double> >::const_iterator i=grasp_poses.begin(); i!=grasp_poses.end(); ++i)
+  {
+    ROS_DEBUG_STREAM("m["<< i-grasp_poses.begin() << "]= " << i->second);
+    res.grasp_plans.push_back(i->first);
+  }
+  
   ROS_DEBUG_STREAM("Grasp planning: DONE with " << num_grasp_plan << " grasp plan(s)");
   return true;
 }
+
 private:
+
 ros::NodeHandle nh_;
-
 ros::ServiceClient get_planning_scene_client_;
-
 ros::Publisher state_validity_marker_array_pub_;
 };
 

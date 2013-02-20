@@ -15,6 +15,7 @@
   <depend package="visualization_msgs"/>
   <depend package="planning_environment"/>
   <depend package="sensor_msgs"/>  
+  <depend package="hiro_common"/>  
 </package>
 
 

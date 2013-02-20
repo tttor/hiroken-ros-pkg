@@ -12,13 +12,17 @@
 #include <arm_navigation_msgs/SetPlanningSceneDiff.h>
 #include <arm_navigation_msgs/PlanningScene.h>
 
-#include "hiro_common/PathQuality.h"
-#include "hiro_common/BenchmarkPath.h"
-
 #include <vector>
 #include <boost/math/constants/constants.hpp>
 #include <math.h>
 #include <algorithm>
+
+#include "hiro_common/PathQuality.h"
+#include "hiro_common/BenchmarkPath.h"
+#include "hiro_common/GetManipulability.h"
+
+#include "jacobian.hpp"
+#include "hiro_utils.hpp"
 
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 
@@ -54,8 +58,10 @@ motion_plan_subs_cb(const trajectory_msgs::JointTrajectory::ConstPtr& msg)
 }
 
 bool
-benchmark_path_srv_cb(hiro_common::BenchmarkPath::Request& req, hiro_common::BenchmarkPath::Response& res)
+benchmark_path_srv_handle(hiro_common::BenchmarkPath::Request& req, hiro_common::BenchmarkPath::Response& res)
 {
+  ROS_DEBUG("BenchmarkPath: BEGIN");
+  
   if(req.trajectory.points.empty())
   {
     res.length = 0.;  
@@ -73,6 +79,45 @@ benchmark_path_srv_cb(hiro_common::BenchmarkPath::Request& req, hiro_common::Ben
     res.length = len;
   }
   
+  ROS_DEBUG("BenchmarkPath: END");
+  return true;
+}
+
+bool
+get_manipulability_srv_handle(hiro_common::GetManipulability::Request& req,hiro_common::GetManipulability::Response& res)
+{
+  // Get a subset of joint states (that may contain the entire robot state) for given jspace
+  planning_environment::CollisionModels collision_models("robot_description");
+  
+  std::vector<std::string> joint_names;
+  joint_names = collision_models.getKinematicModel()->getModelGroup(req.jspace)->getJointModelNames();
+  
+  std::vector<double> joint_states( joint_names.size() );
+  
+  for(std::vector<std::string>::const_iterator i=joint_names.begin(); i!=joint_names.end(); ++i)
+  {
+    for(std::vector<std::string>::const_iterator j=req.jstate.name.begin(); j!=req.jstate.name.end(); ++j)
+    {
+      if( !strcmp(i->c_str(),j->c_str()) )
+      {
+        joint_states.at( i-joint_names.begin() ) = req.jstate.position.at( j-req.jstate.name.begin() );
+        break;
+      }
+    }
+  }  
+  
+  // Get the jacobian
+  Jacobian jac_utils;
+  jac_utils.initialize( get_base_link(req.jspace),get_tip_link(req.jspace) );
+  
+  Eigen::Map<Eigen::VectorXd> eigen_joint_states(&joint_states[0], joint_states.size());
+
+//  Eigen::MatrixXd jacobian;
+//  jac_utils.getJacobian(eigen_joint_states, jacobian);
+  
+  res.m = jac_utils.getManipulabilityMeasure(eigen_joint_states);
+  ROS_DEBUG_STREAM("m= " << jac_utils.getManipulabilityMeasure(eigen_joint_states));
+
   return true;
 }
 
@@ -355,22 +400,6 @@ solve_fk(const trajectory_msgs::JointTrajectoryPoint& point, const std::string& 
 }
 
 std::string
-get_tip_link(const std::string& jspace)
-{
-  std::string tip_link;
-  if( !strcmp(jspace.c_str(),std::string("rarm").c_str()) or !strcmp(jspace.c_str(),std::string("rarm_U_chest").c_str()) )
-  {
-    tip_link = "/link_rhand_palm";
-  }
-  else if( !strcmp(jspace.c_str(),std::string("larm").c_str()) or !strcmp(jspace.c_str(),std::string("larm_U_chest").c_str()) )
-  {
-    tip_link = "/link_lhand_palm";
-  }
-  
-  return tip_link;
-}
-
-std::string
 get_jspace(std::vector<std::string> jnames)
 {
   std::string jspace;
@@ -434,11 +463,14 @@ main(int argc, char** argv)
   ros::Subscriber motion_plan_sub = nh.subscribe("motion_plan", 1, &Helper::motion_plan_subs_cb, &helper);
   
   ros::ServiceServer benchmark_path_srv;
-  benchmark_path_srv = nh.advertiseService("benchmark_motion_plan", &Helper::benchmark_path_srv_cb, &helper);
+  benchmark_path_srv = nh.advertiseService("benchmark_motion_plan", &Helper::benchmark_path_srv_handle, &helper);
 
+  ros::ServiceServer get_manipulability_srv;
+  get_manipulability_srv = nh.advertiseService("get_manipulability", &Helper::get_manipulability_srv_handle, &helper);
+  
   // TODO !!!  
 //  ros::ServiceServer display_motion_plan_srv_;
-//  display_motion_plan_srv_ = nh.advertiseService("benchmark_motion_plan", &TaskPlanner::display_motion_plan, &tp);
+//  display_motion_plan_srv_ = nh.advertiseService("display_motion_plan", &TaskPlanner::display_motion_plan, &tp);
   
   ROS_INFO("helper:: UP and RUNNING");
   

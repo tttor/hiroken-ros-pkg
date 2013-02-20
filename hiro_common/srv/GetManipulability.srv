@@ -1,0 +1,4 @@
+sensor_msgs/JointState jstate #this may contain either the entire joint state of a robot or a subset of it
+string jspace
+---
+float64 m #the manipulability measure

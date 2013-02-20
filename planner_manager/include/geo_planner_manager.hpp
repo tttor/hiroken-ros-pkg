@@ -36,15 +36,9 @@ struct GeoPlanningCost
   double result;
   
   double
-  total(const double& w)
+  total()
   {
-    return ( (w*process) + ((1.0-w)*result) );
-  }
-  
-  double
-  total(const double& wp,const double& wr)
-  {
-    return ( (wp*process) + (wr*result) );
+    return (process + result);
   }
 };
 
@@ -101,111 +95,60 @@ plan(TMMEdge e)
   else
   { }
   
-  // MOTION PLANNING ================================================================================================
+  // MOTION PLANNING ================================================================================================================================
   // Prepare the planning environment to do motion planning
   set_planning_env( source(e,pm_->tmm_) );
-  
-  // Sanity check to make sure that the planning environment has been set based in jstate_vertex 
-  {
-    arm_navigation_msgs::GetRobotState::Request req;
-    arm_navigation_msgs::GetRobotState::Response res;
-
-    ros::service::waitForService("/environment_server/get_robot_state");
-    ros::ServiceClient get_rbt_state_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetRobotState>("/environment_server/get_robot_state");
-
-    if( !get_rbt_state_client.call(req, res) )
-    { 
-      ROS_WARN("Call to /environment_server/get_robot_state: FAILED");
-    }
-    else
-    {
-      for(std::vector<std::string>::const_iterator ii=res.robot_state.joint_state.name.begin(); ii!=res.robot_state.joint_state.name.end(); ++ii)
-      {
-        sensor_msgs::JointState jstates;
-        jstates = get(vertex_jstates, pm_->tmm_, source(e, pm_->tmm_));
-      
-        std::vector<std::string>::iterator j;
-        j = std::find(jstates.name.begin(),jstates.name.end(),*ii);
-        
-        if( jstates.position.at(j-jstates.name.begin()) != res.robot_state.joint_state.position.at(ii-res.robot_state.joint_state.name.begin()) )
-        {
-          ROS_ERROR_STREAM("DIFF-4 on" << *j);
-          ROS_ERROR("Planning env. has not yet set properly");
-        }
-      }
-    }
-  }
   
   // Put the geometric config of source vertex set above into edge prop.
   put( edge_srcstate,pm_->tmm_,e,get_planning_env(e) );
   
   // Obtain the best motion plan
+  // Assume that the motion planner always return the best motion plan for every start and goal poses
+  // Assume that the higher the manipulability the more likely the chance to obtain a better motion plan
   ROS_DEBUG("Start planning motions");
-  trajectory_msgs::JointTrajectory best_plan;
   
-  GeoPlanningCost cheapest_cost;// Initialize with a high value because it serves as a base for comparison
-  cheapest_cost.result = std::numeric_limits<double>::max();
-  cheapest_cost.process = std::numeric_limits<double>::max();
+  // For the motion plan
+  trajectory_msgs::JointTrajectory plan;
+  GeoPlanningCost cost;
+  bool found = false;
   
-  // Set the weight for process and result costs
-  double wp = 1.0;
-  double wr = 1.0;
-
   // For calculating iter_cost
-  size_t n_success = 0;
+  size_t n_attempt = 0;
   size_t n_failure = 0;
-  
-  // For suppressing the planning time
-  const size_t expected_n_success = 1;
   
   // Try to plan a motion for all possible goal states in the goal set. Then, take the best among them.
   // This means that we consider a goal set not only a single goal state.
   for(std::vector<sensor_msgs::JointState>::const_iterator i=goal_set.begin(); i!=goal_set.end(); ++i)
   {
-    ROS_INFO_STREAM( "Attempt: " << i-goal_set.begin()+1 << "-th of " << goal_set.size() );
+    ++n_attempt;
+    ROS_INFO_STREAM( "Attempt: " << n_attempt << "-th of " << goal_set.size() );
+  
+    found = false;
+    sensor_msgs::JointState goal_state = *i;
 
-    trajectory_msgs::JointTrajectory plan;
-    GeoPlanningCost cost;
-    bool found;
-
-    if(  plan_motion( start_state,*i,get(edge_jspace,pm_->tmm_,e),&plan,&cost,&found )  )
+    if(  plan_motion( start_state,goal_state,get(edge_jspace,pm_->tmm_,e),&plan,&cost,&found )  )
     {
-      if( cost.total(wp,wr) < cheapest_cost.total(wp,wr) )
-      {
-        ROS_DEBUG("The new plan is better. If this is the first, the new plan may even empty (motion planning fail).");
-        
-        cheapest_cost = cost;
-        best_plan = plan;
-      }
-        
       if(found)
-        ++n_success;
+        break;// from iterating over the goal set; struggling exactly only for one motion plan solution
       else
         ++n_failure;
     }
     else
     {
       ROS_WARN("A call to /ompl_planning/plan_kinematic_path and or /benchmark_motion_plan: FAILED.");
+      ++n_failure;
     }
-    
-    // TODO MUST be commented on real runs
-    if(n_success >= expected_n_success )
-    {
-      ROS_WARN_STREAM("motion planning attempt is suppressed with expected_n_success= " << expected_n_success);
-      break;
-    }
-    
   }
-  ROS_INFO_STREAM("n_success= " << n_success);
+  ROS_INFO_STREAM("n_attempt= " << n_attempt);
   ROS_INFO_STREAM("n_failure= " << n_failure);
  
-  if(n_success==0) // even after considering all goal poses in the goal_set
+  if( !found ) // even after considering all goal poses in the goal_set
   {
     ROS_INFO_STREAM("No motion plan for " << goal_set.size() << " goals for e= " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e));
     
-//    // Have to reinforce these values, otherwise it will use cheapest_cost.X = std::numeric_limits<double>::max();
-//    cheapest_cost.result = 0.;
-//    cheapest_cost.process = (ALLOWED_PLANNING_TIME*NUM_PLANNING_ATTEMPTS) + ALLOWED_SMOOTHING_TIME + exp(MAX_JSPACE_DIM/MAX_JSPACE_DIM);
+    // Note that although there is no motion plan found, the cost is defined as (set at plan_motion())
+    //cost->result = 0.;
+    //cost->process = jspace_cost + planning_time + MOTION_PLANNING_FAILURE_PENALTY;
     
     put(edge_color,pm_->tmm_,e,std::string("red"));// geometrically validated but no motion plan
   }
@@ -216,83 +159,13 @@ plan(TMMEdge e)
   
   // Calculate the cost of iterating over the goal set
   double iter_cost;
-  iter_cost = exp( (double)n_failure/(double)(n_success+n_failure) );// (n_success+n_failure) = goal_set.size()
+  iter_cost = exp( (double)n_failure/(double)(n_attempt) );
 
   // Put the best motion plan of this edge e and its geo. planning cost
-  put(edge_plan, pm_->tmm_, e, best_plan);
-  put(edge_planstr, pm_->tmm_,e,get_planstr(best_plan));
-  put(edge_weight, pm_->tmm_, e, cheapest_cost.total(wp,wr) + (wp*iter_cost) );// Thus, process_cost is 4 times worth it than result_cost; 0.8:0.2
+  put( edge_plan,pm_->tmm_,e,plan );
+  put( edge_planstr,pm_->tmm_,e,get_planstr(plan) );
+  put( edge_weight,pm_->tmm_,e,cost.total()+iter_cost );
   
-  // Sanity check for the best motion plan
-  if( !best_plan.points.empty())
-  {
-    bool passed = true;
-    trajectory_msgs::JointTrajectoryPoint start_point = best_plan.points.front();
-    
-    //(1) the first waypoint of the motion plan = start_state defined above
-    for(std::vector<std::string>::const_iterator ii=best_plan.joint_names.begin(); ii!=best_plan.joint_names.end(); ++ii)
-    {
-      std::vector<std::string>::iterator j;
-      j = std::find(start_state.name.begin(),start_state.name.end(),*ii);
-      
-      if( start_state.position.at(j-start_state.name.begin()) != start_point.positions.at(ii-best_plan.joint_names.begin()) )
-      {
-        ROS_ERROR_STREAM("DIFF-1 on" << *j);
-        passed = false;
-      }
-    }
-    
-    //(2) the first waypoint of the motion plan = jstate of the source vertex of this edge
-    for(std::vector<std::string>::const_iterator ii=best_plan.joint_names.begin(); ii!=best_plan.joint_names.end(); ++ii)
-    {
-      sensor_msgs::JointState jstates;
-      jstates = get(vertex_jstates, pm_->tmm_, source(e, pm_->tmm_));
-    
-      std::vector<std::string>::iterator j;
-      j = std::find(jstates.name.begin(),jstates.name.end(),*ii);
-      
-      if( jstates.position.at(j-jstates.name.begin()) != start_point.positions.at(ii-best_plan.joint_names.begin()) )
-      {
-        ROS_ERROR_STREAM("DIFF-2 on" << *j);
-        passed = false;
-      }
-    }
-    
-    //(3) the first waypoint of the motion plan = jstate of the planning environment before being reset
-    arm_navigation_msgs::GetRobotState::Request req;
-    arm_navigation_msgs::GetRobotState::Response res;
-    
-    ros::service::waitForService("/environment_server/get_robot_state");
-    ros::ServiceClient get_rbt_state_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetRobotState>("/environment_server/get_robot_state");
-    
-    if( !get_rbt_state_client.call(req, res) )
-    { 
-      ROS_WARN("Call to /environment_server/get_robot_state: FAILED");
-    }
-    else
-    {
-      for(std::vector<std::string>::const_iterator ii=best_plan.joint_names.begin(); ii!=best_plan.joint_names.end(); ++ii)
-      {
-        sensor_msgs::JointState jstates;
-        jstates = res.robot_state.joint_state;
-      
-        std::vector<std::string>::iterator j;
-        j = std::find(jstates.name.begin(),jstates.name.end(),*ii);
-        
-        if( jstates.position.at(j-jstates.name.begin()) != start_point.positions.at(ii-best_plan.joint_names.begin()) )
-        {
-          ROS_ERROR_STREAM("DIFF-3 on" << *j);
-          passed = false;
-        }
-      }
-    }
-    
-    if(!passed)
-    {
-      ROS_ERROR("not passed sanity check, return!");
-    }
-  }//end of: if( !best_plan.points.empty())
-    
   // Reset the planning environment
   reset_planning_env();
     
@@ -662,7 +535,7 @@ private:
 //! Obtain jstate subset from the whole joint-state of the robot 
 /*!
   Note that this dual-arm robot entirely has 6+6+1+2=15 joints.
-  Therefore, to activate one arm at a time, we have to obtain a subset for the activated arm from the while joint space.
+  Therefore, to activate one arm at a time, we have to obtain a subset for the activated arm from the entire joint space.
   
   In addition, in one activated arm, there are 2 possible joint space: "rarm_U_chest" and "rarm".
 */
@@ -673,6 +546,7 @@ get_jstate_subset(const std::string& jspace, const sensor_msgs::JointState& jsta
   
   // Interpret jspace names
   // TODO use get_joints_in_group (planning_environment_msgs/GetJointsInGroup) srv OR /robot_description_planning/groups parameters
+  // TODO http://answers.ros.org/question/12522/planning_environment_msgs-in-electric/
   if( !strcmp(jspace.c_str(), "rarm_U_chest") )
   {
     subset_jstates.name.push_back("joint_chest_yaw");
@@ -804,8 +678,6 @@ get_goal_set(const TMMVertex& sv,const TMMVertex& v, const std::string& jspace)
 bool
 plan_grasp(arm_navigation_msgs::CollisionObject& object, const std::string& rbt_id, const std::string& jspace, std::vector<sensor_msgs::JointState>* grasp_poses)
 {
-  ROS_DEBUG("Grasp planning: BEGIN");
-  
   // Call the plan_grasp srv
   grasp_planner::PlanGrasp::Request req;
   grasp_planner::PlanGrasp::Response res; 
