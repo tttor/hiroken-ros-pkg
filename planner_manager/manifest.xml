@@ -16,6 +16,7 @@
   <depend package="grasp_planner"/>
   <depend package="arm_kinematics"/>  
   <depend package="hiro_common"/> 
+  <depend package="learning_machine"/> 
 </package>
 
 

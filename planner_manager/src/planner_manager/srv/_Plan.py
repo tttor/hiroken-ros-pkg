@@ -107,10 +107,10 @@ import genpy
 import std_msgs.msg
 
 class PlanResponse(genpy.Message):
-  _md5sum = "044b8b6e7f41c18680e0bc1687bd081a"
+  _md5sum = "100a5d3863958938cf4502ee2eaa68e1"
   _type = "planner_manager/PlanResponse"
   _has_header = False #flag to mark the presence of a Header object
-  _full_text = """trajectory_msgs/JointTrajectory[] man_plan
+  _full_text = """trajectory_msgs/JointTrajectory[] ctamp_sol
 
 
 ================================================================================
@@ -143,7 +143,7 @@ float64[] velocities
 float64[] accelerations
 duration time_from_start
 """
-  __slots__ = ['man_plan']
+  __slots__ = ['ctamp_sol']
   _slot_types = ['trajectory_msgs/JointTrajectory[]']
 
   def __init__(self, *args, **kwds):
@@ -154,7 +154,7 @@ duration time_from_start
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       man_plan
+       ctamp_sol
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -163,10 +163,10 @@ duration time_from_start
     if args or kwds:
       super(PlanResponse, self).__init__(*args, **kwds)
       #message fields cannot be None, assign default values for those that are
-      if self.man_plan is None:
-        self.man_plan = []
+      if self.ctamp_sol is None:
+        self.ctamp_sol = []
     else:
-      self.man_plan = []
+      self.ctamp_sol = []
 
   def _get_types(self):
     """
@@ -180,9 +180,9 @@ duration time_from_start
     :param buff: buffer, ``StringIO``
     """
     try:
-      length = len(self.man_plan)
+      length = len(self.ctamp_sol)
       buff.write(_struct_I.pack(length))
-      for val1 in self.man_plan:
+      for val1 in self.ctamp_sol:
         _v1 = val1.header
         buff.write(_struct_I.pack(_v1.seq))
         _v2 = _v1.stamp
@@ -229,13 +229,13 @@ duration time_from_start
     :param str: byte array of serialized message, ``str``
     """
     try:
-      if self.man_plan is None:
-        self.man_plan = None
+      if self.ctamp_sol is None:
+        self.ctamp_sol = None
       end = 0
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
-      self.man_plan = []
+      self.ctamp_sol = []
       for i in range(0, length):
         val1 = trajectory_msgs.msg.JointTrajectory()
         _v4 = val1.header
@@ -304,7 +304,7 @@ duration time_from_start
           end += 8
           (_x.secs, _x.nsecs,) = _struct_2i.unpack(str[start:end])
           val1.points.append(val2)
-        self.man_plan.append(val1)
+        self.ctamp_sol.append(val1)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -317,9 +317,9 @@ duration time_from_start
     :param numpy: numpy python module
     """
     try:
-      length = len(self.man_plan)
+      length = len(self.ctamp_sol)
       buff.write(_struct_I.pack(length))
-      for val1 in self.man_plan:
+      for val1 in self.ctamp_sol:
         _v7 = val1.header
         buff.write(_struct_I.pack(_v7.seq))
         _v8 = _v7.stamp
@@ -367,13 +367,13 @@ duration time_from_start
     :param numpy: numpy python module
     """
     try:
-      if self.man_plan is None:
-        self.man_plan = None
+      if self.ctamp_sol is None:
+        self.ctamp_sol = None
       end = 0
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
-      self.man_plan = []
+      self.ctamp_sol = []
       for i in range(0, length):
         val1 = trajectory_msgs.msg.JointTrajectory()
         _v10 = val1.header
@@ -442,7 +442,7 @@ duration time_from_start
           end += 8
           (_x.secs, _x.nsecs,) = _struct_2i.unpack(str[start:end])
           val1.points.append(val2)
-        self.man_plan.append(val1)
+        self.ctamp_sol.append(val1)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -452,6 +452,6 @@ _struct_2I = struct.Struct("<2I")
 _struct_2i = struct.Struct("<2i")
 class Plan(object):
   _type          = 'planner_manager/Plan'
-  _md5sum = '08504a5995fbf0921e8fbc0f2cd5181a'
+  _md5sum = '0d799699f9a6c4ebc406059b14aaf985'
   _request_class  = PlanRequest
   _response_class = PlanResponse

@@ -1,2 +1,2 @@
-string[] tmm_paths
+string[] tmm_paths  # contains paths to validated(geometrically-planned)-TMMs
 ---

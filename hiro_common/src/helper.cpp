@@ -32,22 +32,19 @@ public:
 Helper(ros::NodeHandle nh):
   nh_(nh)
 {
-  ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
-  set_planning_scene_diff_client_ = nh.serviceClient<arm_navigation_msgs::SetPlanningSceneDiff> (SET_PLANNING_SCENE_DIFF_NAME);
-  
   display_filtered_path_pub_ = nh.advertise<arm_navigation_msgs::DisplayTrajectory>("display_filtered_path", 1, true);
   
   path_marker_pub_ = nh.advertise<visualization_msgs::Marker>("planned_path", 10);
   filtered_path_marker_pub_ = nh.advertise<visualization_msgs::Marker>("filtered_path", 10);
   path_quality_pub_ = nh.advertise<hiro_common::PathQuality>("path_quality", 10);
   
-  collision_models_ = new planning_environment::CollisionModels("robot_description");
-  planning_scene_state_ = NULL;
+//  collision_models_ = new planning_environment::CollisionModels("robot_description");
+//  planning_scene_state_ = NULL;
 }
 
 ~Helper()
 {
-  delete[] collision_models_;// why does this: delete collision_models_; w/o [] seems to block the program
+//  delete[] collision_models_;// why does this: delete collision_models_; w/o [] seems to block the program
 }
 
 void
@@ -296,15 +293,15 @@ smoothness(const std::vector<geometry_msgs::Point>& path)
   return s;
 }
 
-bool 
-revertPlanningScene() 
-{
-  if(planning_scene_state_ != NULL) {
-    collision_models_->revertPlanningScene(planning_scene_state_);
-    planning_scene_state_ = NULL;
-  }
-  return true;
-}
+//bool 
+//revertPlanningScene() 
+//{
+//  if(planning_scene_state_ != NULL) {
+//    collision_models_->revertPlanningScene(planning_scene_state_);
+//    planning_scene_state_ = NULL;
+//  }
+//  return true;
+//}
 
 //! visualize motion plan with the whole body
 void 
@@ -328,7 +325,11 @@ visualize_motion_plan(const trajectory_msgs::JointTrajectory& trajectory)
 //  
 //  revertPlanningScene();
 //      
-//  if(!set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res)) {
+//  ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
+//  ros::ServiceClient set_planning_scene_diff_client;
+//  set_planning_scene_diff_client = nh.serviceClient<arm_navigation_msgs::SetPlanningSceneDiff> (SET_PLANNING_SCENE_DIFF_NAME);
+
+//  if(!set_planning_scene_diff_client.call(planning_scene_req, planning_scene_res)) {
 //    ROS_WARN("Can't get planning scene");
 //    return;
 //  }
@@ -442,10 +443,8 @@ ros::Publisher filtered_path_marker_pub_;
 ros::Publisher display_filtered_path_pub_;
 ros::Publisher path_quality_pub_;
 
-ros::ServiceClient set_planning_scene_diff_client_;
-
-planning_environment::CollisionModels* collision_models_;
-planning_models::KinematicState* planning_scene_state_;
+//planning_environment::CollisionModels* collision_models_;
+//planning_models::KinematicState* planning_scene_state_;
 };//end of: class Helper
 
 int 

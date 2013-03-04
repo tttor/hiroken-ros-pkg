@@ -7,10 +7,14 @@
 #include <arm_navigation_msgs/SetPlanningSceneDiff.h>
 
 #include <boost/algorithm/string/erase.hpp>
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int.hpp>
+#include <boost/random/variate_generator.hpp>
 
 #include "planner_manager.hpp"
 #include "tmm_utils.hpp"
 #include "hiro_utils.hpp"
+#include "data.hpp"
 #include "data_collector.hpp"
 
 static const double COL_OBJ_PUB_TIME = 1.0;// prev. 1.0, 2.0
@@ -25,6 +29,8 @@ static const double ALLOWED_SMOOTHING_TIME = 2.0;
 static const size_t MAX_JSPACE_DIM = 7;
 static const double EST_HIGHEST_RESULT_COST = 5.0;
 static const double MOTION_PLANNING_FAILURE_PENALTY = ALLOWED_SMOOTHING_TIME + EST_HIGHEST_RESULT_COST;
+
+boost::mt19937 gen( std::time(0) );
 
 struct GeoPlanningCost
 {
@@ -58,9 +64,22 @@ GeometricPlannerManager(PlannerManager* pm)
 }
 
 bool
-plan(TMMEdge e)
+plan(TMMEdge e,double* planning_time)
 {
   ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
+  ros::Time planning_begin = ros::Time::now();
+  
+  // Check whether this edge is already geometrically planned, having a positive cost
+  if(get(edge_weight,pm_->tmm_,e) > 0.)
+  {
+    ROS_DEBUG("The edge e is already geometrically planned.");
+    
+    // TODO Set the planning time as if the geo. planning is carried out, set equal to the baseline
+    //*planning_time = get(edge_exptime,pm_tmm_,e);
+    *planning_time = (ros::Time::now()-planning_begin).toSec(); 
+    
+    return true;
+  }
   
   // Get the start point /subseteq vertex_jstates (source of e) based on jspace of this edge e
   sensor_msgs::JointState start_state;
@@ -86,7 +105,7 @@ plan(TMMEdge e)
   }
   ROS_DEBUG_STREAM("goal_set.size()= " << goal_set.size());
       
-  if(goal_set.empty())
+  if( goal_set.empty() )
   {
     ROS_INFO("goal_set is empty, no further motion planning, return!");
     ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (false).");
@@ -100,7 +119,8 @@ plan(TMMEdge e)
   set_planning_env( source(e,pm_->tmm_) );
   
   // Put the geometric config of source vertex set above into edge prop.
-  put( edge_srcstate,pm_->tmm_,e,get_planning_env(e) );
+  // Note that this is also an update because the edge_srcstate has been set when its source vertex's state is updated
+  put(  edge_srcstate,pm_->tmm_,e,get_planning_env( source(e,pm_->tmm_) )  );
   
   // Obtain the best motion plan
   // Assume that the motion planner always return the best motion plan for every start and goal poses
@@ -114,7 +134,6 @@ plan(TMMEdge e)
   
   // For calculating iter_cost
   size_t n_attempt = 0;
-  size_t n_failure = 0;
   
   // Try to plan a motion for all possible goal states in the goal set. Then, take the best among them.
   // This means that we consider a goal set not only a single goal state.
@@ -130,17 +149,13 @@ plan(TMMEdge e)
     {
       if(found)
         break;// from iterating over the goal set; struggling exactly only for one motion plan solution
-      else
-        ++n_failure;
     }
     else
     {
       ROS_WARN("A call to /ompl_planning/plan_kinematic_path and or /benchmark_motion_plan: FAILED.");
-      ++n_failure;
     }
   }
   ROS_INFO_STREAM("n_attempt= " << n_attempt);
-  ROS_INFO_STREAM("n_failure= " << n_failure);
  
   if( !found ) // even after considering all goal poses in the goal_set
   {
@@ -158,9 +173,20 @@ plan(TMMEdge e)
   }
   
   // Calculate the cost of iterating over the goal set
+  // Because we only strive for 1 success, n_failure is always n_attempt-1
   double iter_cost;
-  iter_cost = exp( (double)n_failure/(double)(n_attempt) );
-
+  iter_cost = exp( (double)(n_attempt-1)/(double)(n_attempt) );
+  
+  // Sanity check isNan
+  if( (cost.total()+iter_cost) != (cost.total()+iter_cost) )
+  {
+    ROS_ERROR_STREAM("iter_cost= " << iter_cost);
+    ROS_ERROR_STREAM("cost.process= " << cost.process);
+    ROS_ERROR_STREAM("cost.result= " << cost.result);
+    ROS_ERROR("nan detected in edge cost");
+    return false;
+  }
+  
   // Put the best motion plan of this edge e and its geo. planning cost
   put( edge_plan,pm_->tmm_,e,plan );
   put( edge_planstr,pm_->tmm_,e,get_planstr(plan) );
@@ -168,17 +194,18 @@ plan(TMMEdge e)
   
   // Reset the planning environment
   reset_planning_env();
-    
+  
+  *planning_time = (ros::Time::now()-planning_begin).toSec();  
   ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (true).");  
   return true;
 }
-//! Obtain samples as the search progresses
-/*!
-  ...
-*/
-void
-get_samples(TMMVertex v,Data* samples)
-{
+////! Obtain samples as the search progresses
+///*!
+//  ...
+//*/
+//void
+//get_samples(TMMVertex v,Data* samples)
+//{
 //  ROS_DEBUG("get_samples(): BEGIN");
 //  
 //  TaskMotionMultigraph tmm;
@@ -298,23 +325,82 @@ get_samples(TMMVertex v,Data* samples)
 //  online_samples_out.close();
 //    
 //  ROS_DEBUG("get_samples(): END");
+//}
+
+//! Obtain features
+/*!
+  As the heuristic is from the learning machine.
+  We have to give it features.
+  
+  One way to predict the optimal solution path is by traversing in dfs manner.
+  Annother is to use random (uniformly) whenever there is a tie that should be broke.
+  
+  Put this in geo_planner_manager.cpp because it can access pm_->tmm_.
+  Although, this is not really appropriate.
+*/
+bool
+get_fval(TMMVertex v,Input* in)
+{
+  ROS_DEBUG_STREAM("get_fval() with head= " << get(vertex_name,pm_->tmm_,v));  
+  
+  // Predict the optimal solution path from this vertex v
+  std::vector<TMMEdge> est_opt_sol_path;
+  predict_opt_sol_path(v,&est_opt_sol_path);
+
+//  ROS_DEBUG("predict_opt_sol_path= ");
+//  for(std::vector<TMMEdge>::const_iterator i=est_opt_sol_path.begin(); i!=est_opt_sol_path.end(); ++i)
+//    ROS_DEBUG_STREAM("e(" << get(vertex_name,pm_->tmm_,source(*i,pm_->tmm_)) << "," << get(vertex_name,pm_->tmm_,target(*i,pm_->tmm_)) << "), ");
+  
+  if( est_opt_sol_path.empty() )
+    return true;
+    
+  // Extract feature values from the estimated optimal-solution path, which is as the heuristic path
+  std::string metadata_path;
+  metadata_path = "/home/vektor/rss-2013/data/ml_data/metadata.csv";
+
+  DataCollector<TaskMotionMultigraph> dc;
+  bool success;
+  success = dc.get_fval(est_opt_sol_path,pm_->tmm_,metadata_path,in);
+  
+  return success;
 }
 
 void
-get_feature(TMMVertex v,Input* in)
+predict_opt_sol_path(const TMMVertex& v,std::vector<TMMEdge>* est_opt_sol_path)
 {
-//  TaskMotionMultigraph tmm;
-//  tmm = pm_->tmm_;
-//  ROS_DEBUG_STREAM("get_feature with head= " << get(vertex_name,tmm,v));  
-//  
-//  DataCollector dc( in,std::string(pm_->data_path_ + "/ml_data/metadata.csv"),pm_->tmm_goal_ );  
-//  try
-//  {
-//    depth_first_visit( pm_->tmm_,v,dc,get(vertex_color,tmm) );
-//  }
-//  catch(DataCollectorFoundGoalSignal fg)
-//  { }
+  if(v == pm_->tmm_goal_)
+    return;
+  
+  std::vector<TMMVertex> adj_vertices;
+  
+  graph_traits<TaskMotionMultigraph>::adjacency_iterator avi, avi_end;
+  for(tie(avi,avi_end)=adjacent_vertices(v,pm_->tmm_); avi!=avi_end; ++avi )
+  {
+    adj_vertices.push_back(*avi);
+  }
+  
+  if(adj_vertices.empty())
+    return;
+  
+  // Randomly choose one adjacent vertice uniformly
+  boost::uniform_int<> dist(0,adj_vertices.size()-1);
+  boost::variate_generator< boost::mt19937&, boost::uniform_int<> > rnd(gen,dist);
+  
+  TMMVertex chosen_av;
+  chosen_av = adj_vertices.at( rnd() );
+  
+  // TODO should Bias to choose the smallest jspace
+  // Note that tmm_ is a multigraph, which edge does edge() return?
+  TMMEdge e;
+  bool found;// useless because it must exist
+  boost::tie(e,found) = edge(v,chosen_av,pm_->tmm_);
+  
+  est_opt_sol_path->push_back(e);
+  
+  // Recursive call till the goal
+  predict_opt_sol_path(chosen_av,est_opt_sol_path);
 }
+
 //! Convert plan representations from trajectory_msgs::JointTrajectory to std::string
 /*!
   ...
@@ -349,7 +435,11 @@ get_planstr(const trajectory_msgs::JointTrajectory& plan )
 //! Set joint states of adjacent vertex of the given vertex v
 /*!
   The given vertex is the just-examined vertex.
-  Update jstates of adjacent vertex av of this vertex v to the cheapest just-planned edge, note copy jstates of v to adjacent vertices first!
+  Update jstates of adjacent vertex av of this vertex v to the cheapest just-planned edge, note copy jstates of v to adjacent vertices first!'
+  
+  
+  PLUS,
+  put the state at the adjacent vertices to the srcstate property of out edges
 */
 bool
 set_av_jstates(TMMVertex v)
@@ -391,26 +481,45 @@ set_av_jstates(TMMVertex v)
     trajectory_msgs::JointTrajectory motion_plan;
     motion_plan = get(edge_plan,pm_->tmm_,i->second);
     
-    if(motion_plan.points.size()==0)
-      continue;
-      
-    trajectory_msgs::JointTrajectoryPoint goal_point = motion_plan.points.back();
-    
-    for(std::vector<std::string>::const_iterator ii=motion_plan.joint_names.begin(); ii!=motion_plan.joint_names.end(); ++ii)
+    if( !motion_plan.points.empty() )
     {
-      std::vector<std::string>::iterator j;
-      j = std::find(joint_state.name.begin(), joint_state.name.end(), *ii);
+      // Update vertex jstate
+      trajectory_msgs::JointTrajectoryPoint goal_point = motion_plan.points.back();
       
-      joint_state.position.at(j-joint_state.name.begin()) = goal_point.positions.at(ii-motion_plan.joint_names.begin());
+      for(std::vector<std::string>::const_iterator ii=motion_plan.joint_names.begin(); ii!=motion_plan.joint_names.end(); ++ii)
+      {
+        std::vector<std::string>::iterator j;
+        j = std::find(joint_state.name.begin(), joint_state.name.end(), *ii);
+        
+        joint_state.position.at(j-joint_state.name.begin()) = goal_point.positions.at(ii-motion_plan.joint_names.begin());
+      }
+      
+      put(vertex_jstates,pm_->tmm_,i->first,joint_state);
     }
-    
-    put(vertex_jstates,pm_->tmm_,i->first,joint_state);
+           
+    // Put this vertex state in the srcstate property of out edges
+    // Note that if there is no motion plan than there is no update meaning that jstate in the start and goal states are same
+    graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+    for(tie(oei,oei_end) = out_edges(i->first,pm_->tmm_); oei!=oei_end; ++oei)
+    {
+      put(  edge_srcstate,pm_->tmm_,*oei,get_planning_env(i->first)  );
+    }
   }// end of: each avi in av_ce_map
   
   ROS_DEBUG_STREAM("Updating adjacent_vertices of v " << get(vertex_name,pm_->tmm_,v) << ": End.");
   return true;
 }
-  
+
+void
+put_expansion_time(const TMMVertex& v,const double& expansion_time)
+{
+  graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+  for(tie(oei,oei_end) = out_edges(v,pm_->tmm_); oei!=oei_end; ++oei)
+  {
+    put(edge_exptime,pm_->tmm_,*oei,expansion_time);
+  }
+}
+
 void
 mark_vertex(const TMMVertex& v)
 {
@@ -426,14 +535,14 @@ mark_vertex(const TMMVertex& v)
   This is for extracting features.
 */
 std::string
-get_planning_env(const TMMEdge& e)
+get_planning_env(const TMMVertex& v)
 {
   std::string state_str;
   
   // We assume that there is no uncertainty
   // Therefore, object poses are just based on vertex's wstate prop. set at the beginning 
   std::vector<arm_navigation_msgs::CollisionObject> wstate;
-  wstate = get( vertex_wstate,pm_->tmm_,source(e, pm_->tmm_) );
+  wstate = get( vertex_wstate,pm_->tmm_,v );
   
   for(std::vector<arm_navigation_msgs::CollisionObject>::const_iterator i=wstate.begin(); i!=wstate.end(); ++i)
   {
@@ -446,22 +555,25 @@ get_planning_env(const TMMEdge& e)
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).orientation.z) + ",";
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).orientation.w) + ";";// The last one use ";", instead of ","
   }
-  ROS_DEBUG_STREAM("wstate was copied!");
   
   // Put joint states
-  // Note that instead of using res.planning_scene.robot_state.joint_state, we use get(vertex_jstates, pm_->tmm_, source(e, pm_->tmm_).
-  // The reason is because set_planning_env() does not do anything with the robot_state.
-  // TODO employ res.planning_scene.robot_state.joint_state
   sensor_msgs::JointState joint_state;  
-  joint_state = get( vertex_jstates, pm_->tmm_, source(e, pm_->tmm_) );
+  joint_state = get( vertex_jstates,pm_->tmm_,v );
   
   for(std::vector<std::string>::const_iterator i=joint_state.name.begin(); i!=joint_state.name.end(); ++i)
   {
+    // Sanity check isNan
+    if( (joint_state.position.at(i-joint_state.name.begin())) != (joint_state.position.at(i-joint_state.name.begin())) )
+    {
+      ROS_ERROR_STREAM("nan detected in joint= " << *i);
+      state_str = "NAN DETECTED";
+      return state_str;
+    }
+    
     state_str += *i + ",";
     state_str += boost::lexical_cast<std::string>( joint_state.position.at(i-joint_state.name.begin()) ) + ";";
   }
   boost::erase_last(state_str,";");
-  ROS_DEBUG_STREAM("jstate was copied!");
     
   return state_str;
 } 
@@ -488,6 +600,18 @@ init_vertex(const TMMVertex& v)
     return;
   }
   
+  // Sanity check
+  for(size_t i=0; i<res.robot_state.joint_state.name.size(); ++i)
+  {
+    if( res.robot_state.joint_state.position.at(i) != res.robot_state.joint_state.position.at(i) )
+    {
+      ROS_ERROR_STREAM("pos= " << res.robot_state.joint_state.position.at(i));
+      ROS_ERROR_STREAM("name= " << res.robot_state.joint_state.name.at(i));
+      ROS_ERROR("nan detected when initializing vertices, return!");
+      return;
+    }
+  }
+
   put(vertex_jstates, pm_->tmm_, v, res.robot_state.joint_state);
   
   //Set wstate 

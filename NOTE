@@ -7,9 +7,21 @@ whenever change hiro_arm_navigation, modify:
 ===
 bug
 on v.2.12
-:: larm--->home--->larm(again)... useless to go home, is this because there is some error in set_planning_env() still, so that the cost to go directly is more expensive that to go home first then to go to messy-spot?
+:: (CLOSED) larm--->home--->larm(again)... useless to go home, is this because there is some error in set_planning_env() still, so that the cost to go directly is more expensive that to go home first then to go to messy-spot?
 
 ===TO BE RECOVERED ERRORs==========================================================================================================================================
+===
+on v.3.2
+[ERROR] TF_NAN_INPUT: Ignoring transform for ... from authority ... because of a nan value in the transform
+
+Node: /hiro_rarm_kinematics_2
+Time: 1361519066.147133630
+Severity: Error
+Location: /tmp/buildd/ros-fuerte-geometry-1.8.2/debian/ros-fuerte-geometry/opt/ros/fuerte/stacks/geometry/tf/src/tf.cpp:Transformer::setTransform:406
+Published Topics: /rosout
+
+TF_NAN_INPUT: Ignoring transform for child_frame_id "/link_lwrist_yaw" from authority "/hiro_tf_gen" because of a nan value in the transform (-nan -nan -nan) (-nan -nan -nan -nan)
+
 ===
 Node: /rviz
 Time: 1360750169.045167227

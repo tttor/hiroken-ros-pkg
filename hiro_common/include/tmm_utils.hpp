@@ -16,7 +16,7 @@
 #include <boost/graph/adjacency_list_io.hpp>
 #include <boost/graph/property_iter_range.hpp>
 #if defined(BOOST_MSVC) && BOOST_MSVC <= 1300
-#error adjacency_list_io.hpp has not been ported to work with VC++
+  #error adjacency_list_io.hpp has not been ported to work with VC++
 #endif
 
 using namespace boost;
@@ -46,6 +46,12 @@ namespace boost
   BOOST_INSTALL_PROPERTY(edge, srcstate);
 }
 
+enum edge_exptime_t { edge_exptime };
+namespace boost 
+{
+  BOOST_INSTALL_PROPERTY(edge, exptime);
+}
+
 enum vertex_jstates_t { vertex_jstates };
 namespace boost 
 {
@@ -65,7 +71,7 @@ namespace boost
 }
 
 typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double> > TGEdgeProperty;
-typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double, boost::property<edge_jspace_t, std::string, boost::property<edge_plan_t, trajectory_msgs::JointTrajectory, property<edge_color_t, std::string, property<edge_srcstate_t, std::string, property<edge_planstr_t, std::string> > > > > > > TMMEdgeProperty;
+typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double, boost::property<edge_jspace_t, std::string, boost::property<edge_plan_t, trajectory_msgs::JointTrajectory, property<edge_color_t, std::string, property<edge_srcstate_t, std::string, property<edge_planstr_t, std::string, property<edge_exptime_t,double> > > > > > > > TMMEdgeProperty;
     
 typedef boost::property<vertex_name_t, std::string> TGVertexProperty;
 typedef boost::property<vertex_name_t, std::string, boost::property< vertex_jstates_t, sensor_msgs::JointState, property<vertex_color_t, default_color_type, property<vertex_wstate_t,std::vector<arm_navigation_msgs::CollisionObject>, property<vertex_heu_t, double> > > > > TMMVertexProperty;
@@ -86,6 +92,7 @@ typedef property_map<TaskGraph, edge_weight_t>::type TGEdgeWeightMap;
 
 typedef property_map<TaskMotionMultigraph, vertex_name_t>::type TMMVertexNameMap;
 typedef property_map<TaskMotionMultigraph, vertex_color_t>::type TMMVertexColorMap;
+typedef property_map<TaskMotionMultigraph, vertex_heu_t>::type TMMVertexHeuMap;
 
 typedef property_map<TaskMotionMultigraph, edge_name_t>::type TMMEdgeNameMap;
 typedef property_map<TaskMotionMultigraph, edge_weight_t>::type TMMEdgeWeightMap;
@@ -167,12 +174,12 @@ private:
   ColorMap color_map_;
 };
 
-template<typename NameMap, typename ColorMap>
+template<typename NameMap,typename ColorMap,typename HeuMap,typename DistanceMap>
 class TMMVertexPropWriter
 {
 public:
-  TMMVertexPropWriter(NameMap n, ColorMap c)
-  : name_map_(n), color_map_(c)
+  TMMVertexPropWriter(NameMap n,ColorMap c,HeuMap h_map,DistanceMap dist_map)
+  : name_map_(n), color_map_(c), h_map_(h_map), dist_map_(dist_map)
   {}
   
   template <typename Vertex>
@@ -189,13 +196,16 @@ public:
     }
 
     out << "["
-    << "label=\"" << name_map_[v] << "\",fontsize=\"10\"" 
+    << "label=\"" << name_map_[v] << "\\n" << dist_map_[v] << " + " << h_map_[v]  << "\""
+    << ",fontsize=\"10\"" 
     << ",color=\"" << color_str << "\""
     << "]";
   }
 private:
   NameMap name_map_;
   ColorMap color_map_;
+  HeuMap h_map_;
+  DistanceMap dist_map_;
 };
 
 template <typename ColorMap>
