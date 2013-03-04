@@ -1,8 +1,8 @@
 <launch>
-  <arg name="mode" default="1" />
+  <arg name="mode" default="2" />
     <param name="mode_2" value="$(arg mode)"/>
   
-  <arg name="path" default="/home/vektor/rss-2013/data/ws_analysis/ws.grid" />
+  <arg name="path" default="/home/vektor/rss-2013/data/ws_analysis/ws.25.RARM.grid" />
     <param name="grid_path" value="$(arg path)"/>
   
   <arg name="rbt_id" default="RARM" />
@@ -23,7 +23,7 @@
   <param name="publish_frequency" value="50"/>
   <node name="hiro_tf_gen" pkg="robot_state_publisher" type="state_publisher" />
   
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find hiro_common)/rviz_config/ws_anal.vcg" />
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find ws_anal)/config/common_disp.vcg" />
   <node pkg="tf" type="static_transform_publisher" name="table_tf_bc" args="0 0 0.835 0 0 0 /link_base /table 100" />
   
   <node name="ws_analyzer" pkg="ws_anal" type="ws_analyzer" output="screen" />

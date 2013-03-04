@@ -40,6 +40,7 @@
 #include "obj_cfg_rw.hpp"
 
 #include <lwpr.hh>
+#include "libsvm_util.hpp"
 
 class PlannerManager
 {

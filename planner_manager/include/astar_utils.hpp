@@ -1,6 +1,8 @@
 #ifndef ASTAR_UTILS_HPP_INCLUDED
 #define ASTAR_UTILS_HPP_INCLUDED
 
+#include "astar_utils.hpp"
+
 #include <boost/graph/depth_first_search.hpp>
 #include <boost/graph/astar_search.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -13,17 +15,18 @@
 #include <lwpr.hh>
 
 #include "geo_planner_manager.hpp"
+#include "data.hpp"
 
 using namespace std;
 using namespace boost;
 
 struct FoundGoalSignal {}; // exception for termination
 
-template <typename GPMGraph>
+template <typename GPMGraph,typename LearningMachine>
 class AstarVisitor: public boost::default_astar_visitor
 {
 public:
-AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LWPR_Object* learner,size_t mode)
+AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,size_t mode)
 : goal_(goal), gpm_(gpm), learner_(learner), mode_(mode)
 { }
 
@@ -35,16 +38,21 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   
   if(v == goal_)
     throw FoundGoalSignal();
-  
+
   // Do geometric planning (grasp and motion planning) for each out-edge of this vertex v
+  double expansion_time = 0.;
+  
   std::vector<typename Graph::edge_descriptor> ungraspable_edges;// invalid because no grasp/ungrasp pose as the goal pose for the motion planning
   
   typename graph_traits<Graph>::out_edge_iterator oei, oei_end;
   for(tie(oei,oei_end) = out_edges(v, g); oei!=oei_end; ++oei)
   {
     bool success = false;
+    double planning_time;
     
-    success = gpm_->plan(*oei);
+    success = gpm_->plan(*oei,&planning_time);
+    
+    expansion_time += planning_time;
     
     if(!success)
       ungraspable_edges.push_back(*oei);
@@ -54,8 +62,13 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
     gpm_->remove_ungraspable_edge(*i);
   
   // Update jstates of adjacent vertex av of this vertex v to the cheapest existing-just-planned edge
-  gpm_->set_av_jstates(v);
+  // TODO elegant way?
+  if(mode_==1)
+    gpm_->set_av_jstates(v); 
   
+  // Store the time needed to expand this vertex into outedges of this vertex v, useful to compare the computational efficiency
+  gpm_->put_expansion_time(v,expansion_time);  
+
 //  if(mode_!=1)
 //  {
 //    // Train online during search
@@ -86,61 +99,79 @@ template <typename Graph>
 void 
 initialize_vertex(typename Graph::vertex_descriptor v, Graph& g) 
 {
-  gpm_->init_vertex(v);
+  if(mode_==1)
+    gpm_->init_vertex(v);
 }
   
 private:
 typename GPMGraph::vertex_descriptor goal_;
 GeometricPlannerManager* gpm_;
-LWPR_Object* learner_;  
+LearningMachine* learner_;  
 size_t mode_;
 };
 
-template <typename GPMGraph, typename CostType>
+template <typename GPMGraph, typename CostType, typename LearningMachine>
 class AstarHeuristics: public astar_heuristic<GPMGraph, CostType>
 {
 public:
 typedef typename graph_traits<GPMGraph>::vertex_descriptor Vertex;
 
-AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LWPR_Object* learner,size_t mode)
+AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,size_t mode)
 : goal_(goal), gpm_(gpm), learner_(learner), mode_(mode)
 { }
 
 CostType 
 operator()(Vertex v)
 {
-//  cerr << "Compute h(" << v << "): BEGIN" << endl;
+  cerr << "Compute h(" << v << "): BEGIN" << endl;
   double h;
+  
+  switch(mode_)
+  {
+    case 1:// or mode=UCS, no learning
+    {
+      h = 0.;
+      break;
+    }
+    case 2:// get the heuristic from a learning machine
+    {
+      if(v == goal_)
+      {
+        h = 0.;
+      }
+      else
+      {
+        // Extract feature x
+        Input x;
+        gpm_->get_fval(v,&x);
+        cerr << "x.size()= " << x.size() << endl;
       
-  if( (v==goal_)or(mode_==1) )// or mode=UCS, no learning
-  {
-    h = 0.;
-  }
-  else
-  {
-//    // Extract feature x
-//    Input x;
-//    gpm_->get_feature(v,&x);
-//    cerr << "x.size()= " << x.size() << endl;
-//    
-////    // Predict yp
-////    doubleVec yp;
-////    yp = learner_->predict(x);
-////    
-////    h = yp[0];
-//    h = 0.;
+        // Predict yp
+        std:vector<double> yp;
+        yp = learner_->predict(x);
+        
+        // Assign
+        double scale_up = 10.;
+        if( !yp.empty() )
+          h = yp[0] * scale_up;
+        else
+          h = 0.;
+      }
+      
+      break;
+    }
   }
 
   gpm_->put_heu(v,h);
   
-//  cerr << "Compute h(" << v << "): END" << endl;
+  cerr << "Compute h(" << v << "): END" << endl;
   return h;
 }
 
 private:
 Vertex goal_;
 GeometricPlannerManager* gpm_;
-LWPR_Object* learner_;
+LearningMachine* learner_;
 size_t mode_;
 };
 

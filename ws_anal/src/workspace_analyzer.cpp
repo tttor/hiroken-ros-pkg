@@ -724,28 +724,51 @@ get_color(const size_t& rank)
 size_t
 get_rank(const double& D)
 {
-  if( (D>=90.)and(D<101.) )
+  if( (D>=99.)and(D<101.) )
     return 1;
-  else if( (D>=80.)and(D<90.) )
+  else if( (D>=98.)and(D<99.) )
     return 2;
-  else if( (D>=70.)and(D<80.) )
+  else if( (D>=97.)and(D<98.) )
     return 3;
-  else if( (D>=60.)and(D<70.) )
+  else if( (D>=96.)and(D<97.) )
     return 4;
-  else if( (D>=50.)and(D<60.) )
+  else if( (D>=95.)and(D<96.) )
     return 5;
-  else if( (D>=40.)and(D<50.) )
+  else if( (D>=94.)and(D<95.) )
     return 6;
-  else if( (D>=30.)and(D<40.) )
+  else if( (D>=93.)and(D<94.) )
     return 7;
-  else if( (D>=20.)and(D<30.) )
+  else if( (D>=92.)and(D<93.) )
     return 8;
-  else if( (D>=10.)and(D<20.) )
+  else if( (D>=90.)and(D<92.) )
     return 9;
-  else if( (D>=0.)and(D<10.) )
+  else if( (D>=0.)and(D<90.) )
     return 10;
   else
     return 0;
+
+//    return 1;
+//  if( (D>=90.)and(D<101.) )
+//  else if( (D>=80.)and(D<90.) )
+//    return 2;
+//  else if( (D>=70.)and(D<80.) )
+//    return 3;
+//  else if( (D>=60.)and(D<70.) )
+//    return 4;
+//  else if( (D>=50.)and(D<60.) )
+//    return 5;
+//  else if( (D>=40.)and(D<50.) )
+//    return 6;
+//  else if( (D>=30.)and(D<40.) )
+//    return 7;
+//  else if( (D>=20.)and(D<30.) )
+//    return 8;
+//  else if( (D>=10.)and(D<20.) )
+//    return 9;
+//  else if( (D>=0.)and(D<10.) )
+//    return 10;
+//  else
+//    return 0;
 }
 
 void

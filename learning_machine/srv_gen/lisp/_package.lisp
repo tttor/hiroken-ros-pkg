@@ -1,6 +1,11 @@
 (cl:defpackage learning_machine-srv
   (:use )
   (:export
+   "CREATEMETADATA"
+   "<CREATEMETADATA-REQUEST>"
+   "CREATEMETADATA-REQUEST"
+   "<CREATEMETADATA-RESPONSE>"
+   "CREATEMETADATA-RESPONSE"
    "TEST"
    "<TEST-REQUEST>"
    "TEST-REQUEST"

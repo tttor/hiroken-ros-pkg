@@ -2,314 +2,202 @@
 #define DATA_COLLECTOR_HPP_INCLUDED
 
 #include "data_collector.hpp"
-#include "tmm_utils.hpp"
 #include "data.hpp"
 
 #include <boost/graph/depth_first_search.hpp>
 
 struct DataCollectorFoundGoalSignal {}; // exception for termination
 
-typedef enum 
-{
-  IO_OFFLINE=1, 
-  IO_ONLINE, 
-  IN_ONLINE
-} Mode;
-
+template <class Graph>
 class DataCollector: public boost::dfs_visitor<>
 {
 public:
-DataCollector(Data* data,std::vector<std::string> feature_names)
-: data_(data)
-, feature_names_(feature_names)
+DataCollector(Data* data,std::string metadata_path)
+: data_(data), in_(0)
 { 
-  mode_ = IO_OFFLINE;
+  labels_ = get_labels(metadata_path);
 }
 
-DataCollector(Data* data,std::string metadata_path,TMMVertex goal)
-: data_(data)
-, metadata_path_(metadata_path)
-, goal_(goal)
-{ 
-  mode_ = IO_ONLINE;
-  feature_names_ = get_feature_names();
-  
-  in_ = 0;// null pointer
-}
+//! This contructor is used to get features as inputs during search, used to supply the learning machine in order to output the heuristic
+DataCollector()
+: data_(0)
+{ }
 
-DataCollector(Input* in,std::string metadata_path,TMMVertex goal)
-: in_(in)
-, metadata_path_(metadata_path)
-, goal_(goal)
-{
-  mode_ = IN_ONLINE;
-  feature_names_ = get_feature_names();
-  
-  data_ = 0;// null pointer
-}
-
-template <class Graph>
+template <class DfsGraph>
 void 
-discover_vertex(typename boost::graph_traits<Graph>::vertex_descriptor v,Graph& g)
+discover_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
 {
   std::cout << "discover " << get(vertex_name,g,v) << std::endl;
-  std::cout << "out_degree(v,g)= " << out_degree(v,g) << std::endl;
-  
-  if(v==goal_)
-  {
-    switch(mode_)
-    {
-      case IO_ONLINE:
-      {
-        get_samples<Graph>(g);
-        break;
-      }
-      case IO_OFFLINE:
-      {
-        break;
-      }
-      case IN_ONLINE:
-      {
-        *in_ = get_in(hot_path_,g);
-        break;
-      }
-    }
-    
-    cerr << "throwing goal sgn" << endl;
-    throw DataCollectorFoundGoalSignal(); 
-  }
+//  std::cout << "out_degree(v,g)= " << out_degree(v,g) << std::endl;
 }
   
-template <class Graph>
-void tree_edge(typename boost::graph_traits<Graph>::edge_descriptor e,Graph& g)
+template <class DfsGraph>
+void tree_edge(typename boost::graph_traits<DfsGraph>::edge_descriptor e,DfsGraph& g)
 {
 //  cerr << "Adding: " << get(edge_name,g,e) << endl;
   hot_path_.push_back(e);
   
   cerr << "hot_path_: ";
-  for(std::vector<TMMEdge>::const_iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
+  for(typename std::vector<typename boost::graph_traits<DfsGraph>::edge_descriptor>::const_iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
     cout << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
   cout << endl;
   
-  if(mode_==IO_OFFLINE)
-    get_samples<Graph>(g);
+  get_samples_from_hot_path<DfsGraph>(g);
 }
 
-template <class Graph>
+template <class DfsGraph>
 void 
-finish_vertex(typename boost::graph_traits<Graph>::vertex_descriptor v,Graph& g)
+finish_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
 {
-  std::cout << "finish " << get(vertex_name,g,v) << std::endl;  
+  std::cerr << "finish " << get(vertex_name,g,v) << std::endl;  
   hot_path_.erase( hot_path_.end()-1 );
+
+  // This is to make the vertex named TidyHome to be discovered again if there is another solution path
+  std::string name;
+  name = get(vertex_name,g,v);
+
+  if( !strcmp(name.c_str(),"TidyHome") )
+    put(vertex_color,g,v,color_traits<boost::default_color_type>::white());
 }
+
+bool
+get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Input* in)
+{
+  labels_ = get_labels(metadata_path);
   
+  return get_fval<Graph>(path,g,in);
+}
+
 private:
-Input
-convert(RawInput r_in)
+//! Extract a sample from a path
+/*!
+  More ...
+*/
+template<typename LocalGraph>
+bool
+get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g)
 {
   Input in;
-  
-  for(std::vector<std::string>::const_iterator i=feature_names_.begin(); i!=feature_names_.end(); ++i)
+  if( !get_fval<LocalGraph>(path,g,&in) )
   {
-    RawInput::iterator j;
-    j = r_in.find(*i);
-    
-    if( j!=r_in.end() )
-      in.push_back( j->second );
-    else
-      in.push_back(0.);// Make it a point and at the Origin for object's pose; Set not-exist value for symbolic features
+    cerr << "get_fval() failed" << endl;
+    return false;
   }
-  
-  return in;
-}
-//! This gets the upper bound of input-feature size
-/*!
-  More ...
-*/
-std::vector<std::string>
-get_feature_names()
-{
-  std::vector<std::string> feature_names;
-  
-  // Read from a csv file containing metadata
-  std::ifstream metadata_in(metadata_path_.c_str());
-  
-  if ( metadata_in.is_open() )
-  {
-    std::string metadata;
-    
-    getline(metadata_in, metadata);// Read only the first line; the only line here
-    metadata_in.close();
-    
-    // Parse the metadata, put into a vector
-    boost::split( feature_names, metadata, boost::is_any_of(",") );
 
-    // Note that eventhough there is no "," or the metadata is empty, the resulted vector still has 1 element which is an empty string.
-    if( !strcmp(feature_names.at(0).c_str(), std::string("").c_str())  )
-    {
-        std::cerr << "metadata file is corrupt." << endl;
-        feature_names.erase(feature_names.begin());
-    }
-    else
-    {
-      // Remove the OUT label
-      std::vector<std::string>::iterator OUT_it;
-      OUT_it = std::find(feature_names.begin(), feature_names.end(), "OUT");
-      if(OUT_it!=feature_names.end())
-        feature_names.erase(OUT_it);
-    }
-  }
-  else 
+  Output out;
+  if( !get_out<LocalGraph>(path,g,&out) )
   {
-    std::cerr << "Unable to open metadata file" << endl;
+    cerr << "get_out() failed" << endl;
+    return false;
   }
+
+  data_->insert( std::make_pair(in,out) );
   
-  return feature_names;
+  return true;
 }
-//! Extract samples from hot_path_
-/*!
-  More ...
-*/
-template<typename Graph>
+
+template<typename LocalGraph>
 void
-get_samples(const Graph& g)
+get_samples_from_hot_path(const LocalGraph& g)
 {
   cerr << "hot_path_.size()= " << hot_path_.size() << endl;
   
-  for(std::vector<TMMEdge>::iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
+  for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
   {
-    std::vector<TMMEdge> dummy_heu_path(i,hot_path_.end());
-    cerr << "dummy_heu_path.size()= " << dummy_heu_path.size() << endl;
-
-    Input in;
-    in = get_in(dummy_heu_path,g);
+    std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor> path(i,hot_path_.end());
     
-    Output out;
-    out = get_out(dummy_heu_path,g);
-    
-    data_->insert( std::make_pair(in,out) );
-  }// end of: for each edge in heu_path, which is a subset of hot_path_
-  
+    if( !get_sample<LocalGraph>(path,g) )
+      continue;
+  }
 }
 
-template<typename Graph>
-Output
-get_out(const std::vector<TMMEdge>& heu_path, const Graph& g)
+template<typename LocalGraph>
+bool
+get_out(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,Output* out)
 {
-  Output out = 0.;
+  *out = 0.;
   
-  for(std::vector<TMMEdge>::const_iterator j=heu_path.begin(); j!=heu_path.end(); ++j)
+  for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator j=path.begin(); j!=path.end(); ++j)
   {
-    out += get(edge_weight, g, *j);
+    *out += get(edge_weight, g, *j);
   }
   
-  return out;
+  // Scaling
+  double scale = 0.1;
+  *out *= scale;
+  
+  return true;
 }
+
 //! Extract input feature vector from a heuristics path
 /*!
   (1)feature-input: 
   (1.1) symbolic features: position of an action Acti in the heu_path
   (1.2) geometric features: state descriptions, namely poses of movable objects, jstates
-  
-  Depends on the mode_
-  If IO_OFFLINE, read_graphviz can not recover vertex properties, therefore geo. feature is obtained from edge_property: srcstate
-  
-  TODO make the types consistent
 */
-template<typename Graph>
-Input
-get_in(const std::vector<TMMEdge>& heu_path, const Graph& g)
+template<typename LocalGraph>
+bool
+get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,Input* in)
 {
-  cerr << "heu_path_: ";
-  for(std::vector<TMMEdge>::const_iterator i=heu_path.begin(); i!=heu_path.end(); ++i)
-    cerr << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
-  cerr << endl;
+//  cerr << "path: ";
+//  for(std::vector<typename boost::graph_traits<Graph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
+//    cerr << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
+//  cerr << endl;
   
-  Input in;
   RawInput r_in;
   
-  // Symbolic features
-  for(std::vector<TMMEdge>::const_iterator j=heu_path.begin(); j!=heu_path.end(); ++j)
+  // Geo. features extracted from the head vertex of this path: object pose+manipulability+jstates in the source vertex
+  std::string srcstate;
+  srcstate = get( edge_srcstate,g,path.at(0) );
+  
+  if( !get_geo_fval(srcstate,&r_in) )
+    return false;
+      
+  // Symbolic features: Whether more TRANSFER or TRANSIT from actions in this path
+  // Symbolic features: Whether more LARM or RARM from actions in this path
+  size_t n_transit = 0;
+  size_t n_transfer = 0;
+  size_t n_larm = 0;
+  size_t n_rarm = 0;
+  
+  for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
+  {
+    std::string name = get(edge_name,g,*i);
+    
+    std::vector<std::string> name_parts;
+    boost::split( name_parts,name,boost::is_any_of("_") );// e.g from "TRANSIT_RARM_HOME_MESSY-SPOT" to ...
+     
+    std::string op = name_parts.at(0);
+    
+    if( !strcmp(op.c_str(),"TRANSIT") )
+      ++n_transit;
+    else if( !strcmp(op.c_str(),"TRANSFER") )
+      ++n_transfer;
+      
+    std::string rbt_id = name_parts.at(1);
+  
+    if( !strcmp(rbt_id.c_str(),"RARM") )
+      ++n_rarm;
+    else if( !strcmp(rbt_id.c_str(),"LARM") )
+      ++n_larm;
+  }
+
+  r_in.insert( std::make_pair("TRANSIT-centric",(n_transit > n_transfer)) );
+  r_in.insert( std::make_pair("TRANSFER-centric",(n_transfer > n_transit)) );
+  
+  r_in.insert( std::make_pair("RARM-centric",(n_rarm > n_larm)) );
+  r_in.insert( std::make_pair("LARM-centric",(n_larm > n_rarm)) );
+  
+  // Symbolic features: Position of certain action label in a path
+  for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
   {
     std::string name;
-    name = get(edge_name, g, *j);
+    name = get(edge_name,g,*i);
     
     size_t idx;
-    idx = j - heu_path.begin() + 1;// Plus one because idx=0 is reserved for if Act_i is not in this heu_path
+    idx = i - path.begin() + 1;// Plus one because idx=0 is reserved for if Act_i is not in this path
     
     r_in.insert( std::make_pair(name,(double)idx) );
-  }
-  
-  // Geometric features
-  if(mode_==IO_OFFLINE)// then, poses of movable objects in source vertex of the first edge in heu_path
-  {
-    std::string state_str;
-    state_str = get(edge_srcstate,g,heu_path.front());
-    
-    std::vector<std::string> state_str_parts;
-    boost::split( state_str_parts, state_str, boost::is_any_of(";") );
-    
-    for(std::vector<std::string>::const_iterator i=state_str_parts.begin(); i!=state_str_parts.end(); ++i )
-    {
-      std::vector<std::string> comps;
-      boost::split( comps, *i, boost::is_any_of(",") );
-      
-      if(comps.size()==8)// : id, x, y, z, qx, qy, qz, qw
-      {
-        std::string obj_id = comps.at(0);
-        comps.erase(comps.begin());// to make comps and names exactly matched
-        
-        std::vector<std::string> names;
-        names.push_back(obj_id+".x");
-        names.push_back(obj_id+".y");
-        names.push_back(obj_id+".z");
-        names.push_back(obj_id+".qx");
-        names.push_back(obj_id+".qy");
-        names.push_back(obj_id+".qz");
-        names.push_back(obj_id+".qw");
-        
-        for(std::vector<std::string>::const_iterator j=names.begin(); j!=names.end(); ++j)
-        {
-          std::string name = *j;
-          double val = boost::lexical_cast<double>( comps.at(j-names.begin()) );
-          
-          r_in.insert( std::make_pair(name,val) );
-        }
-      }
-      else if(comps.size()==2)// joint-name, joint-state
-      {
-        r_in.insert(  std::make_pair( comps.at(0),boost::lexical_cast<double>(comps.at(1)) )  );
-      }
-      else
-      {
-        std::cerr << "state_str is corrupt; comps.size()= " << comps.size() << std::endl;
-        return in;// empty!
-      }
-    }
-  }
-  else if( (mode_==IN_ONLINE)or(mode_==IO_ONLINE) )// then, get geo. feature from head vertex prop.
-  {
-    std::vector<arm_navigation_msgs::CollisionObject> wstate;
-    wstate = get( vertex_wstate,g,source(heu_path.front(),g) );
-    
-    for(std::vector<arm_navigation_msgs::CollisionObject>::const_iterator i=wstate.begin(); i!=wstate.end(); ++i)
-    {
-      r_in.insert(  std::make_pair( std::string(i->id+".x"),i->poses.at(0).position.x )  );
-      r_in.insert(  std::make_pair( std::string(i->id+".y"),i->poses.at(0).position.y )  );
-      r_in.insert(  std::make_pair( std::string(i->id+".z"),i->poses.at(0).position.z )  );
-      r_in.insert(  std::make_pair( std::string(i->id+".qx"),i->poses.at(0).orientation.x )  );
-      r_in.insert(  std::make_pair( std::string(i->id+".qy"),i->poses.at(0).orientation.y )  );
-      r_in.insert(  std::make_pair( std::string(i->id+".qz"),i->poses.at(0).orientation.z )  );
-      r_in.insert(  std::make_pair( std::string(i->id+".qw"),i->poses.at(0).orientation.w )  );
-    }
-    
-    sensor_msgs::JointState jstate;
-    jstate = get( vertex_jstates,g,source(heu_path.front(),g) );
-    
-    for(std::vector<std::string>::const_iterator i=jstate.name.begin(); i!=jstate.name.end(); ++i)
-    {
-      r_in.insert(  std::make_pair( *i,jstate.position.at(i-jstate.name.begin()) )  );
-    }
   }
   
   cerr << "r_in.size()= " << r_in.size() << endl;
@@ -317,24 +205,106 @@ get_in(const std::vector<TMMEdge>& heu_path, const Graph& g)
 //      cerr << z->first << "= " << z->second << endl;
 //    cerr << "y= " << out << endl;
   
-  // Convert r_in to in
-  in = convert(r_in);
+  // Convert then return
+  return convert( r_in,in,labels_ );
+}
+
+bool 
+get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffix="")
+{
+  //(1) object pose in the source vertex
+  std::vector<std::string> srcstate_parts;
+  boost::split( srcstate_parts, srcstate, boost::is_any_of(";") );
   
-  return in;
+  if( srcstate_parts.at(0).size() == 0 )
+  {
+    cerr << "srcstate_parts.at(0).size() == 0" << endl;
+    return false;
+  }
+
+  std::map<std::string,double> jname_jpos_map;// for obtaining jstate later on
+  
+  for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i )
+  {
+    std::vector<std::string> comps;
+    boost::split( comps, *i, boost::is_any_of(",") );
+    
+    if(comps.size()==8)// : id, x, y, z, qx, qy, qz, qw
+    {
+      std::string obj_id = comps.at(0);
+      comps.erase(comps.begin());// to make comps and names (below) exactly have 7 elements
+      
+      std::vector<std::string> names;
+      names.push_back(obj_id+".x"+suffix);
+      names.push_back(obj_id+".y"+suffix);
+      names.push_back(obj_id+".z"+suffix);
+      names.push_back(obj_id+".qx"+suffix);
+      names.push_back(obj_id+".qy"+suffix);
+      names.push_back(obj_id+".qz"+suffix);
+      names.push_back(obj_id+".qw"+suffix);
+      
+      for(std::vector<std::string>::const_iterator j=names.begin(); j!=names.end(); ++j)
+      {
+        std::string name = *j;
+        double val = boost::lexical_cast<double>( comps.at(j-names.begin()) );
+        
+        r_in->insert( std::make_pair(name,val) );
+      }
+    }
+    else if(comps.size()==2)// joint-name, joint-state
+    {
+      // Assume that no duplicated joint data 
+      jname_jpos_map[comps.at(0)] = boost::lexical_cast<double>(comps.at(1));
+    }
+    else
+    {
+      ROS_ERROR_STREAM("srcstate is corrupt; comps.size()= " << comps.size() );
+      return false;
+    }
+  }
+
+  //(2) joint-state on the source vertex
+  for(std::map<std::string,double>::const_iterator i=jname_jpos_map.begin(); i!=jname_jpos_map.end(); ++i)
+  {
+    r_in->insert(  std::make_pair( i->first,i->second )  );
+  }
+    
+//  //(3) manipulability in the source vertex
+//  ros::service::waitForService("get_manipulability");
+//      
+//  ros::ServiceClient gm_client;
+//  gm_client = nh_.serviceClient<hiro_common::GetManipulability>("get_manipulability");
+//  
+//  hiro_common::GetManipulability::Request gm_req;
+//  hiro_common::GetManipulability::Response gm_res;
+//  
+//  gm_req.jstate = jstate;
+//  gm_req.jspace = "rarm_U_chest";// the biggest jspace of RARM
+//  
+//  if( !(gm_client.call(gm_req,gm_res)) )
+//  {
+//    ROS_DEBUG("GetManipulability srv call: failed");
+//    return false;
+//  }
+//  r_in->insert( std::make_pair("RARM_manipulability"+suffix,gm_res.m) );
+//  
+//  gm_req.jspace = "larm_U_chest";// the biggest jspace of LARM
+//  
+//  if( !(gm_client.call(gm_req,gm_res)) )
+//  {
+//    ROS_DEBUG("GetManipulability srv call: failed");
+//    return false;
+//  }
+//  r_in->insert( std::make_pair("LARM_manipulability"+suffix,gm_res.m) );
+  
+  return true;
 }
 
 Data* data_;
 Input* in_;
-std::vector<TMMEdge> hot_path_;
 
-std::vector<std::string> feature_names_;
-std::string metadata_path_;
-std::string data_path_;
-
-TMMVertex goal_;
-bool with_goal_;// because we are not sure what default val for TMMVertex is
-
-Mode mode_;
+std::vector<typename boost::graph_traits<Graph>::edge_descriptor> hot_path_;
+std::vector<std::string> labels_;
 };
 
 #endif // #ifndef DATA_COLLECTOR_HPP_INCLUDED

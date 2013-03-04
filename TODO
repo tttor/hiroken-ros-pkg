@@ -4,7 +4,7 @@
 >> why is there an inf edge cost? likely from: iter_cost = exp( (double)n_failure/(double)(n_success+n_failure) );// (n_success+n_failure) = goal_set.size()
 >> what if there is really no path in the goal, rethink removing an edge
 >> put texts in objects
->> refine randomized messy_cfg
+>> refine randomized messy_cfg: do not overlap with tidy-spot
 >> re-do motion planning for the cheapest almost-solution path, at the confirming step
 >> grasp planner can use uniform/biased sampling strategy for discretization.
 >> migrate to MoveIt! on Groovy

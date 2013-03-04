@@ -2,6 +2,9 @@
 MODES
 case 1:// SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
   $ roslaunch hiro_common a.launch mode:=1 n_obj:=1 n_run:=1 tidy_cfg:=/tidy_baseline.1.cfg suffix:=/run.test.20130220 
+
+case 2:
+  $roslaunch hiro_common a.launch mode:=2 path:=/home/vektor/rss-2013/data/run.2obj.20130220.0
   
 case 4:// randomized-SENSE only, messy.cfg is written in the base_data_path
   $ roslaunch hiro_common a.launch mode:=4 n_obj:=5
@@ -13,8 +16,10 @@ case 6:// messy_tb-SENSE only, assume that the cfg file is under base_data_path
   $ roslaunch hiro_common a.launch mode:=6 messy_cfg:=/messy_hot.cfg
   
 case 7:// SENSE-PLAN(UCS) with a test-bed messy config under the base_data_path one time only
-  $ roslaunch hiro_common a.launch mode:=7 messy_cfg:=/messy_hot.cfg tidy_cfg:=/tidy_tb3.r.cfg suffix:=/run.3obj.20130122.c
-  $ roslaunch hiro_common a.launch mode:=7 messy_cfg:=/messy_tb1.cfg tidy_cfg:=/tidy_baseline.1.cfg suffix:=/run.test.20130220
+  $ roslaunch hiro_common a.launch mode:=7 messy_cfg:=/messy.cfg tidy_cfg:=/tidy_baseline.1.cfg suffix:=/run.test.20130220
+
+case 8:
+  $ roslaunch hiro_common a.launch mode:=8 path:=/home/vektor/rss-2013/data/baseline/v.2/2obj/run.2obj.20130220.0 suffix:=/h_test-1
 */
 #include <ros/ros.h>
 #include <arm_navigation_msgs/RobotTrajectory.h>
@@ -121,7 +126,9 @@ sense(const size_t& n)
 
 //! Brief
 /*!
-  Mode = 1 (without heuristic learner, heuristic is always equal to zero)
+  Mode = 
+  1 (without heuristic learner, heuristic is always equal to zero, UCS)
+  2 ()
 */
 bool
 plan(const size_t& mode)
@@ -134,7 +141,7 @@ plan(const size_t& mode)
   planner_manager::Plan::Request req;
   planner_manager::Plan::Response res;
   
-  req.mode = 1;
+  req.mode = mode;
   
   if( !plan_client.call(req, res) ) 
   {
@@ -142,7 +149,7 @@ plan(const size_t& mode)
     return false;
   }
   
-  return !(res.man_plan.empty());
+  return !(res.ctamp_sol.empty());
 }
 
 bool
@@ -215,22 +222,30 @@ main(int argc, char **argv)
   if( !ros::param::get("/n_obj",n_obj) )
     ROS_WARN("Can not get /n_obj, use the default value (=0) instead");
 
-  std::string base_data_path;// The base_data_path is a constant
+  int n_run = 1;
+  if( !ros::param::get("/n_run", n_run) )
+    ROS_WARN("Can not get /n_run, use the default value instead"); 
+    
+  std::string base_data_path;// The base_data_path is a constant parameter-server
   if( !ros::param::get("/base_data_path", base_data_path) )
     ROS_WARN("Can not get /base_data_path, use the default value instead");  
-        
+
+  std::string suffix_data_path;
+  if( !ros::param::get("/suffix_data_path", suffix_data_path) )
+    ROS_WARN("Can not get /suffix_data_path, use the default value instead"); 
+
+  std::string tidy_cfg_filename;
+  if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
+    ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead"); 
+  
+  std::string messy_cfg_filename;
+  if( !ros::param::get("/messy_cfg_filename",messy_cfg_filename) )
+    ROS_WARN("Can not get /messy_cfg_filename, use the default value instead"); 
+
   switch(mode)
   {
     case 1:// SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
     {
-      std::string suffix_data_path;
-      if( !ros::param::get("/suffix_data_path", suffix_data_path) )
-        ROS_WARN("Can not get /suffix_data_path, use the default value instead");  
-    
-      int n_run = 1;
-      if( !ros::param::get("/n_run", n_run) )
-        ROS_WARN("Can not get /n_run, use the default value instead");  
-      
       // Open a log file for this episode
       std::ofstream epi_log;
       epi_log.open(std::string(base_data_path+suffix_data_path+".log").c_str());
@@ -276,47 +291,38 @@ main(int argc, char **argv)
     }
     case 5:// SENSE TIDY-cfg only, assume that the cfg file is under base_data_path
     {
-      std::string tidy_cfg_filename;
-      if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
-        ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead"); 
-    
       gm.sense(std::string(base_data_path+tidy_cfg_filename));
       break;
     }
     case 6:// messy_tb-SENSE only, assume that the cfg file is under base_data_path
     {
-      std::string messy_cfg_filename;
-      if( !ros::param::get("/messy_cfg_filename",messy_cfg_filename) )
-        ROS_WARN("Can not get /messy_cfg_filename, use the default value instead"); 
-        
       gm.sense(std::string(base_data_path+messy_cfg_filename));
       break;
     }
     case 7:// SENSE-PLAN(UCS) with a test-bed messy config under the base_data_path one time only
     {
-      std::string suffix_data_path;
-      if( !ros::param::get("/suffix_data_path", suffix_data_path) )
-        ROS_WARN("Can not get /suffix_data_path, use the default value instead");  
-
       std::string data_path;
       data_path = base_data_path + suffix_data_path;
-      ros::param::set("/data_path",data_path);
       
+      ros::param::set("/data_path",data_path);
       boost::filesystem::create_directories(data_path);
       
-      std::string tidy_cfg_filename;
-      if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
-        ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead"); 
-        
-      // Sense the messy_cfg     
-      std::string messy_cfg_filename;
-      if( !ros::param::get("/messy_cfg_filename",messy_cfg_filename) )
-        ROS_WARN("Can not get /messy_cfg_filename, use the default value instead"); 
-        
       gm.sense(std::string(base_data_path+messy_cfg_filename));
       
       // Plan
       gm.plan(1);// mode=1 -> UCS, no learning 
+      
+      break;
+    }
+    case 8:// For testing the heuristic machine
+    {
+      std::string data_path;
+      data_path = base_data_path + suffix_data_path;
+      
+      ros::param::set("/data_path",data_path);
+      boost::filesystem::create_directories(data_path);
+      
+      gm.plan(2);// Informed search, with the (planned) TMM under base_path
       
       break;
     }
