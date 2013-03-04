@@ -10,7 +10,8 @@
   <url>http://ros.org/wiki/learning_machine</url>
   <depend package="roscpp"/>
   <depend package="rospy"/>
-
+  <depend package="arm_navigation_msgs"/>
+  <depend package="hiro_common"/>
 </package>
 
 

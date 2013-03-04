@@ -47,7 +47,7 @@ PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::
 bool
 PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_manager::Plan::Response& res)
 {
-  return plan( req.mode,&(res.man_plan) );
+  return plan( req.mode,&(res.ctamp_sol) );
 }
 
 //! Plan manipulation plans.
@@ -61,45 +61,81 @@ PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_man
   within which a geometric planner is called to validate each action whether it is symbollically feasible.
 */
 bool
-PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajectory>* man_plan)
+PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol)
 {
-  // Init
-  tmm_ = TaskMotionMultigraph();
-  
-  if ( !set_tidy_config() )
-  {
-    ROS_ERROR("Can not set the tidy_cfg!");
-    return false;
-  }
-    
+  std::string base_data_path;
+  if( !ros::param::get("/base_data_path", base_data_path) )
+    ROS_WARN("Can not get /base_data_path, use the default value instead"); 
+      
   std::string data_path;
   if( !ros::param::get("/data_path", data_path) )
     ROS_WARN("Can not get /data_path, use the default value instead");
-    
-  // Create task plan space encoded in a task motion graph
-  SymbolicPlannerManager spm(nh_);
-  
-  if( !spm.plan(*this) )
+
+  std::string tidy_cfg_filename;
+  if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
+    ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead");         
+
+  // Init
+  switch(mode)
   {
-    ROS_ERROR("Can not construct TMM!");
-    return false;
+    case 1:
+    {
+      tmm_ = TaskMotionMultigraph();// renew the tmm_
+  
+      if ( !set_tidy_config() )
+      {
+        ROS_ERROR("Can not set the tidy_cfg!");
+        return false;
+      }
+        
+      // Create task plan space encoded in a task motion graph
+      // A call to the task planner if succeed outputs "vanilla_tmm.dot"
+      SymbolicPlannerManager spm(nh_);
+      
+      if( !spm.plan(*this) )
+      {
+        ROS_ERROR("Can not construct TMM!");
+        return false;
+      }
+      else
+      {
+        ROS_DEBUG("TMM is constructed successfully");
+      }
+      
+      boost::dynamic_properties tmm_dp;
+      
+      tmm_dp.property("vertex_id", get(vertex_name, tmm_));
+      
+      tmm_dp.property("label", get(edge_name, tmm_));
+      tmm_dp.property("weight", get(edge_weight, tmm_));
+      tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
+      
+      std::string tmm_dot_path = data_path + "/vanilla_tmm.dot";  
+      std::ifstream tmm_dot(tmm_dot_path.c_str());
+      
+      read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id"); 
+      
+      break;
+    }
+    case 2:
+    {
+      // Read the planned tmm
+      boost::dynamic_properties tmm_dp;
+      
+      tmm_dp.property("vertex_id", get(vertex_name, tmm_));
+      
+      tmm_dp.property("label", get(edge_name, tmm_));
+      tmm_dp.property("weight", get(edge_weight, tmm_));
+      tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
+      tmm_dp.property("color", get(edge_color,tmm_));
+      tmm_dp.property("srcstate", get(edge_srcstate,tmm_));
+      
+      std::ifstream tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
+      read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id");
+      
+      break;
+    }
   }
-  else
-  {
-    ROS_DEBUG("TMM is constructed successfully");
-  }
-  
-  boost::dynamic_properties tmm_dp;
-  
-  tmm_dp.property("vertex_id", get(vertex_name, tmm_));
-  tmm_dp.property("label", get(edge_name, tmm_));
-  tmm_dp.property("weight", get(edge_weight, tmm_));
-  tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
-  
-  std::string tmm_dot_path = data_path + "/vanilla_tmm.dot";  
-  std::ifstream tmm_dot(tmm_dot_path.c_str());
-  
-  read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id"); 
   
   // Mark the root and the goal vertex in the TMM
   boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
@@ -114,12 +150,23 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
       tmm_goal_ = *vi;
   }
   
-  // Set the learning machine
-  LWPR_Object learner(2,1);// TODO adjust the dimension, or get from a file
+  // Set the learning machine a heuritic generator
+//  LWPR_Object learner(2,1);// TODO adjust the dimension, or get from a file
 
-  learner.setInitD(50);/* Set initial distance metric to 50*(identity matrix) */
-  learner.setInitAlpha(250);/* Set init_alpha to 250 in all elements */
-  learner.wGen(0.2);/* Set w_gen to 0.2 */
+//  learner.setInitD(50);/* Set initial distance metric to 50*(identity matrix) */
+//  learner.setInitAlpha(250);/* Set init_alpha to 250 in all elements */
+//  learner.wGen(0.2);/* Set w_gen to 0.2 */
+
+  std::string model_path;
+  model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/model.libsvmmodel";
+  
+  std::string te_data_path;
+  te_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/online_te_data.libsvmdata";
+
+  std::string fit_out_path;
+  fit_out_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
+  
+  SVM_Object learner(model_path,te_data_path,fit_out_path,"");
   
   // Open a log file
   std::ofstream perf_log;
@@ -127,19 +174,19 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
 
   // Search 
   GeometricPlannerManager gpm(this);
-  std::vector<TMMVertex> sol_path_vertex_vec(num_vertices(tmm_));
-  std::vector<double> sol_path_cost(num_vertices(tmm_));
-
+  std::vector<TMMVertex> predecessors(num_vertices(tmm_));
+  std::vector<double> distances(num_vertices(tmm_));
+  
   ROS_DEBUG("Start searching over TMM.");
   ros::Time planning_begin = ros::Time::now();
   try 
   {
     astar_search( tmm_
                 , tmm_root_
-                , AstarHeuristics<TaskMotionMultigraph, double>(tmm_goal_,&gpm,&learner,mode)
-                , visitor( AstarVisitor<TaskMotionMultigraph>(tmm_goal_,&gpm,&learner,mode) )
-                . predecessor_map(&sol_path_vertex_vec[0])
-                . distance_map(&sol_path_cost[0])
+                , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,mode)
+                , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,mode) )
+                . predecessor_map(&predecessors[0])
+                . distance_map(&distances[0])
                 );
   }
   catch(FoundGoalSignal fgs) 
@@ -158,8 +205,22 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
 
     for(boost::tie(vi,vi_end) = vertices(tmm_); vi!=vi_end; ++vi)
+    {
       if(get(vertex_color,tmm_,*vi)==color_traits<boost::default_color_type>::black())
+      {
         ++n;
+      }
+      else
+      {
+        // Reset and Make-sure
+        typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+        for(tie(oei,oei_end) = out_edges(*vi,tmm_); oei!=oei_end; ++oei)
+        {
+          put(edge_color,tmm_,*oei,"black");
+          put(edge_weight,tmm_,*oei,0.);
+        }
+      }
+    }
     
     cout << "#ExpandedVertices= " << n << endl << endl;
     perf_log << "#ExpandedVertices=" << n << endl;
@@ -169,10 +230,10 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     
     // Convert from vector to list to enable push_front()
     std::list<TMMVertex> sol_path_vertex_list;
-    for(TMMVertex v = tmm_goal_; ; v = sol_path_vertex_vec[v]) 
+    for(TMMVertex v = tmm_goal_; ; v = predecessors[v]) 
     {
       sol_path_vertex_list.push_front(v);
-      if(sol_path_vertex_vec[v] == v)
+      if(predecessors[v] == v)
         break;
     }
     
@@ -215,7 +276,6 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     cout << endl;
     perf_log << endl;
     
-    
     cout << "SolutionPath(e)=" << endl;
     perf_log << "SolutionPath(e)=";
     
@@ -236,7 +296,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
         put( vertex_color,tmm_,source(*i,tmm_),color_traits<boost::default_color_type>::gray() );// for vertex in the solution path
         put( vertex_color,tmm_,target(*i,tmm_),color_traits<boost::default_color_type>::gray() );// somewhat redundant indeed
         
-        man_plan->push_back( get(edge_plan,tmm_,*i) );
+        ctamp_sol->push_back( get(edge_plan,tmm_,*i) );
       }
     }
     cout << endl;
@@ -245,14 +305,14 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     // TODO confirming step
     if(recheck)
     {
-      cout << "SolPathCost= " << sol_path_cost[tmm_goal_] << endl;
-      perf_log << "SolPathCost=" << sol_path_cost[tmm_goal_] << endl;
+      cout << "SolPathCost= " << distances[tmm_goal_] << endl;
+      perf_log << "SolPathCost=" << distances[tmm_goal_] << endl;
     }
     else
     {
       // TODO bypass unimplementable edges, needs to replan the motion
       
-      man_plan->clear();
+      ctamp_sol->clear();
       
       cout << "SolPathCost= UNDEFINED" << endl;
       perf_log << "SolPathCost=UNDEFINED" << endl;
@@ -268,7 +328,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   p_tmm_dot.open(p_tmm_dot_path.c_str());
   
   write_graphviz( p_tmm_dot, tmm_
-                , TMMVertexPropWriter<TMMVertexNameMap,TMMVertexColorMap>( get(vertex_name,tmm_),get(vertex_color,tmm_) )
+                , TMMVertexPropWriter< TMMVertexNameMap,TMMVertexColorMap,TMMVertexHeuMap,std::vector<double> >( get(vertex_name,tmm_),get(vertex_color,tmm_),get(vertex_heu,tmm_),distances )
                 , TMMEdgePropWriter<TMMEdgeNameMap,TMMEdgeWeightMap,TMMEdgeJspaceMap,TMMEdgeColorMap>( get(edge_name,tmm_),get(edge_weight,tmm_),get(edge_jspace,tmm_),get(edge_color,tmm_) )
                 );  
   
@@ -312,14 +372,6 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   sol_tmm_dot.close();
   
   // Addition info. for perf.log
-  std::string base_data_path;
-  if( !ros::param::get("/base_data_path", base_data_path) )
-    ROS_WARN("Can not get /base_data_path, use the default value instead");
-    
-  std::string tidy_cfg_filename;// The base_data_path is a constant
-  if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
-    ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead"); 
-  
   perf_log << "tidy.cfg=" << base_data_path << tidy_cfg_filename;
   
   perf_log.close();

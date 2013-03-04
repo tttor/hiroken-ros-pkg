@@ -358,60 +358,6 @@ plan(const size_t& n_obj)
 }
 
 private:
-//! A helper function
-/*!
-  Create metadata file that contains input-feature names.
-  Should be rarely used.
-  
-  \param tmm
-  \param &n number of movable objects
-*/
-void
-create_metadata(const TaskMotionMultigraph& tmm, const size_t& n)
-{
-  ROS_WARN("Creating metadata...");
-  std::set<std::string> sym_feature_names;
-  
-  boost::graph_traits<TaskMotionMultigraph>::edge_iterator ei, ei_end;
-  for (boost::tie(ei, ei_end) = edges(tmm); ei != ei_end; ++ei)
-  {
-    sym_feature_names.insert( get(edge_name,tmm,*ei) );
-  }
-  
-  std::vector<std::string> geo_feature_names;
-  std::string obj_id = "CAN";
-  
-  for(size_t i=1; i<=n; ++i)
-  {
-    geo_feature_names.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".x");
-    geo_feature_names.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".y");
-    geo_feature_names.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".z");
-    geo_feature_names.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".qx");
-    geo_feature_names.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".qy");
-    geo_feature_names.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".qz");
-    geo_feature_names.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".qw");
-  }
-  
-  // Write the metadata
-  std::string metadata_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/metadata.csv";
-  
-  std::ofstream metadata_out;
-  metadata_out.open(metadata_path.c_str());// overwrite
-  
-  for(std::set<std::string>::const_iterator i=sym_feature_names.begin(); i!=sym_feature_names.end(); ++i)
-  {
-    metadata_out << *i << ",";
-  }
-  for(std::vector<std::string>::const_iterator i=geo_feature_names.begin(); i!=geo_feature_names.end(); ++i)
-  {
-    metadata_out << *i << ",";
-  }
-  metadata_out << "OUT";
-  
-  metadata_out.close();
-  
-  ROS_WARN("metadata: created.");
-}
 //! Convert a  task_graph into a task motion multigraph
 /*!
   More...

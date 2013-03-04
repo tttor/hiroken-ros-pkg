@@ -19,6 +19,7 @@ include_directories(${planner_manager_PACKAGE_PATH}/include)
 
 rosbuild_find_ros_package(learning_machine)
 include_directories(${learning_machine_PACKAGE_PATH}/include)
+include_directories(${learning_machine_PACKAGE_PATH}/libsvm-3.16)
 
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
@@ -31,11 +32,13 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 rosbuild_gensrv()
 
 #common commands for building c++ executables and libraries
-#rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
+rosbuild_add_library(${PROJECT_NAME} /home/vektor/hiroken-ros-pkg/learning_machine/libsvm-3.16/svm.cpp)
 #target_link_libraries(${PROJECT_NAME} another_library)
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 
-rosbuild_add_executable(planner src/planner_manager.cpp)
+# set the path to the library folder
+#link_directories(/home/vektor/hiroken-ros-pkg/learning_machine/lib/)
 
-target_link_libraries(planner log4cxx boost_graph lwpr)
+rosbuild_add_executable(planner src/planner_manager.cpp)
+target_link_libraries(planner log4cxx boost_graph lwpr ${PROJECT_NAME})

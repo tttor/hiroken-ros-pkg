@@ -4,14 +4,14 @@
 
   <arg name="joint_gui" default="False" />
 
-  <arg name="data_path" default="/home/vektor/rss-2013/data" />
-    <param name="base_data_path" value="$(arg data_path)"/>
-    <param name="data_path" value="$(arg data_path)"/>
+  <arg name="path" default="/home/vektor/rss-2013/data" />
+    <param name="base_data_path" value="$(arg path)"/>
+    <param name="data_path" value="$(arg path)"/>
 
   <arg name="suffix" default="/run.test" />
     <param name="suffix_data_path" value="$(arg suffix)"/>
 
-  <arg name="tidy_cfg" default="/tidy_tb1.cfg" />
+  <arg name="tidy_cfg" default="/tidy_baseline.1.cfg" />
     <param name="tidy_cfg_filename" value="$(arg tidy_cfg)"/>
 
   <arg name="messy_cfg" default="/messy_tb1.cfg" />
@@ -32,7 +32,7 @@
   <!-- for finding recorded task plans resulted by shop2 planner in advance -->
   <param name="task_planner_path" value="$(find task_planner)"/>
   
-  <group if="$(arg is_online)">          
+  <group if="$(arg is_online)">
     <param name="hiro_driver_path" value="$(find hiro_control)/driver/hiro" />
     <param name="hiro_ip_addr" value="192.168.128.129" />
     
@@ -77,7 +77,7 @@
   
   <param name="mode_2" value="2"/>
   <param name="grid_path" value="/home/vektor/rss-2013/data/ws_analysis/ws.25.RARM.grid"/>
-  <node name="ws_analyzer" pkg="ws_anal" type="ws_analyzer" output="screen" />
+  <!--node name="ws_analyzer" pkg="ws_anal" type="ws_analyzer" output="screen" /-->
    
   <!--node name="learner" pkg="learning_machine" type="learner" output="screen" /-->
 </launch>

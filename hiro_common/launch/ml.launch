@@ -1,0 +1,9 @@
+<launch>
+  <arg name="path" default="/home/vektor/rss-2013/data" />
+    <param name="base_data_path" value="$(arg path)"/>
+    <param name="data_path" value="$(arg path)"/>
+  
+  <rosparam command="load" file="$(find learning_machine)/data/tmm_paths.yaml" param="tmm_paths" />
+  
+  <node name="learner" pkg="learning_machine" type="learner" output="screen" />
+</launch>
