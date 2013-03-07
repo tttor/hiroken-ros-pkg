@@ -46,10 +46,10 @@ namespace boost
   BOOST_INSTALL_PROPERTY(edge, srcstate);
 }
 
-enum edge_exptime_t { edge_exptime };
+enum edge_mptime_t { edge_mptime };
 namespace boost 
 {
-  BOOST_INSTALL_PROPERTY(edge, exptime);
+  BOOST_INSTALL_PROPERTY(edge, mptime);
 }
 
 enum vertex_jstates_t { vertex_jstates };
@@ -71,7 +71,7 @@ namespace boost
 }
 
 typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double> > TGEdgeProperty;
-typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double, boost::property<edge_jspace_t, std::string, boost::property<edge_plan_t, trajectory_msgs::JointTrajectory, property<edge_color_t, std::string, property<edge_srcstate_t, std::string, property<edge_planstr_t, std::string, property<edge_exptime_t,double> > > > > > > > TMMEdgeProperty;
+typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double, boost::property<edge_jspace_t, std::string, boost::property<edge_plan_t, trajectory_msgs::JointTrajectory, property<edge_color_t, std::string, property<edge_srcstate_t, std::string, property<edge_planstr_t, std::string, property<edge_mptime_t,double> > > > > > > > TMMEdgeProperty;
     
 typedef boost::property<vertex_name_t, std::string> TGVertexProperty;
 typedef boost::property<vertex_name_t, std::string, boost::property< vertex_jstates_t, sensor_msgs::JointState, property<vertex_color_t, default_color_type, property<vertex_wstate_t,std::vector<arm_navigation_msgs::CollisionObject>, property<vertex_heu_t, double> > > > > TMMVertexProperty;
@@ -194,12 +194,23 @@ public:
     {
       color_str = "red";// for examined vertex
     }
-
-    out << "["
-    << "label=\"" << name_map_[v] << "\\n" << dist_map_[v] << " + " << h_map_[v]  << "\""
-    << ",fontsize=\"10\"" 
-    << ",color=\"" << color_str << "\""
-    << "]";
+    
+//    if(color_map_[v]==color_traits<boost::default_color_type>::white())
+//    {
+//      out << "["
+//          << "label=\"" << name_map_[v] << "\""
+//          << ",fontsize=\"10\"" 
+//          << ",color=\"" << color_str << "\""
+//          << "]";  
+//    }
+//    else
+//    {
+      out << "["
+          << "label=\"" << name_map_[v] << "\\n" << dist_map_[v] << " + " << h_map_[v]  << "\""
+          << ",fontsize=\"10\"" 
+          << ",color=\"" << color_str << "\""
+          << "]";
+//    }
   }
 private:
   NameMap name_map_;

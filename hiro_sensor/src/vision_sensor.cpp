@@ -52,7 +52,7 @@ static const size_t UPRIGHT = 0;
 static const size_t DOWN = 1;
 
 static const size_t PIXEL_PER_M = 500; // means that 1m is equal to <PIXEL_PER_M> pixels
-static const double DEG_PER_RAD = 57.2957795;
+static const double DEG_PER_RAD = 57.2957795; // 1 radian = 57.2957795 degree
 
 class VisionSensor
 {
@@ -219,7 +219,38 @@ see_static_cfg()
   
   collision_space_pub_.publish(vase);
   ROS_INFO("The vase should have been published");
-  
+
+//  // The vase_2 
+//  arm_navigation_msgs::CollisionObject vase_2;
+//  
+//  vase_2.id = "vase_2";
+//  vase_2.header.frame_id = "/link_base";
+//  vase_2.header.stamp = ros::Time::now();
+//  vase_2.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
+//  
+//  arm_navigation_msgs::Shape vase_2_shape;
+//  
+//  vase_2_shape.type = arm_navigation_msgs::Shape::CYLINDER;
+//  vase_2_shape.dimensions.resize(2);
+//  vase_2_shape.dimensions[0] = VASE_R;
+//  vase_2_shape.dimensions[1] = 0.40;// The real size of the flower vase_2 is 0.40m
+//  
+//  geometry_msgs::Pose vase_2_pose;
+//  
+//  vase_2_pose.position.x = VASE_X * -1.;
+//  vase_2_pose.position.y = VASE_Y;
+//  vase_2_pose.position.z = TABLE_HEIGHT + (TABLE_THICKNESS/2) + (vase_2_shape.dimensions[1]/2);
+//  vase_2_pose.orientation.x = 0;
+//  vase_2_pose.orientation.y = 0;
+//  vase_2_pose.orientation.z = 0;
+//  vase_2_pose.orientation.w = 1;
+//  
+//  vase_2.shapes.push_back(vase_2_shape);
+//  vase_2.poses.push_back(vase_2_pose);
+//  
+//  collision_space_pub_.publish(vase_2);
+//  ROS_INFO("The vase_2 should have been published");
+    
   return true;
 }  
 
@@ -337,7 +368,6 @@ is_in_collision(cv::Mat* img, const double& x, const double& y, const size_t& pi
 	                  CV_RETR_EXTERNAL,
 	                  CV_CHAIN_APPROX_NONE  // retrieve all pixels of each contours
                   );
-
 //  ROS_INFO_STREAM("contours.size()= " << contours.size());
   
   // Draw the new object
@@ -345,8 +375,10 @@ is_in_collision(cv::Mat* img, const double& x, const double& y, const size_t& pi
   img2 = img->clone();
   
   cv::Point2f p;
-  p.x = (x*PIXEL_PER_M) + img2.rows/2;
-  p.y = (y*PIXEL_PER_M) + img2.cols/2;
+//  p.x = (x*PIXEL_PER_M) + img2.rows/2;
+//  p.y = (y*PIXEL_PER_M) + img2.cols/2;
+  p.x = (x*PIXEL_PER_M) + img2.cols/2;
+  p.y = (y*PIXEL_PER_M) + img2.rows/2;
   
   if(pitch_sym == UPRIGHT)
   {
@@ -429,23 +461,33 @@ see_obj_cfg(const size_t& n)
   
   cv::Mat img( rows, cols, CV_8UC1, cv::Scalar(255));// White image single channel 8 Unsigned
   
-  // Set the dead zone: robot's torso + Set the unmovable_object (obstacles)
+  // Set the dead zone: robot's torso 
   const double rbt_r = 0.250;
   
   cv::Point rbt_p;
   rbt_p.x = (rows/2);
   rbt_p.y = (cols/2);
-
   cv::circle( img, rbt_p, rbt_r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA );  
-
+  
+  // Set the unmovable_object (obstacles): vase
   const double vase_r = VASE_R;
   
   cv::Point vase_p;
-  vase_p.x = (VASE_X*PIXEL_PER_M) + (rows/2);
+//  vase_p.x = (VASE_X*PIXEL_PER_M) + (rows/2);
+//  vase_p.y = (VASE_Y*PIXEL_PER_M) + (rows/2);
+  vase_p.x = (VASE_X*PIXEL_PER_M) + (cols/2);
   vase_p.y = (VASE_Y*PIXEL_PER_M) + (rows/2);
-
   cv::circle( img, vase_p, vase_r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA );
   
+//  // Set the unmovable_object (obstacles): vase_2
+//  cv::Point vase_2_p;
+////  vase_2_p.x = (VASE_X*PIXEL_PER_M) + (rows/2);
+////  vase_2_p.y = (VASE_Y*PIXEL_PER_M) + (rows/2);
+//  vase_2_p.x = (-1*VASE_X*PIXEL_PER_M) + (cols/2);
+//  vase_2_p.y = (VASE_Y*PIXEL_PER_M) + (rows/2);
+//  cv::circle( img, vase_2_p, vase_r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA );
+  
+  // Randomize the object pose
   for(std::vector<std::string>::const_iterator i=ids.begin(); i!=ids.end(); ++i)
   {
     std::string id = *i;
@@ -464,7 +506,6 @@ see_obj_cfg(const size_t& n)
     else
       pitch = M_PI/2;
     
-    
     boost::uniform_real<double> uni_real_dist(0.,2*M_PI);
     const double yaw = uni_real_dist(rng) * DEG_PER_RAD;
     
@@ -476,7 +517,6 @@ see_obj_cfg(const size_t& n)
      z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);
     else
      z = (TABLE_THICKNESS/2)+(B_RADIUS);
-     
     
     const double x_max = TABLE_RADIUS;// Play safe!
     const double x_min = -1 * x_max;
@@ -504,23 +544,25 @@ see_obj_cfg(const size_t& n)
     sense_movable_object( id, r, h, x, y, z, q.x(), q.y(), q.z(), q.w(),&obj_cfg );
   }
   
-//  // Draw the table boundary + save img for debugging purpose. 
-//  // Note that the object poses are mirrored; the robot is facing to the right of the img
-//  cv::Point tbl_p;
-//  tbl_p.x = (rows/2);
-//  tbl_p.y = (cols/2);
-//  cv::circle( img, tbl_p, TABLE_RADIUS*PIXEL_PER_M, cv::Scalar(0), 1, CV_AA );
-// 
-//  cv::imwrite( "/home/vektor/4/ros-pkg/hiro_sensor/img/img.jpg", img );
-//  cv::imshow("img", img);
-//  cv::waitKey(0);
-
   // Write the randomized obj_cfg
   std::string  data_path= ".";
   if( !ros::param::get("/data_path", data_path) )
     ROS_WARN("Can not get /data_path, use the default value instead");
     
   write_obj_cfg( obj_cfg,std::string(data_path+"/messy.cfg") );
+
+  // Draw the table boundary + save img for debugging purpose. 
+  // Note that the object poses are mirrored because coordinate frame transformation is ignored
+  // the robot is facing to the right of the img
+  // the left side becomes the right side
+  cv::Point tbl_p;
+  tbl_p.x = (rows/2);
+  tbl_p.y = (cols/2);
+  cv::circle( img, tbl_p, TABLE_RADIUS*PIXEL_PER_M, cv::Scalar(0), 1, CV_AA );
+ 
+  cv::imwrite( data_path+"/messy.cfg.jpg", img );
+//  cv::imshow("img", img);
+//  cv::waitKey(0);
 
   return true;
 }
