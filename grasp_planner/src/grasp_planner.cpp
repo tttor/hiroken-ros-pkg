@@ -107,6 +107,7 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request &req, grasp_planner::Pla
     tf_bc.sendTransform( tf::StampedTransform(grasp_tf, ros::Time::now(), "/table", "/grasp") );
     
     // Check the IK
+    ROS_DEBUG("Check the IK");
     kinematics_msgs::GetPositionIK::Request  gpik_req;
     kinematics_msgs::GetPositionIK::Response gpik_res;
   
@@ -147,7 +148,9 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request &req, grasp_planner::Pla
       continue;
     }
     
-    // Check further i.e. for collision with obstacles
+    // Check further i.e. for collision with obstacles + joint limits
+    ROS_DEBUG("Check for joint limits and collision with obstacles");
+    
     ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
     get_planning_scene_client_ = nh_.serviceClient<arm_navigation_msgs::GetPlanningScene>(SET_PLANNING_SCENE_DIFF_NAME);
 

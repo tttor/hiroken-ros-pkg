@@ -30,6 +30,7 @@ PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::
   if( !strcmp(msg->id.c_str(), "table")
       or !strcmp(msg->id.c_str(), "wall")
       or !strcmp(msg->id.c_str(), "vase")
+      or !strcmp(msg->id.c_str(), "vase_2")
     )
   {
     return;
@@ -129,9 +130,15 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
       tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
       tmm_dp.property("color", get(edge_color,tmm_));
       tmm_dp.property("srcstate", get(edge_srcstate,tmm_));
-      
+      tmm_dp.property("mptime",get(edge_mptime,tmm_));
+      tmm_dp.property("planstr",get(edge_planstr,tmm_));
+
       std::ifstream tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
-      read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id");
+      if( !read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id") )
+      {
+        ROS_ERROR("read_graphviz(): Failed.");
+        return false;
+      }
       
       break;
     }
@@ -171,6 +178,9 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   // Open a log file
   std::ofstream perf_log;
   perf_log.open(std::string(data_path+"/perf.log").c_str());
+  
+  std::ofstream csv_perf_log;
+  csv_perf_log.open(std::string(data_path+"/perf.log.csv").c_str());
 
   // Search 
   GeometricPlannerManager gpm(this);
@@ -197,24 +207,34 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     double planning_time;
     planning_time = (ros::Time::now()-planning_begin).toSec();
     
-    cout << "PlanningTime= " << planning_time << endl;
-    perf_log << "PlanningTime=" << planning_time << endl;
+    cout << "CTAMP_SearchTime= " << planning_time << endl;
+    perf_log << "CTAMP_SearchTime=" << planning_time << endl;
+    csv_perf_log << planning_time << ",";
     
     // Get #expanded vertices
-    size_t n = 0;
+    size_t n_expvert = 0;
     boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
 
+    double expansion_time = 0.;
+      
     for(boost::tie(vi,vi_end) = vertices(tmm_); vi!=vi_end; ++vi)
     {
       if(get(vertex_color,tmm_,*vi)==color_traits<boost::default_color_type>::black())
       {
-        ++n;
+        // Count #expanded vertices
+        ++n_expvert;
+        
+        typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+        for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
+        {
+          expansion_time += get(edge_mptime,tmm_,*oei);
+        }
       }
       else
       {
-        // Reset and Make-sure
+        // Reset and Make-sure that for out-edges of unexpanded vertices these values prevail
         typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
-        for(tie(oei,oei_end) = out_edges(*vi,tmm_); oei!=oei_end; ++oei)
+        for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
         {
           put(edge_color,tmm_,*oei,"black");
           put(edge_weight,tmm_,*oei,0.);
@@ -222,12 +242,18 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
       }
     }
     
-    cout << "#ExpandedVertices= " << n << endl << endl;
-    perf_log << "#ExpandedVertices=" << n << endl;
+    cout << "expansion_time= " << expansion_time << endl;
+    perf_log << "expansion_time=" << expansion_time << endl;
+    csv_perf_log << expansion_time << ",";
     
-    cout << "#Vertices= " << num_vertices(tmm_) << endl << endl;
+    cout << "#ExpandedVertices= " << n_expvert << endl;
+    perf_log << "#ExpandedVertices=" << n_expvert << endl;
+    csv_perf_log << n_expvert << ",";
+    
+    cout << "#Vertices= " << num_vertices(tmm_) << endl;
     perf_log << "#Vertices=" << num_vertices(tmm_) << endl;
-    
+    csv_perf_log << num_vertices(tmm_) << ",";
+        
     // Convert from vector to list to enable push_front()
     std::list<TMMVertex> sol_path_vertex_list;
     for(TMMVertex v = tmm_goal_; ; v = predecessors[v]) 
@@ -307,6 +333,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     {
       cout << "SolPathCost= " << distances[tmm_goal_] << endl;
       perf_log << "SolPathCost=" << distances[tmm_goal_] << endl;
+      csv_perf_log << distances[tmm_goal_];
     }
     else
     {
@@ -316,6 +343,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
       
       cout << "SolPathCost= UNDEFINED" << endl;
       perf_log << "SolPathCost=UNDEFINED" << endl;
+      
       cout << "SolPathAbove= CANCELLED" << endl;
       perf_log << "SolPathAbove=CANCELLED" << endl;
     }
@@ -334,15 +362,18 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   
   p_tmm_dot.close();
   
-  // Write a simplistic planned TMM for data collection
+  // Write a simplistic planned TMM for later use, e.g. offline training
   boost::dynamic_properties p_tmm_dp;
   
   p_tmm_dp.property( "vertex_id",get(vertex_name,tmm_) );
+  
   p_tmm_dp.property( "label",get(edge_name, tmm_) );
   p_tmm_dp.property( "weight",get(edge_weight, tmm_) );
   p_tmm_dp.property( "jspace",get(edge_jspace, tmm_) );
   p_tmm_dp.property( "color",get(edge_color, tmm_) );
   p_tmm_dp.property( "srcstate",get(edge_srcstate,tmm_) );
+  p_tmm_dp.property( "mptime",get(edge_mptime,tmm_) );
+  p_tmm_dp.property( "planstr",get(edge_planstr,tmm_) );  
 
   std::string simple_p_tmm_dot_path = data_path + "/tmm.dot";
   ofstream simple_p_tmm_dot;
@@ -351,7 +382,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   write_graphviz_dp( simple_p_tmm_dot, tmm_, p_tmm_dp, std::string("vertex_id"));
   simple_p_tmm_dot.close();
   
-  // Filter then write solution tmm
+  // Filter then write the solution tmm
   SolEdgeFilter<TMMEdgeColorMap> sol_edge_filter( get(edge_color, tmm_) );
   typedef filtered_graph< TaskMotionMultigraph, SolEdgeFilter<TMMEdgeColorMap> > SolTMM;
 
@@ -375,6 +406,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   perf_log << "tidy.cfg=" << base_data_path << tidy_cfg_filename;
   
   perf_log.close();
+  csv_perf_log.close();
   return true;
 }
 
