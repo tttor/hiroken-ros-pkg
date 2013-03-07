@@ -40,19 +40,13 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
     throw FoundGoalSignal();
 
   // Do geometric planning (grasp and motion planning) for each out-edge of this vertex v
-  double expansion_time = 0.;
-  
   std::vector<typename Graph::edge_descriptor> ungraspable_edges;// invalid because no grasp/ungrasp pose as the goal pose for the motion planning
   
   typename graph_traits<Graph>::out_edge_iterator oei, oei_end;
   for(tie(oei,oei_end) = out_edges(v, g); oei!=oei_end; ++oei)
   {
     bool success = false;
-    double planning_time;
-    
-    success = gpm_->plan(*oei,&planning_time);
-    
-    expansion_time += planning_time;
+    success = gpm_->plan(*oei);
     
     if(!success)
       ungraspable_edges.push_back(*oei);
@@ -65,9 +59,6 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   // TODO elegant way?
   if(mode_==1)
     gpm_->set_av_jstates(v); 
-  
-  // Store the time needed to expand this vertex into outedges of this vertex v, useful to compare the computational efficiency
-  gpm_->put_expansion_time(v,expansion_time);  
 
 //  if(mode_!=1)
 //  {

@@ -1,3 +1,4 @@
+>> make a parameter server that contains all static obstacle ids
 >> make service name under the node's name
 >> make headers under ../include/pkg-name/
 >> include smoothness and clearance in measuring path quality

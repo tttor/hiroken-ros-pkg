@@ -14,7 +14,7 @@
   <arg name="tidy_cfg" default="/tidy_baseline.1.cfg" />
     <param name="tidy_cfg_filename" value="$(arg tidy_cfg)"/>
 
-  <arg name="messy_cfg" default="/messy_tb1.cfg" />
+  <arg name="messy_cfg" default="/messy.cfg" />
     <param name="messy_cfg_filename" value="$(arg messy_cfg)"/>
             
   <arg name="mode" default="2" />

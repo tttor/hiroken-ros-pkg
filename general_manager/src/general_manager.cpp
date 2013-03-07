@@ -322,6 +322,8 @@ main(int argc, char **argv)
       ros::param::set("/data_path",data_path);
       boost::filesystem::create_directories(data_path);
       
+      gm.sense(std::string(base_data_path+messy_cfg_filename));
+      
       gm.plan(2);// Informed search, with the (planned) TMM under base_path
       
       break;

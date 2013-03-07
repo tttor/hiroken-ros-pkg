@@ -64,22 +64,17 @@ GeometricPlannerManager(PlannerManager* pm)
 }
 
 bool
-plan(TMMEdge e,double* planning_time)
+plan(TMMEdge e)
 {
-  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
-  ros::Time planning_begin = ros::Time::now();
-  
   // Check whether this edge is already geometrically planned, having a positive cost
   if(get(edge_weight,pm_->tmm_,e) > 0.)
   {
-    ROS_DEBUG("The edge e is already geometrically planned.");
-    
-    // TODO Set the planning time as if the geo. planning is carried out, set equal to the baseline
-    //*planning_time = get(edge_exptime,pm_tmm_,e);
-    *planning_time = (ros::Time::now()-planning_begin).toSec(); 
-    
+    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= already DONE.");
     return true;
   }
+  
+  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
+  ros::Time planning_begin = ros::Time::now();
   
   // Get the start point /subseteq vertex_jstates (source of e) based on jspace of this edge e
   sensor_msgs::JointState start_state;
@@ -187,15 +182,19 @@ plan(TMMEdge e,double* planning_time)
     return false;
   }
   
+  // Reset the planning environment
+  reset_planning_env();
+  
+  // Sum up
+  double planning_time;
+  planning_time = (ros::Time::now()-planning_begin).toSec();  
+    
   // Put the best motion plan of this edge e and its geo. planning cost
   put( edge_plan,pm_->tmm_,e,plan );
   put( edge_planstr,pm_->tmm_,e,get_planstr(plan) );
   put( edge_weight,pm_->tmm_,e,cost.total()+iter_cost );
-  
-  // Reset the planning environment
-  reset_planning_env();
-  
-  *planning_time = (ros::Time::now()-planning_begin).toSec();  
+  put( edge_mptime,pm_->tmm_,e,planning_time );
+
   ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (true).");  
   return true;
 }
@@ -510,15 +509,16 @@ set_av_jstates(TMMVertex v)
   return true;
 }
 
-void
-put_expansion_time(const TMMVertex& v,const double& expansion_time)
-{
-  graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
-  for(tie(oei,oei_end) = out_edges(v,pm_->tmm_); oei!=oei_end; ++oei)
-  {
-    put(edge_exptime,pm_->tmm_,*oei,expansion_time);
-  }
-}
+//void
+//put_expansion_time(const TMMVertex& v,const double& expansion_time)
+//{
+//  graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+//  for(tie(oei,oei_end) = out_edges(v,pm_->tmm_); oei!=oei_end; ++oei)
+//  {
+//    ROS_DEBUG_STREAM("expansion_time= "<<expansion_time);
+//    put(edge_mptime,pm_->tmm_,*oei,expansion_time);
+//  }
+//}
 
 void
 mark_vertex(const TMMVertex& v)
