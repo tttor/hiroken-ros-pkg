@@ -359,6 +359,22 @@ predict(const Input& in)
   return get_fit_vals();
 }
 
+//! This is only a dummy function: SVR does not update.
+std::vector<double>
+update(const std::vector<double>& x,const std::vector<double>& y)
+{
+  std::cerr << "This is only a dummy function: SVR does not update." << std::endl;
+  
+  return std::vector<double>();
+}
+
+//! This is only a dummy function so far.
+bool
+writeBinary(const char* 	filename)
+{
+  return false;
+}
+
 private:
 //! Obtaining fitted values for one single instance
 std::vector<double>

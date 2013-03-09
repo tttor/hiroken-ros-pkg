@@ -38,6 +38,7 @@
 #include "tmm_utils.hpp"
 #include "planner_manager.hpp"
 #include "obj_cfg_rw.hpp"
+#include "utils.hpp"
 
 #include <lwpr.hh>
 #include "libsvm_util.hpp"

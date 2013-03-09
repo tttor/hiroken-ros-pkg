@@ -251,7 +251,6 @@ get_samples(const std::vector<std::string>& tmm_paths)
     // Do dfs to get planned paths 
     // and extract features from them using DataCollector as a dfs visitor
     
-    
     PlannedTMM::vertex_descriptor root;
     boost::graph_traits<PlannedTMM>::vertex_iterator vj, vj_end;
     for(boost::tie(vj,vj_end) = vertices(planned_only_tmm); vj!=vj_end; ++vj)
@@ -263,6 +262,7 @@ get_samples(const std::vector<std::string>& tmm_paths)
     std::string metadata_path;
     metadata_path = data_path_+"/ml_data/metadata.csv";
     
+    // TODO should not it be <PlannedTMM> ?
     DataCollector<TaskMotionMultigraph> dc(&tr_data_,metadata_path);
     
     depth_first_visit( planned_only_tmm,root,dc,get(vertex_color,planned_only_tmm) );

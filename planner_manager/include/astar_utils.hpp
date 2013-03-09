@@ -56,31 +56,52 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
     gpm_->remove_ungraspable_edge(*i);
   
   // Update jstates of adjacent vertex av of this vertex v to the cheapest existing-just-planned edge
-  // TODO elegant way?
-  if(mode_==1)
-    gpm_->set_av_jstates(v); 
+  gpm_->set_av_jstates(v); 
 
-//  if(mode_!=1)
-//  {
-//    // Train online during search
-//    Data samples;
+  // Train online
+  switch(mode_)
+  {
+    case 1:
+    {
+      break;
+    }
+    case 2:
+    {
+      break;
+    }
+    case 3:// The learning machine is the LWPR
+    {
+      // Train online during search
+      Data samples;
 
-//    gpm_->get_samples(v,&samples);// get samples from paths from (root,root+1, ..., v) to adjacent of v
-//    
-//    for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
-//    {
-//      doubleVec x;
-//      x = i->first;
-//      
-//      doubleVec y(1);
-//      y.at(0) = i->second;
+      gpm_->get_samples_online(v,&samples);// get samples from paths from (root,root+1, ..., v) to adjacent of v
+      cerr << "online: samples.size()= " << samples.size() << endl;
+      
+      for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
+      {
+        doubleVec x;
+        x = i->first;
+        
+        doubleVec y(1);
+        y.at(0) = i->second;
 
-//  //    doubleVec yp;
-//  //    yp = learner_->update( x,y );
-//    }
-//  }
-//  else
-//  { }
+        doubleVec yp;
+        yp = learner_->update( x,y );
+        
+        if( yp.empty() )
+           std::cerr << "update(x,y)= NOT OK" << std::endl;
+      }
+      
+      // Store the updated model
+      std::string lwpr_model_path;
+      lwpr_model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/lwpr.bin";
+      
+      if( !learner_->writeBinary(lwpr_model_path.c_str()) )
+       std::cerr << "learner_->writeBinary()= NOT OK" << std::endl;
+
+      break;
+    }
+  }
 
   // Set its color to black=examined
   gpm_->mark_vertex(v);
@@ -117,39 +138,30 @@ operator()(Vertex v)
   cerr << "Compute h(" << v << "): BEGIN" << endl;
   double h;
   
-  switch(mode_)
+  if( (mode_==1)or(v==goal_) )// or mode=UCS, no learning
   {
-    case 1:// or mode=UCS, no learning
+      h = 0.;
+  }
+  else// get the heuristic from a learning machine
+  {
+    // Extract feature x
+    Input x;
+    if ( !gpm_->get_fval(v,&x) )
     {
       h = 0.;
-      break;
     }
-    case 2:// get the heuristic from a learning machine
+    else
     {
-      if(v == goal_)
-      {
-        h = 0.;
-      }
+      // Predict yp
+      std::vector<double> yp;
+      yp = learner_->predict(x);
+      
+      // Assign
+      const double scale_up = 10.;
+      if( !yp.empty() )
+        h = yp[0] * scale_up;
       else
-      {
-        // Extract feature x
-        Input x;
-        gpm_->get_fval(v,&x);
-        cerr << "x.size()= " << x.size() << endl;
-      
-        // Predict yp
-        std:vector<double> yp;
-        yp = learner_->predict(x);
-        
-        // Assign
-        double scale_up = 10.;
-        if( !yp.empty() )
-          h = yp[0] * scale_up;
-        else
-          h = 0.;
-      }
-      
-      break;
+        h = 0.;
     }
   }
 
