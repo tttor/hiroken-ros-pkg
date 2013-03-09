@@ -76,18 +76,18 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
     ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead");         
 
+ if ( !set_tidy_config() )
+  {
+    ROS_ERROR("Can not set the tidy_cfg!");
+    return false;
+  }
+      
   // Init
   switch(mode)
   {
     case 1:
     {
       tmm_ = TaskMotionMultigraph();// renew the tmm_
-  
-      if ( !set_tidy_config() )
-      {
-        ROS_ERROR("Can not set the tidy_cfg!");
-        return false;
-      }
         
       // Create task plan space encoded in a task motion graph
       // A call to the task planner if succeed outputs "vanilla_tmm.dot"
@@ -120,6 +120,10 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     }
     case 2:
     {
+      // use same as mode=3
+    }
+    case 3:
+    {
       // Read the planned tmm
       boost::dynamic_properties tmm_dp;
       
@@ -140,6 +144,24 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
         return false;
       }
       
+      // Put edge_planstr into edge_plan
+      graph_traits<TaskMotionMultigraph>::edge_iterator ei,ei_end;
+      for(tie(ei,ei_end)=edges(tmm_); ei!=ei_end; ++ei)
+      {
+        std::string planstr;
+        planstr = get(edge_planstr,tmm_,*ei);
+        
+        put(edge_plan,tmm_,*ei, get_plan(planstr) );
+      }
+      
+      // Somehow(?) within this mode astar doesnot call init_vertex()
+      graph_traits<TaskMotionMultigraph>::vertex_iterator vi,vi_end;
+      for(tie(vi,vi_end)=vertices(tmm_); vi!=vi_end; ++vi)
+      {
+        GeometricPlannerManager gpm(this);
+        gpm.init_vertex(*vi);
+      }
+      
       break;
     }
   }
@@ -157,24 +179,6 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
       tmm_goal_ = *vi;
   }
   
-  // Set the learning machine a heuritic generator
-//  LWPR_Object learner(2,1);// TODO adjust the dimension, or get from a file
-
-//  learner.setInitD(50);/* Set initial distance metric to 50*(identity matrix) */
-//  learner.setInitAlpha(250);/* Set init_alpha to 250 in all elements */
-//  learner.wGen(0.2);/* Set w_gen to 0.2 */
-
-  std::string model_path;
-  model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/model.libsvmmodel";
-  
-  std::string te_data_path;
-  te_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/online_te_data.libsvmdata";
-
-  std::string fit_out_path;
-  fit_out_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
-  
-  SVM_Object learner(model_path,te_data_path,fit_out_path,"");
-  
   // Open a log file
   std::ofstream perf_log;
   perf_log.open(std::string(data_path+"/perf.log").c_str());
@@ -191,13 +195,55 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   ros::Time planning_begin = ros::Time::now();
   try 
   {
-    astar_search( tmm_
-                , tmm_root_
-                , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,mode)
-                , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,mode) )
-                . predecessor_map(&predecessors[0])
-                . distance_map(&distances[0])
-                );
+    switch(mode)
+    {
+      case 1:
+      {
+        // use "as is" mode2, the learner is useless though
+      }
+      case 2:
+      {
+        // SVR from libsvm
+        std::string model_path;
+        model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/svm.20130308.libsvmmodel";
+        
+        std::string te_data_path;
+        te_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/online_te_data.libsvmdata";
+
+        std::string fit_out_path;
+        fit_out_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
+        
+        SVM_Object learner(model_path,te_data_path,fit_out_path,"");
+        
+        astar_search( tmm_
+              , tmm_root_
+              , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,mode)
+              , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,mode) )
+              . predecessor_map(&predecessors[0])
+              . distance_map(&distances[0])
+              );
+        
+        break;
+      }
+      case 3:
+      {
+        // LWPR from Edinburg Univ.
+        std::string lwpr_model_path;
+        lwpr_model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/lwpr.bin";
+                
+        LWPR_Object lwpr_learner(lwpr_model_path.c_str());
+        
+        astar_search( tmm_
+            , tmm_root_
+            , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&lwpr_learner,mode)
+            , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&lwpr_learner,mode) )
+            . predecessor_map(&predecessors[0])
+            . distance_map(&distances[0])
+            );
+            
+        break;
+      }
+    }
   }
   catch(FoundGoalSignal fgs) 
   {

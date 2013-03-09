@@ -6,53 +6,56 @@
 
 #include <boost/graph/depth_first_search.hpp>
 
-struct DataCollectorFoundGoalSignal {}; // exception for termination
+struct DFSFoundGoalSignal {}; // exception for termination
 
 template <class Graph>
 class DataCollector: public boost::dfs_visitor<>
 {
 public:
+//! Used to collect samples _offline_
 DataCollector(Data* data,std::string metadata_path)
 : data_(data), in_(0)
 { 
   labels_ = get_labels(metadata_path);
 }
 
-//! This contructor is used to get features as inputs during search, used to supply the learning machine in order to output the heuristic
+//! This contructor is used to get features only as inputs during search, used to supply the learning machine in order to output the heuristic
 DataCollector()
-: data_(0)
+: data_(0), in_(0)
 { }
 
 template <class DfsGraph>
 void 
 discover_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
 {
-  std::cout << "discover " << get(vertex_name,g,v) << std::endl;
+//  std::cout << "discover " << get(vertex_name,g,v) << std::endl;
 //  std::cout << "out_degree(v,g)= " << out_degree(v,g) << std::endl;
 }
-  
+
+//! In collecting samples _offline_, a new sample is collected whenever an edge is added to the hot_path_ i.e. becomes a part of the search tree 
 template <class DfsGraph>
 void tree_edge(typename boost::graph_traits<DfsGraph>::edge_descriptor e,DfsGraph& g)
 {
 //  cerr << "Adding: " << get(edge_name,g,e) << endl;
   hot_path_.push_back(e);
   
-  cerr << "hot_path_: ";
-  for(typename std::vector<typename boost::graph_traits<DfsGraph>::edge_descriptor>::const_iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
-    cout << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
-  cout << endl;
-  
-  get_samples_from_hot_path<DfsGraph>(g);
+//  cerr << "hot_path_: ";
+//  for(typename std::vector<typename boost::graph_traits<DfsGraph>::edge_descriptor>::const_iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
+//    cout << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
+//  cout << endl;
+
+  get_samples<DfsGraph>(hot_path_,g,data_);
 }
 
+//! used in collecting samples _offline_, to maintain the hot path
 template <class DfsGraph>
 void 
 finish_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
 {
-  std::cerr << "finish " << get(vertex_name,g,v) << std::endl;  
+//  std::cerr << "finish " << get(vertex_name,g,v) << std::endl;  
   hot_path_.erase( hot_path_.end()-1 );
 
-  // This is to make the vertex named TidyHome to be discovered again if there is another solution path
+  // This is to make the vertex named TidyHome to be discovered again if there are multiple solution paths
   std::string name;
   name = get(vertex_name,g,v);
 
@@ -60,6 +63,7 @@ finish_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGra
     put(vertex_color,g,v,color_traits<boost::default_color_type>::white());
 }
 
+//! used in obtaining features (as input) _online_ during search. Should be call only when using the DataCollector() constructor
 bool
 get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Input* in)
 {
@@ -68,14 +72,26 @@ get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>
   return get_fval<Graph>(path,g,in);
 }
 
+//!Should be call only when using the DataCollector() constructor
+bool
+get_samples(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Data* samples)
+{
+  labels_ = get_labels(metadata_path);
+  
+  return get_samples<Graph>(path,g,samples);
+}
+
 private:
-//! Extract a sample from a path
+//! Extract a single sample from a single atom path
 /*!
   More ...
+  \param &path 
+  \param &g
+  \param *data
 */
 template<typename LocalGraph>
 bool
-get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g)
+get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g,Data* data)
 {
   Input in;
   if( !get_fval<LocalGraph>(path,g,&in) )
@@ -91,24 +107,34 @@ get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_desc
     return false;
   }
 
-  data_->insert( std::make_pair(in,out) );
+  data->insert( std::make_pair(in,out) );
   
   return true;
 }
 
+//! get_samples_from_hot_path()
+/*!
+  Concretely,
+  consire the hot path: 
+  ROOT --> A 
+  then only one atom path: ROOT --> A 
+  ROOT --> A --> B
+  then there are 2 atom paths that can form new samples: ROOT--> A --> B and A --> B
+*/
 template<typename LocalGraph>
-void
-get_samples_from_hot_path(const LocalGraph& g)
+bool
+get_samples(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g,Data* samples)
 {
-  cerr << "hot_path_.size()= " << hot_path_.size() << endl;
-  
-  for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
+  for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
   {
-    std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor> path(i,hot_path_.end());
+    // get the subset of a hot_path_. see http://www.cplusplus.com/reference/vector/vector/vector/
+    std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor> atom_path(i,path.end());
     
-    if( !get_sample<LocalGraph>(path,g) )
+    if( !get_sample<LocalGraph>(atom_path,g,samples) )
       continue;
   }
+  
+  return true;
 }
 
 template<typename LocalGraph>
@@ -305,6 +331,53 @@ Input* in_;
 
 std::vector<typename boost::graph_traits<Graph>::edge_descriptor> hot_path_;
 std::vector<std::string> labels_;
+};
+
+template<typename Graph>
+class DFSVisitor:public default_dfs_visitor 
+{
+public:
+DFSVisitor(typename boost::graph_traits<Graph>::vertex_descriptor* goal,std::vector< typename boost::graph_traits<Graph>::edge_descriptor >* hot_path)
+: goal_(goal), hot_path_(hot_path)
+{ }
+
+template <class DfsGraph>
+void 
+discover_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
+{
+//  std::cout << "discover " << get(vertex_name,g,v) << std::endl;
+//  std::cout << "out_degree(v,g)= " << out_degree(v,g) << std::endl;
+
+  if( (goal_ != 0) and (*goal_==v) )
+  {
+    throw DFSFoundGoalSignal(); 
+  }
+}
+
+template <class DfsGraph>
+void tree_edge(typename boost::graph_traits<DfsGraph>::edge_descriptor e,DfsGraph& g)
+{
+//  cerr << "Adding: " << get(edge_name,g,e) << endl;
+  hot_path_->push_back(e);
+  
+//  cerr << "hot_path_: ";
+//  for(typename std::vector<typename boost::graph_traits<DfsGraph>::edge_descriptor>::const_iterator i=hot_path_->begin(); i!=hot_path_->end(); ++i)
+//    cout << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
+//  cout << endl;
+}
+
+template <class DfsGraph>
+void 
+finish_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
+{
+//  std::cerr << "finish " << get(vertex_name,g,v) << std::endl;  
+  if( !hot_path_->empty() )
+    hot_path_->erase( hot_path_->end()-1 );
+}
+
+private:
+typename boost::graph_traits<Graph>::vertex_descriptor* goal_;// is a pointer instead of a standard const ref. variable because with pointer the default value is sure
+std::vector< typename boost::graph_traits<Graph>::edge_descriptor >* hot_path_;
 };
 
 #endif // #ifndef DATA_COLLECTOR_HPP_INCLUDED
