@@ -128,7 +128,8 @@ sense(const size_t& n)
 /*!
   Mode = 
   1 (without heuristic learner, heuristic is always equal to zero, UCS)
-  2 ()
+  2 (with heuristic learner, the learning machine is trained offline, use epsilon-svr)
+  3 (with heuristic learner: LWPR, train incrementally online)
 */
 bool
 plan(const size_t& mode)
@@ -314,7 +315,7 @@ main(int argc, char **argv)
       
       break;
     }
-    case 8:// For testing the heuristic machine
+    case 8:// For testing the heuristic machine::SVRegress that is trained offline and does not do incremental online learning.
     {
       std::string data_path;
       data_path = base_data_path + suffix_data_path;
@@ -324,7 +325,27 @@ main(int argc, char **argv)
       
       gm.sense(std::string(base_data_path+messy_cfg_filename));
       
-      gm.plan(2);// Informed search, with the (planned) TMM under base_path
+      size_t plan_mode;
+      plan_mode = 2;
+      
+      gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
+      
+      break;
+    }
+    case 9:// Use LWPR, do online (during search) incremental learning 
+    {
+      std::string data_path;
+      data_path = base_data_path + suffix_data_path;
+      
+      ros::param::set("/data_path",data_path);
+      boost::filesystem::create_directories(data_path);
+      
+      gm.sense(std::string(base_data_path+messy_cfg_filename));
+      
+      size_t plan_mode;
+      plan_mode = 3;
+      
+      gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
       
       break;
     }
