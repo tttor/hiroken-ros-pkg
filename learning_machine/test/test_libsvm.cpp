@@ -10,7 +10,7 @@ main(int argc, char **argv)
   ros::NodeHandle nh;
 
   std::string tr_data_path;
-  tr_data_path = "/home/vektor/rss-2013/data/ml_data/data.libsvmdata";
+  tr_data_path = "/home/vektor/rss-2013/data/ml_data/data.v4.libsvmdata";
   
   SVMParameter param;
   init_svmparam(&param);
@@ -29,7 +29,7 @@ main(int argc, char **argv)
   model = svm_train(&prob,&param);
 
   std::string model_path;
-  model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/model.libsvmmodel";
+  model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/svm.v4.libsvmmodel";
 
   if( svm_save_model(model_path.c_str(),model) )
   {

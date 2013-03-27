@@ -11,6 +11,15 @@ on v.2.12
 
 ===TO BE RECOVERED ERRORs==========================================================================================================================================
 ===
+on v.3.4
+[DEBUG] [1362836604.515706149]: set_planning_env: robot_state published
+[DEBUG] [1362836604.515772576]: set_planning_env for GP: END
+environment_server: /opt/ros/fuerte/include/actionlib/managed_list.h:163: bool actionlib::ManagedList<T>::Handle::operator==(const actionlib::ManagedList<T>::Handle&) [with T = boost::shared_ptr<actionlib::CommStateMachine<arm_navigation_msgs::SyncPlanningSceneAction_<std::allocator<void> > > >, actionlib::ManagedList<T>::Handle = actionlib::ManagedList<boost::shared_ptr<actionlib::CommStateMachine<arm_navigation_msgs::SyncPlanningSceneAction_<std::allocator<void> > > > >::Handle]: Assertion `valid_' failed.
+[ WARN] [1362836605.334805753]: Can't get planning scene
+[ INFO] [1362836605.341272058]: waitForService: Service [/environment_server/set_planning_scene_diff] could not connect to host [torPC2:51502], waiting...
+[environment_server-3] process has died [pid 13651, exit code -6, cmd /opt/ros/fuerte/stacks/arm_navigation/planning_environment/bin/environment_server __name:=environment_server __log:=/home/tor/.ros/log/45a75834-87f2-11e2-a901-f04da2dbad52/environment_server-3.log].
+log file: /home/tor/.ros/log/45a75834-87f2-11e2-a901-f04da2dbad52/environment_server-3*.log
+===
 on v.3.2
 [ERROR] TF_NAN_INPUT: Ignoring transform for ... from authority ... because of a nan value in the transform
 

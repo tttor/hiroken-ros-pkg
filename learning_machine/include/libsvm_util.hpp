@@ -375,6 +375,12 @@ writeBinary(const char* 	filename)
   return false;
 }
 
+//! This is only a dummy function so far.
+size_t
+nData()
+{
+  return 0;
+}
 private:
 //! Obtaining fitted values for one single instance
 std::vector<double>

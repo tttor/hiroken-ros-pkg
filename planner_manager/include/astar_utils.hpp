@@ -69,7 +69,11 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
     {
       break;
     }
-    case 3:// The learning machine is the LWPR
+    case 3:
+    {
+      break;
+    }
+    case 4:// The learning machine is the LWPR
     {
       // Train online during search
       Data samples;
@@ -85,11 +89,19 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
         doubleVec y(1);
         y.at(0) = i->second;
 
-        doubleVec yp;
-        yp = learner_->update( x,y );
+        doubleVec y_fit;
+        y_fit = learner_->update( x,y );
         
-        if( yp.empty() )
-           std::cerr << "update(x,y)= NOT OK" << std::endl;
+        if( y_fit.empty() )
+        {
+          std::cerr << "update(x,y)= NOT OK" << std::endl;
+          continue;
+        }
+        
+        std::ofstream onlwpr_log;
+        onlwpr_log.open("/home/vektor/rss-2013/data/onlwpr_log/fitting_onlwpr_3obj_3.csv",std::ios::app);
+        onlwpr_log << y_fit.at(0) << "," << y.at(0) << "," << learner_->nData() << std::endl;
+        onlwpr_log.close();
       }
       
       // Store the updated model
@@ -142,7 +154,7 @@ operator()(Vertex v)
   {
       h = 0.;
   }
-  else// get the heuristic from a learning machine
+  else// get the heuristic from a learning machine, so far either SVR or LWPR
   {
     // Extract feature x
     Input x;

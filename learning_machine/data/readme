@@ -5,8 +5,6 @@ is used by the svr in prediction
 
 >> tmm_paths.yaml contains tmm_paths for obtaining training data
 
->> svm.20130308.libsvmmodel
-is trained with data collected offline from baseline/v.2
 
 >> about lwpr model
 it is initialized with a model set/tuned in matlab
