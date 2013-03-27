@@ -1,3 +1,3 @@
-uint8 mode
+uint8 mode # determine which ML algorithm is used
 ---
 trajectory_msgs/JointTrajectory[] ctamp_sol

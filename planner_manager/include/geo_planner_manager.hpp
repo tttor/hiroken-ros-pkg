@@ -30,7 +30,7 @@ static const size_t MAX_JSPACE_DIM = 7;
 static const double EST_HIGHEST_RESULT_COST = 5.0;
 static const double MOTION_PLANNING_FAILURE_PENALTY = ALLOWED_SMOOTHING_TIME + EST_HIGHEST_RESULT_COST;
 
-boost::mt19937 gen( std::time(0) );
+static boost::mt19937 gen( std::time(0) );
 
 struct GeoPlanningCost
 {
@@ -1198,7 +1198,7 @@ set_workspace(const TMMVertex& v,const bool sim_grasped_or_released=false)
     att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
 
     att_object.object.header.stamp = ros::Time::now();
-    
+      
     att_collision_object_pub_.publish(att_object);
     ros::Duration(COL_OBJ_PUB_TIME).sleep();
     
@@ -1217,19 +1217,27 @@ set_robot_state(const TMMVertex& v)
 //  // Set the robot joint states with the source vertex
 //  joint_states_cmd_pub_.publish( get(vertex_jstates,pm_->tmm_,sv) );
 //  ROS_DEBUG("set_planning_env: robot_state published");
-  
+
+  std::string data_path;
+  if( !ros::param::get("/data_path", data_path) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
+        
+  ROS_DEBUG_STREAM("Try to publish vertex_jstates. On " << data_path);
   bool passed = false;
   do
   {
     joint_states_cmd_pub_.publish( get(vertex_jstates,pm_->tmm_,v) );
     passed = true;
-        
+    ROS_DEBUG_STREAM("jstates: published (trial).On " << data_path);
+//    ros::Duration(0.2).sleep();
+    
     arm_navigation_msgs::GetRobotState::Request req;
     arm_navigation_msgs::GetRobotState::Response res;
 
     ros::service::waitForService("/environment_server/get_robot_state");
     ros::ServiceClient get_rbt_state_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetRobotState>("/environment_server/get_robot_state");
-
+    
+    ROS_DEBUG("get_rbt_state_client.call(): BEGIN");
     if( !get_rbt_state_client.call(req, res) )
     { 
       ROS_WARN("Call to /environment_server/get_robot_state: FAILED");
@@ -1244,8 +1252,15 @@ set_robot_state(const TMMVertex& v)
         std::vector<std::string>::iterator j;
         j = std::find(jstates.name.begin(),jstates.name.end(),*ii);
         
+        ROS_DEBUG_STREAM("of X= " << jstates.position.at(j-jstates.name.begin()));
+        ROS_DEBUG_STREAM("of Y= " << res.robot_state.joint_state.position.at(ii-res.robot_state.joint_state.name.begin()));
+        
         if( jstates.position.at(j-jstates.name.begin()) != res.robot_state.joint_state.position.at(ii-res.robot_state.joint_state.name.begin()) )
+        {
+          ROS_DEBUG("joint_states_cmd_pub_.publish(): FAILED");
           passed = false;
+          break;
+        }
       }
     }
   }

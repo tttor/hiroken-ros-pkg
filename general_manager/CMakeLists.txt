@@ -11,6 +11,12 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
 rosbuild_init()
 
+rosbuild_find_ros_package(hiro_common)
+include_directories(${hiro_common_PACKAGE_PATH}/include)
+
+rosbuild_find_ros_package(planner_manager)
+include_directories(${planner_manager_PACKAGE_PATH}/include)
+
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory

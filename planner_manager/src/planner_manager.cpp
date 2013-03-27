@@ -124,6 +124,12 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     }
     case 3:
     {
+      // use same as mode=4
+    }
+    case 4:
+    {
+      tmm_ = TaskMotionMultigraph();// renew the tmm_
+    
       // Read the planned tmm
       boost::dynamic_properties tmm_dp;
       
@@ -205,7 +211,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
       {
         // SVR from libsvm
         std::string model_path;
-        model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/svm.20130308.libsvmmodel";
+        model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/svm.v4.libsvmmodel";
         
         std::string te_data_path;
         te_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/online_te_data.libsvmdata";
@@ -216,30 +222,37 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
         SVM_Object learner(model_path,te_data_path,fit_out_path,"");
         
         astar_search( tmm_
-              , tmm_root_
-              , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,mode)
-              , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,mode) )
-              . predecessor_map(&predecessors[0])
-              . distance_map(&distances[0])
-              );
+                    , tmm_root_
+                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,mode)
+                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,mode) )
+                    . predecessor_map(&predecessors[0])
+                    . distance_map(&distances[0])
+                    );
         
         break;
       }
       case 3:
       {
+        // Use the same machine as mode=4 (LWPR) but the model is not updated online
+      }
+      case 4:
+      {
+        ROS_DEBUG("learner= LWPR");
+        
         // LWPR from Edinburg Univ.
         std::string lwpr_model_path;
         lwpr_model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/lwpr.bin";
                 
         LWPR_Object lwpr_learner(lwpr_model_path.c_str());
         
+        ROS_DEBUG("Searching...");
         astar_search( tmm_
-            , tmm_root_
-            , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&lwpr_learner,mode)
-            , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&lwpr_learner,mode) )
-            . predecessor_map(&predecessors[0])
-            . distance_map(&distances[0])
-            );
+                    , tmm_root_
+                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&lwpr_learner,mode)
+                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&lwpr_learner,mode) )
+                    . predecessor_map(&predecessors[0])
+                    . distance_map(&distances[0])
+                    );
             
         break;
       }
