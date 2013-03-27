@@ -43,6 +43,14 @@
 #include <lwpr.hh>
 #include "libsvm_util.hpp"
 
+typedef enum 
+{
+  NO_ML=1, 
+  SVR_OFFLINE=2, 
+  LWPR_OFFLINE=3,
+  LWPR_ONLINE=4
+} MLMode;
+
 class PlannerManager
 {
 friend class SymbolicPlannerManager;

@@ -1,0 +1,45 @@
+>> lwpr.base.20130310
+% % For initializing lwpr_model for further training in cpp
+% X_tr = X_tr(1,:);
+% y_tr = y_tr(1);
+% m_tr = 1;
+
+% Initialize
+d = size(X_tr,2);
+
+model = lwpr_init(d,1,'name','lwpr_test');
+model = lwpr_set(model,'init_D',eye(d)*0.25);    
+model = lwpr_set(model,'init_alpha',ones(d)*0.001);
+model = lwpr_set(model,'diag_only',0);
+model = lwpr_set(model,'w_gen',0.2);
+model = lwpr_set(model,'w_prune',0.7);   
+model = lwpr_set(model,'meta',1);
+model = lwpr_set(model,'meta_rate',250);
+model = lwpr_set(model,'update_D',1);
+model = lwpr_set(model,'kernel','Gaussian');
+
+>> lwpr.20130309
+is trained INC with data collected offline from baseline/v.2
+  [
+     '/home/vektor/rss-2013/data/baseline/v.2/1obj/run.1obj.0/tmm.dot'  
+    ,'/home/vektor/rss-2013/data/baseline/v.2/2obj/run.2obj.20130220.0/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/2obj/run.2obj.20130220.4/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/datarun.3obj.20130220.1/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130223.0/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130223.1/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130223.2/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130223.3/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130223.b.1/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130223.b.2/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130225.b.0.rerun/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130225.b.1/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130225.b.4/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130226.0/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130226.1/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130226.2/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130226.3/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/3obj/run.3obj.20130226.4/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/4obj/run.4obj.20130221.0/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/4obj/run.4obj.20130221.1/tmm.dot'
+    ,'/home/vektor/rss-2013/data/baseline/v.2/4obj/run.4obj.20130222.0/tmm.dot'
+  ]

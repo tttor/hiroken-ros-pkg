@@ -37,6 +37,7 @@ train_srv_handle(learning_machine::Train::Request& req, learning_machine::Train:
   }
   
   // Train TODO
+  // Up to now, done in matlab
   
   return true;  
 }
@@ -177,6 +178,8 @@ get_samples(const std::vector<std::string>& tmm_paths)
     tmm_dp.property("jspace", get(edge_jspace, tmm)); 
     tmm_dp.property("color", get(edge_color,tmm));
     tmm_dp.property("srcstate", get(edge_srcstate,tmm));
+    tmm_dp.property("mptime",get(edge_mptime,tmm));
+    tmm_dp.property("planstr",get(edge_planstr,tmm));
         
     std::ifstream tmm_dot(i->c_str());
     if( !read_graphviz(tmm_dot, tmm, tmm_dp, "vertex_id") )
