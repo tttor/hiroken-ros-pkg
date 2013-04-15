@@ -1,7 +1,7 @@
 Background\ ColorB=0
 Background\ ColorG=0
 Background\ ColorR=0
-Camera\ Config=0.269801 0.834993 2.40471 -0.456355 -0.0324291 0.855123
+Camera\ Config=0.129802 0.279986 2.69328 -0.456355 -0.0324291 0.855123
 Camera\ Type=rviz::OrbitViewController
 FilteredPath.Alpha=0.6
 FilteredPath.Collision\ Enabled=0
@@ -14,6 +14,7 @@ FilteredPath.Visual\ Enabled=1
 FilteredPathPlan.Enabled=1
 FilteredPathPlan.Marker\ Topic=/filtered_path
 FilteredPathPlan.Queue\ Size=100
+FilteredPathPlan.filtered_trajectory=1
 Fixed\ Frame=/link_base
 GraspPlan.Enabled=1
 GraspPlan.Marker\ Array\ Topic=/state_validity_markers_array

@@ -1,6 +1,8 @@
 # temp. editor backups:
 *~
 
+# temp. system files:
+learning_machine/data/hot/*
 # build output:
 */lib/*
 */build/*

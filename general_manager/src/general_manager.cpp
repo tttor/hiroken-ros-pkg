@@ -3,7 +3,7 @@ MODES
 case 1:// SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
   $ roslaunch hiro_common a.launch mode:=1 n_obj:=1 n_run:=1 tidy_cfg:=/tidy_baseline.1.cfg suffix:=/run.test.20130220 
 
-case 2:
+case 2:// Execute the resulted CTAMP 
   $roslaunch hiro_common a.launch mode:=2 path:=/home/vektor/rss-2013/data/run.2obj.20130220.0
   
 case 4:// randomized-SENSE only, messy.cfg is written in the base_data_path
@@ -43,6 +43,9 @@ case 10:
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int.hpp>
 #include <boost/random/variate_generator.hpp>
+
+#include <lwpr.hh>
+#include "ml_util.hpp"
 
 static boost::mt19937 gen( std::time(0) );
 
@@ -146,7 +149,7 @@ sense(const size_t& n)
   4 (with heuristic learner: LWPR and train incrementally online)
 */
 bool
-plan(const size_t& mode)
+plan(const MLMode& ml_mode,const bool rerun=false,const std::string& log_path=std::string(""),uint32_t* n_samples=0)
 {
   ros::service::waitForService("/plan");
     
@@ -156,7 +159,9 @@ plan(const size_t& mode)
   planner_manager::Plan::Request req;
   planner_manager::Plan::Response res;
   
-  req.mode = mode;
+  req.ml_mode = ml_mode;
+  req.log_path = log_path;
+  req.rerun = rerun;
   
   if( !plan_client.call(req, res) ) 
   {
@@ -164,7 +169,9 @@ plan(const size_t& mode)
     return false;
   }
   
-  return !(res.ctamp_sol.empty());
+  *n_samples = res.n_samples;
+  
+  return !( res.ctamp_sol.empty() );
 }
 
 bool
@@ -223,67 +230,102 @@ bool online_;
 
 //! All selected instances as _TEST_ beds are here!
 void
-set_instance_paths(std::vector<std::string>* instance_paths)
+set_instance_paths(const size_t n_obj,std::vector<std::string>* instance_paths)
 {
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.1");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.2");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.3");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.4");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.1");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.2");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.3");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.4");// 10
+  std::vector< std::list<std::string> > db;
   
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.1");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.2");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.4");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308b.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308b.3");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130310a.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130310a.1");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130310a.2");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130313a.0");// 10
-
-  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.0");
-  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.2");
-  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.3");
-  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.5");
-  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.6");
-  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.7");
-  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130310a.0");
-  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130310d.2");
-  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130310f.0");
-  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130312f.4");// 10
+  // Type: 1-obj instances
+  std::list<std::string> a_paths;
+  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.0");
+  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.1");
+  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.2");
+  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.3");
+  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.4");
+  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.0");
+  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.1");
+  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.2");
+  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.3");
+  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.4");// 10 
   
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.1");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.4");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.7");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.8");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.9");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130308c.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130308c.2");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130309.3");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130310b.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130310h.0");// 10
+  db.push_back(a_paths);
   
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310a.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310a.2");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310a.3");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310b.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310c.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130312k.0");
-//  instance_paths->push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130312o.0");// 7
+  // Type: 2-obj instances
+  std::list<std::string> b_paths;
+  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.0");
+  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.1");
+  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.2");
+  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.4");
+  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308b.0");
+  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308b.3");
+  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130310a.0");
+  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130310a.1");
+  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130310a.2");
+  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130313a.0");// 10
   
-  cerr << "instance_paths->size()= " << instance_paths->size() << endl;
-}
-
-int 
-factorial(int n)
-{
-  return (n == 1 || n == 0) ? 1 : factorial(n - 1) * n;
+  db.push_back(b_paths);
+  
+  // Type: 3-obj instances
+  std::list<std::string> c_paths;
+  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.0");
+  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.2");
+  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.3");
+  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.5");
+  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.6");
+  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.7");
+  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130310a.0");
+  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130310d.2");
+  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130310f.0");
+  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130312f.4");// 10  
+  
+  db.push_back(c_paths);
+  
+  // Type: 4-obj instances
+  std::list<std::string> d_paths;
+  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.1");
+  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.4");
+  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.7");
+  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.8");
+  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.9");
+  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130308c.0");
+  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130308c.2");
+  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130309.3");
+  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130310b.0");
+  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130310h.0");// 10
+  
+  db.push_back(d_paths);
+  
+  // Type: 5-obj instances
+  std::list<std::string> e_paths;  
+  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310a.0");
+  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310a.2");
+  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310a.3");
+  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310b.0");
+  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310c.0");
+  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130312k.0");
+  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130312o.0");// 7
+  
+  db.push_back(e_paths);
+  
+  // Retrieving
+  if(n_obj==0)// alternate run, then put all type-instances together
+  {
+    for(std::vector< std::list<std::string> >::const_iterator i=db.begin(); i!=db.end(); ++i)
+    {
+      for(std::list<std::string>::const_iterator j=i->begin(); j!=i->end(); ++j)
+      {
+        instance_paths->push_back(*j);
+      }
+    }
+  }
+  else// only n_obj-object instaces
+  {
+    for(std::list<std::string>::const_iterator j=db.at(n_obj-1).begin(); j!=db.at(n_obj-1).end(); ++j)
+    {
+      instance_paths->push_back(*j);
+    }
+  }
+ 
+  ROS_INFO_STREAM("instance_paths->size()= " << instance_paths->size());
 }
 
 int 
@@ -305,6 +347,10 @@ main(int argc, char **argv)
   int n_run = 1;
   if( !ros::param::get("/n_run", n_run) )
     ROS_WARN("Can not get /n_run, use the default value instead"); 
+    
+  int runth = 1;
+  if( !ros::param::get("/runth", runth) )
+    ROS_WARN("Can not get /n_run, use the default value instead");
     
   std::string base_data_path;// The base_data_path is a constant parameter-server
   if( !ros::param::get("/base_data_path", base_data_path) )
@@ -340,9 +386,14 @@ main(int argc, char **argv)
         
         boost::filesystem::create_directories(data_path);
         
+        // Sense!
         gm.sense(n_obj);
         
-        if( gm.plan(1) )// mode=1 -> UCS, no learning 
+        // Plan, rerun=false
+        MLMode ml_mode;
+        ml_mode = NO_ML;
+        
+        if( gm.plan(ml_mode) )// mode=1 -> UCS, no learning 
           epi_log << j << ",";
       }
       epi_log << endl;
@@ -356,14 +407,14 @@ main(int argc, char **argv)
       gm.act();
       break;
     }
-    case 3:// TRAIN the ML offline (data are already available)
-    {
+//    case 3:// TRAIN the ML offline (data are already available)
+//    {
 //      std::vector<std::string> tmm_paths;
 //      tmm_paths.push_back(data_path+"/tmm.dot");
 //      
 //      gm.train(tmm_paths);
-      break;
-    }
+//      break;
+//    }
     case 4:// randomized-SENSE only, messy.cfg is written in the base_data_path
     {
       gm.sense(n_obj);
@@ -387,57 +438,70 @@ main(int argc, char **argv)
       ros::param::set("/data_path",data_path);
       boost::filesystem::create_directories(data_path);
       
+      // Sense
       gm.sense(std::string(base_data_path+messy_cfg_filename));
       
-      // Plan
-      gm.plan(1);// mode=1 -> UCS, no learning 
+      // Plan, rerun=false
+      MLMode ml_mode;
+      ml_mode = NO_ML;
+      
+      gm.plan(ml_mode);// mode=1 -> UCS, no learning 
       
       break;
     }
-    case 8:// For testing (single run only) the heuristic machine::SVRegress that is trained offline and does not do incremental online learning.
+//    case 8:// For testing (single run only) the heuristic machine::SVRegress that is trained offline and does not do incremental online learning.
+//    {
+//      std::string data_path;
+//      data_path = base_data_path + suffix_data_path;
+//      
+//      ros::param::set("/data_path",data_path);
+//      boost::filesystem::create_directories(data_path);
+//      
+//      gm.sense(std::string(base_data_path+messy_cfg_filename));
+//      
+//      size_t plan_mode;
+//      plan_mode = 2;// Offline SVR
+//      
+//      gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
+//      
+//      break;
+//    }
+//    case 9:// Use LWPR offline one batch, do NOT update its model online (during search)
+//    {
+//      suffix_data_path = "/h.lwpr.off";
+//      ros::param::set("/suffix_data_path",suffix_data_path);
+//        
+//      std::string data_path;
+//      data_path = base_data_path + suffix_data_path;
+//      ros::param::set("/data_path",data_path);
+//      
+//      boost::filesystem::create_directories(data_path);
+//      
+//      gm.sense(std::string(base_data_path+messy_cfg_filename));
+//      
+//      size_t plan_mode;
+//      plan_mode = 3;
+//      
+//      gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
+//      
+//      break;
+//    }
+    case 10:// Run online LWPR that updates its model during search on multiple instances.USAGE: $ roslaunch hiro_common a.launch  mode:=10 n_obj:=3 runth:=1
     {
-      std::string data_path;
-      data_path = base_data_path + suffix_data_path;
+      // Init + Collect instances
+      std::string run_id;
+      run_id = "/h.onlwpr." + boost::lexical_cast<string>(n_obj) + "obj.run" + boost::lexical_cast<string>(runth);
       
-      ros::param::set("/data_path",data_path);
-      boost::filesystem::create_directories(data_path);
-      
-      gm.sense(std::string(base_data_path+messy_cfg_filename));
-      
-      size_t plan_mode;
-      plan_mode = 2;// Offline SVR
-      
-      gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
-      
-      break;
-    }
-    case 9:// Use LWPR offline, do NOT update its model online (during search)
-    {
-      suffix_data_path = "/h.lwpr.off";
-      ros::param::set("/suffix_data_path",suffix_data_path);
-        
-      std::string data_path;
-      data_path = base_data_path + suffix_data_path;
-      ros::param::set("/data_path",data_path);
-      
-      boost::filesystem::create_directories(data_path);
-      
-      gm.sense(std::string(base_data_path+messy_cfg_filename));
-      
-      size_t plan_mode;
-      plan_mode = 3;
-      
-      gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
-      
-      break;
-    }
-    case 10:// Run LWPR that updates its model during search on multiple instances
-    {
-      // Collect instances
       std::vector<std::string> instance_paths;
-      set_instance_paths(&instance_paths);
+      set_instance_paths(n_obj,&instance_paths);
       
-      // Randomize instances, important because the data order matters as it influences how the model is updated; like randperm()
+      std::string ml_data_path;
+      ml_data_path = "/home/vektor/rss-2013/data/ml_data/h.onlwpr.log";
+      
+      std::ofstream run_log;
+      run_log.open(std::string(ml_data_path+run_id+".log").c_str());
+      
+      // Randomize instances, important because the data order matters as it influences how the model is updated; like randperm() in matlab
       boost::uniform_int<> dist( 0,instance_paths.size()-1 ) ;
       boost::variate_generator< boost::mt19937&, boost::uniform_int<> > rnd(gen,dist);
 
@@ -462,22 +526,37 @@ main(int argc, char **argv)
         while(already);
         
         idxes.push_back(idx);
+        run_log << instance_paths.at(idx) << ",";
       }
+      run_log << std::endl;
       
-      // Execute
-      std::ofstream ith_log;
-      ith_log.open("/home/vektor/rss-2013/data/onlwpr_log/onlwpr_3obj_3.log");
+      // Initialize the vanilla LWPR model
+      size_t input_dim = 68;
+      size_t output_dim = 1;
+      LWPR_Object lwpr(input_dim,output_dim);
+      
+      lwpr.setInitD(0.05);/* Set initial distance metric to D*(identity matrix) */
+      lwpr.updateD(true);// Determines whether distance matrix updates are to be performed
+      lwpr.setInitAlpha(0.1);/* Set init_alpha to _alpha_ in all elements */
+      lwpr.useMeta(true);// Determines whether 2nd order distance matrix updates are to be performed
 
-      std::ofstream ith_log_2;
-      ith_log_2.open("/home/vektor/rss-2013/data/onlwpr_log/onlwprbl_3obj_3.log");
+      std::string lwpr_model_path;
+      lwpr_model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/lwpr.bin";
       
+      if( !lwpr.writeBinary(lwpr_model_path.c_str()) )
+      {
+        ROS_ERROR("lwpr.writeBinary()= FAILED");
+        return false;
+      }
+           
+      // Run the trials
       for(std::vector<size_t>::const_iterator i=idxes.begin(); i!=idxes.end(); ++i)
       {
         // Prepare dir
         base_data_path = instance_paths.at(*i);
         ros::param::set("/base_data_path",base_data_path);
         
-        suffix_data_path = "/h.onlwpr_3obj_3";
+        suffix_data_path = run_id;
         ros::param::set("/suffix_data_path",suffix_data_path);
         
         std::string data_path;
@@ -485,100 +564,108 @@ main(int argc, char **argv)
         ros::param::set("/data_path",data_path);
         
         boost::filesystem::create_directories(data_path);
-        
-        ith_log << "data_onlwpr_3obj_3 = [data_onlwpr_3obj_3; csvread('" << data_path << "/perf.log.csv')];" << endl;
-        ith_log_2 << "data_onlwprbl_3obj_3 = [data_onlwprbl_3obj_3; csvread('" << base_data_path << "/perf.log.csv')];" << endl;
                 
         // Sense
         gm.sense( std::string(base_data_path+messy_cfg_filename) );
         
         // Plan 
-        size_t plan_mode;
-        plan_mode = 4;// Online LWPR
-      
-        gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
+        MLMode mode;
+        mode = LWPR_ONLINE;
+        
+        bool rerun;
+        rerun = true;
+        
+        std::string log_path;
+        log_path = std::string(ml_data_path+run_id);
+        
+        uint32_t n_samples;// Store n_samples at the end of planning for this instance
+        
+        gm.plan(mode,rerun,log_path,&n_samples);// Informed search, with the (planned) TMM under base_path
+
+        run_log << n_samples << ",";
       }
       
-      ith_log.close();
-      ith_log_2.close();
-      
+      run_log.close();
       break;
     }
-    case 11:// For testing the heuristic machine::SVRegress that is trained offline and does not do incremental online learning, multiple runs
-    {
-      // Collect instances
-      std::vector<std::string> instance_paths;
-      set_instance_paths(&instance_paths);
-      
-      // Execute
-      for(std::vector<std::string>::const_iterator i=instance_paths.begin(); i!=instance_paths.end(); ++i)
-      {
-        // Prepare dir
-        base_data_path = *i;
-        ros::param::set("/base_data_path",base_data_path);
-        
-        suffix_data_path = "/h.epsvr";
-        ros::param::set("/suffix_data_path",suffix_data_path);
-        
-        std::string data_path;
-        data_path = base_data_path + suffix_data_path;
-        ros::param::set("/data_path",data_path);
-        
-        boost::filesystem::create_directories(data_path);
-        
-        // Sense
-        gm.sense( std::string(base_data_path+messy_cfg_filename) );
-        
-        // Plan 
-        size_t plan_mode;
-        plan_mode = 2;// Offline SVR
-      
-        gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
-      }
-      
-      break;
-    }
-    case 12:
-    {
-      // Collect instances
-      std::vector<std::string> instance_paths;
-      set_instance_paths(&instance_paths);
-      
-      // Execute
-      for(std::vector<std::string>::const_iterator i=instance_paths.begin(); i!=instance_paths.end(); ++i)
-      {
-        // Prepare dir
-        base_data_path = *i;
-        ros::param::set("/base_data_path",base_data_path);
-        
-        suffix_data_path = "/h.offlwpr";
-        ros::param::set("/suffix_data_path",suffix_data_path);
-        
-        std::string data_path;
-        data_path = base_data_path + suffix_data_path;
-        ros::param::set("/data_path",data_path);
-        
-        boost::filesystem::create_directories(data_path);
-        
-        // Sense
-        gm.sense( std::string(base_data_path+messy_cfg_filename) );
-        
-        // Plan 
-        size_t plan_mode;
-        plan_mode = 3;// Offline LWPR
-      
-        gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
-      }
-      
-      break;
-    }
+//    case 11:// For testing the heuristic machine::SVRegress that is trained offline and does not do incremental online learning, multiple runs
+//    {
+//      // Collect instances
+//      std::vector<std::string> instance_paths;
+//      set_instance_paths(1,&instance_paths);
+//      
+//      // Execute
+//      for(std::vector<std::string>::const_iterator i=instance_paths.begin(); i!=instance_paths.end(); ++i)
+//      {
+//        // Prepare dir
+//        base_data_path = *i;
+//        ros::param::set("/base_data_path",base_data_path);
+//        
+//        suffix_data_path = "/h.epsvr";
+//        ros::param::set("/suffix_data_path",suffix_data_path);
+//        
+//        std::string data_path;
+//        data_path = base_data_path + suffix_data_path;
+//        ros::param::set("/data_path",data_path);
+//        
+//        boost::filesystem::create_directories(data_path);
+//        
+//        // Sense
+//        gm.sense( std::string(base_data_path+messy_cfg_filename) );
+//        
+//        // Plan 
+//        MLMode ml_mode;
+//        ml_mode = SVR_OFFLINE;
+//      
+//        bool rerun;
+//        rerun = true;
+//        
+//        gm.plan(ml_mode,rerun);// Informed search, with the (planned) TMM under base_path
+//      }
+//      
+//      break;
+//    }
+//    case 12:
+//    {
+//      // Collect instances
+//      std::vector<std::string> instance_paths;
+//      set_instance_paths(&instance_paths);
+//      
+//      // Execute
+//      for(std::vector<std::string>::const_iterator i=instance_paths.begin(); i!=instance_paths.end(); ++i)
+//      {
+//        // Prepare dir
+//        base_data_path = *i;
+//        ros::param::set("/base_data_path",base_data_path);
+//        
+//        suffix_data_path = "/h.offlwpr";
+//        ros::param::set("/suffix_data_path",suffix_data_path);
+//        
+//        std::string data_path;
+//        data_path = base_data_path + suffix_data_path;
+//        ros::param::set("/data_path",data_path);
+//        
+//        boost::filesystem::create_directories(data_path);
+//        
+//        // Sense
+//        gm.sense( std::string(base_data_path+messy_cfg_filename) );
+//        
+//        // Plan 
+//        size_t plan_mode;
+//        plan_mode = 3;// Offline LWPR
+//      
+//        gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
+//      }
+//      
+//      break;
+//    }
     default:
     {
       ROS_WARN("Unknown mode; do nothing!");
     }
   }// end of: switch(mode)
   
-  ROS_INFO(">>>>>>>> general_mgr: spinning... <<<<<<<<");
+  ROS_INFO(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> general_mgr: spinning... <<<<<<<<");
   ros::spin();
   
   return 0;
