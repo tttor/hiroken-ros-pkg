@@ -16,6 +16,7 @@
 
 #include "geo_planner_manager.hpp"
 #include "data.hpp"
+#include "ml_util.hpp"
 
 using namespace std;
 using namespace boost;
@@ -26,8 +27,8 @@ template <typename GPMGraph,typename LearningMachine>
 class AstarVisitor: public boost::default_astar_visitor
 {
 public:
-AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,size_t mode)
-: goal_(goal), gpm_(gpm), learner_(learner), mode_(mode)
+AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode)
+: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode)
 { }
 
 template <typename Graph>
@@ -58,63 +59,54 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   // Update jstates of adjacent vertex av of this vertex v to the cheapest existing-just-planned edge
   gpm_->set_av_jstates(v); 
 
-  // Train online
-  switch(mode_)
+  if(ml_mode_==LWPR_ONLINE)
   {
-    case 1:
+    // Train online during search (the online LWPR)
+    Data samples;
+    
+    // Obtain samples from paths from (root,root+1, ..., v) to adjacent of v where the edge costs are already defined
+    gpm_->get_samples_online(v,&samples);
+    cerr << "online training: samples.size()= " << samples.size() << endl;
+    
+    for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
     {
-      break;
-    }
-    case 2:
-    {
-      break;
-    }
-    case 3:
-    {
-      break;
-    }
-    case 4:// The learning machine is the LWPR
-    {
-      // Train online during search
-      Data samples;
-
-      gpm_->get_samples_online(v,&samples);// get samples from paths from (root,root+1, ..., v) to adjacent of v
-      cerr << "online: samples.size()= " << samples.size() << endl;
+      std::vector<double> x;
+      x = i->first;// input
       
-      for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
-      {
-        doubleVec x;
-        x = i->first;
-        
-        doubleVec y(1);
-        y.at(0) = i->second;
+      std::vector<double> y(1);
+      y.at(0) = i->second;// observed output
 
-        doubleVec y_fit;
-        y_fit = learner_->update( x,y );
-        
-        if( y_fit.empty() )
-        {
-          std::cerr << "update(x,y)= NOT OK" << std::endl;
-          continue;
-        }
-        
-        std::ofstream onlwpr_log;
-        onlwpr_log.open("/home/vektor/rss-2013/data/onlwpr_log/fitting_onlwpr_3obj_3.csv",std::ios::app);
-        onlwpr_log << y_fit.at(0) << "," << y.at(0) << "," << learner_->nData() << std::endl;
-        onlwpr_log.close();
+      std::vector<double> y_fit_test;// for prediction before the model is updated with this samples
+      y_fit_test = learner_->predict(x);
+
+      std::vector<double> y_fit;
+      y_fit = learner_->update( x,y );// likely that this prediction after the model is updated, it differs from the prediction before updating 
+//      cerr << "y_fit= " << y_fit.at(0) << endl;
+      
+      if( y_fit.empty() )
+      {
+        std::cerr << "update(x,y)= NOT OK" << std::endl;
+        continue;// with the next samples
       }
       
-      // Store the updated model
-      std::string lwpr_model_path;
-      lwpr_model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/lwpr.bin";
+      // Keep ml-related data 
+      std::vector<double> ml_datum;
+      ml_datum.push_back(y_fit_test.at(0));
+      ml_datum.push_back(y_fit.at(0));
+      ml_datum.push_back(y.at(0));
+      ml_datum.push_back(learner_->nData());
       
-      if( !learner_->writeBinary(lwpr_model_path.c_str()) )
-       std::cerr << "learner_->writeBinary()= NOT OK" << std::endl;
-
-      break;
+      ml_data_->push_back(ml_datum);
     }
+    
+    // Store the updated model
+    std::string lwpr_model_path;
+    lwpr_model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/lwpr.bin";
+    
+    if( !learner_->writeBinary(lwpr_model_path.c_str()) )
+     std::cerr << "learner_->writeBinary()= NOT OK" << std::endl;
   }
-
+  
   // Set its color to black=examined
   gpm_->mark_vertex(v);
 }
@@ -123,15 +115,16 @@ template <typename Graph>
 void 
 initialize_vertex(typename Graph::vertex_descriptor v, Graph& g) 
 {
-  if(mode_==1)
-    gpm_->init_vertex(v);
+  gpm_->init_vertex(v);
 }
   
 private:
 typename GPMGraph::vertex_descriptor goal_;
 GeometricPlannerManager* gpm_;
 LearningMachine* learner_;  
-size_t mode_;
+std::vector< std::vector<double> >* ml_data_;
+size_t ml_mode_;
+
 };
 
 template <typename GPMGraph, typename CostType, typename LearningMachine>
@@ -140,8 +133,8 @@ class AstarHeuristics: public astar_heuristic<GPMGraph, CostType>
 public:
 typedef typename graph_traits<GPMGraph>::vertex_descriptor Vertex;
 
-AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,size_t mode)
-: goal_(goal), gpm_(gpm), learner_(learner), mode_(mode)
+AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,size_t ml_mode)
+: goal_(goal), gpm_(gpm), learner_(learner), ml_mode_(ml_mode)
 { }
 
 CostType 
@@ -150,11 +143,11 @@ operator()(Vertex v)
   cerr << "Compute h(" << v << "): BEGIN" << endl;
   double h;
   
-  if( (mode_==1)or(v==goal_) )// or mode=UCS, no learning
+  if( (ml_mode_==NO_ML)or(v==goal_) )// or ml_mode=UCS, no learning
   {
       h = 0.;
   }
-  else// get the heuristic from a learning machine, so far either SVR or LWPR
+  else// get the heuristic from a learning machine, so far either ml_mode= SVR_OFFLINE or ml_mode=LWPR_ONLINE
   {
     // Extract feature x
     Input x;
@@ -187,7 +180,7 @@ private:
 Vertex goal_;
 GeometricPlannerManager* gpm_;
 LearningMachine* learner_;
-size_t mode_;
+size_t ml_mode_;
 };
 
 #endif // #ifndef ASTAR_UTILS_HPP_INCLUDED

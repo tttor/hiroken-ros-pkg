@@ -48,12 +48,13 @@ PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::
 bool
 PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_manager::Plan::Response& res)
 {
-  return plan( req.mode,&(res.ctamp_sol) );
+  return plan( req.ml_mode,req.rerun,req.log_path,&(res.ctamp_sol),&(res.n_samples) );
 }
 
 //! Plan manipulation plans.
 /*!
-  The output is optimal and symbollically-and-geometrically feasible.
+  The output is asymptotically-optimal and symbollically-and-geometrically feasible.
+  
   It is obvious that this planner manager does not interleave symbolic planning and geometric planning.
   Instead, it makes a call to the former first in order to obtain all symbollically feasible task plans, then validate each of them using geometric planning.
   This is the most straightforward way to do combined symbolic and geometric planning.
@@ -62,7 +63,7 @@ PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_man
   within which a geometric planner is called to validate each action whether it is symbollically feasible.
 */
 bool
-PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol)
+PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,uint32_t* n_samples)
 {
   std::string base_data_path;
   if( !ros::param::get("/base_data_path", base_data_path) )
@@ -74,101 +75,122 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
 
   std::string tidy_cfg_filename;
   if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
-    ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead");         
-
- if ( !set_tidy_config() )
+    ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead");
+  if ( !set_tidy_config() )
   {
     ROS_ERROR("Can not set the tidy_cfg!");
     return false;
   }
       
-  // Init
-  switch(mode)
+  // Initialize
+  TaskMotionMultigraph ucs_sol_tmm;// only used in rerun modes
+  
+  if(!rerun)
   {
-    case 1:
-    {
-      tmm_ = TaskMotionMultigraph();// renew the tmm_
+   tmm_ = TaskMotionMultigraph();// renew the tmm_
         
-      // Create task plan space encoded in a task motion graph
-      // A call to the task planner if succeed outputs "vanilla_tmm.dot"
-      SymbolicPlannerManager spm(nh_);
-      
-      if( !spm.plan(*this) )
-      {
-        ROS_ERROR("Can not construct TMM!");
-        return false;
-      }
-      else
-      {
-        ROS_DEBUG("TMM is constructed successfully");
-      }
-      
-      boost::dynamic_properties tmm_dp;
-      
-      tmm_dp.property("vertex_id", get(vertex_name, tmm_));
-      
-      tmm_dp.property("label", get(edge_name, tmm_));
-      tmm_dp.property("weight", get(edge_weight, tmm_));
-      tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
-      
-      std::string tmm_dot_path = data_path + "/vanilla_tmm.dot";  
-      std::ifstream tmm_dot(tmm_dot_path.c_str());
-      
-      read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id"); 
-      
-      break;
-    }
-    case 2:
-    {
-      // use same as mode=3
-    }
-    case 3:
-    {
-      // use same as mode=4
-    }
-    case 4:
-    {
-      tmm_ = TaskMotionMultigraph();// renew the tmm_
+    // Create task plan space encoded in a task motion graph
+    // A call to the task planner if succeed outputs "vanilla_tmm.dot"
+    SymbolicPlannerManager spm(nh_);
     
-      // Read the planned tmm
-      boost::dynamic_properties tmm_dp;
-      
-      tmm_dp.property("vertex_id", get(vertex_name, tmm_));
-      
-      tmm_dp.property("label", get(edge_name, tmm_));
-      tmm_dp.property("weight", get(edge_weight, tmm_));
-      tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
-      tmm_dp.property("color", get(edge_color,tmm_));
-      tmm_dp.property("srcstate", get(edge_srcstate,tmm_));
-      tmm_dp.property("mptime",get(edge_mptime,tmm_));
-      tmm_dp.property("planstr",get(edge_planstr,tmm_));
+    if( !spm.plan(*this) )
+    {
+      ROS_ERROR("Can not construct TMM!");
+      return false;
+    }
+    else
+    {
+      ROS_DEBUG("TMM is constructed successfully");
+    }
+    
+    boost::dynamic_properties tmm_dp;
+    
+    tmm_dp.property("vertex_id", get(vertex_name, tmm_));
+    
+    tmm_dp.property("label", get(edge_name, tmm_));
+    tmm_dp.property("weight", get(edge_weight, tmm_));
+    tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
+    
+    std::string tmm_dot_path = data_path + "/vanilla_tmm.dot";  
+    std::ifstream tmm_dot(tmm_dot_path.c_str());
+    
+    read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id"); 
+  }
+  else// if(rerun)
+  {
+    tmm_ = TaskMotionMultigraph();// renew the tmm_
+  
+    // Read the planned tmm
+    boost::dynamic_properties tmm_dp;
+    
+    tmm_dp.property("vertex_id", get(vertex_name, tmm_));
+    
+    tmm_dp.property("label", get(edge_name, tmm_));
+    tmm_dp.property("weight", get(edge_weight, tmm_));
+    tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
+    tmm_dp.property("color", get(edge_color,tmm_));
+    tmm_dp.property("srcstate", get(edge_srcstate,tmm_));
+    tmm_dp.property("mptime",get(edge_mptime,tmm_));
+    tmm_dp.property("planstr",get(edge_planstr,tmm_));
 
-      std::ifstream tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
-      if( !read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id") )
-      {
-        ROS_ERROR("read_graphviz(): Failed.");
-        return false;
-      }
+    std::ifstream tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
+    if( !read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id") )
+    {
+      ROS_ERROR("read_graphviz(tmm_dot,...): Failed.");
+      return false;
+    }
+    
+    // Put edge_planstr into edge_plan
+    graph_traits<TaskMotionMultigraph>::edge_iterator ei,ei_end;
+    for(tie(ei,ei_end)=edges(tmm_); ei!=ei_end; ++ei)
+    {
+      std::string planstr;
+      planstr = get(edge_planstr,tmm_,*ei);
       
-      // Put edge_planstr into edge_plan
-      graph_traits<TaskMotionMultigraph>::edge_iterator ei,ei_end;
-      for(tie(ei,ei_end)=edges(tmm_); ei!=ei_end; ++ei)
+      put(edge_plan,tmm_,*ei, get_plan(planstr) );
+    }
+    
+    // Retrieve the sol path resulted using UCS for making comparison: true_cost-to-go vs predicted_cost-to-go 
+    // Assume that the base for rerun is using UCS
+    boost::dynamic_properties ucs_sol_tmm_dp;
+    
+    ucs_sol_tmm_dp.property("vertex_id", get(vertex_name, ucs_sol_tmm));
+    
+    ucs_sol_tmm_dp.property("label", get(edge_name, ucs_sol_tmm));
+    ucs_sol_tmm_dp.property("jspace", get(edge_jspace, ucs_sol_tmm)); 
+    ucs_sol_tmm_dp.property("planstr",get(edge_planstr,ucs_sol_tmm));    
+//    ucs_sol_tmm_dp.property("weight", get(edge_weight, ucs_sol_tmm));
+//    ucs_sol_tmm_dp.property("color", get(edge_color,ucs_sol_tmm));
+
+    std::ifstream ucs_sol_tmm_dot(  std::string(base_data_path+"/sol_tmm.dot").c_str()  );
+    if( !read_graphviz(ucs_sol_tmm_dot, ucs_sol_tmm, ucs_sol_tmm_dp, "vertex_id") )
+    {
+      ROS_ERROR("read_graphviz(ucs_sol_tmm_dot,...): Failed.");
+      return false;
+    }
+    
+    // Copy the weight from tmm_ to ucs_sol_tmm because currently ucs_sol_tmm does not contain these values
+    for(tie(ei,ei_end) = edges(ucs_sol_tmm); ei!=ei_end; ++ei )
+    {
+      graph_traits<TaskMotionMultigraph>::edge_iterator ej,ej_end;
+      for(tie(ej,ej_end) = edges(tmm_); ej!=ej_end; ++ej)
       {
-        std::string planstr;
-        planstr = get(edge_planstr,tmm_,*ei);
+        TMMVertex ei_source = source(*ei,ucs_sol_tmm);
+        TMMVertex ei_target = target(*ei,ucs_sol_tmm);
         
-        put(edge_plan,tmm_,*ei, get_plan(planstr) );
+        TMMVertex ej_source = source(*ej,tmm_);
+        TMMVertex ej_target = target(*ej,tmm_);
+        
+        if( (ei_source==ej_source) and (ei_target==ej_target) )
+        {
+          double w;
+          w = get(edge_weight,tmm_,*ej);
+          
+          put(edge_weight,ucs_sol_tmm,*ei,w);
+          
+          break;
+        }
       }
-      
-      // Somehow(?) within this mode astar doesnot call init_vertex()
-      graph_traits<TaskMotionMultigraph>::vertex_iterator vi,vi_end;
-      for(tie(vi,vi_end)=vertices(tmm_); vi!=vi_end; ++vi)
-      {
-        GeometricPlannerManager gpm(this);
-        gpm.init_vertex(*vi);
-      }
-      
-      break;
     }
   }
   
@@ -185,13 +207,16 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
       tmm_goal_ = *vi;
   }
   
-  // Open a log file
+  // Open up log files
   std::ofstream perf_log;
   perf_log.open(std::string(data_path+"/perf.log").c_str());
   
   std::ofstream csv_perf_log;
   csv_perf_log.open(std::string(data_path+"/perf.log.csv").c_str());
 
+  // ml data for analysis
+  std::vector< std::vector<double> > ml_data;
+        
   // Search 
   GeometricPlannerManager gpm(this);
   std::vector<TMMVertex> predecessors(num_vertices(tmm_));
@@ -201,60 +226,63 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   ros::Time planning_begin = ros::Time::now();
   try 
   {
-    switch(mode)
+    switch(ml_mode)
     {
-      case 1:
+      case NO_ML:
       {
-        // use "as is" mode2, the learner is useless though
+        // use "as is" mode=SVR_OFFLINE, the learner is useless though, see astar_utils.hpp where the heuristic for this mode is always set to h=0
       }
-      case 2:
+      case SVR_OFFLINE:
       {
-        // SVR from libsvm
-        std::string model_path;
-        model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/svm.v4.libsvmmodel";
-        
-        std::string te_data_path;
-        te_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/online_te_data.libsvmdata";
+//        ROS_DEBUG("learner= SVR");
+//        
+//        // SVR from libsvm
+//        std::string model_path;
+//        model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/svm.v4.libsvmmodel";
+//        
+//        std::string te_data_path;
+//        te_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/online_te_data.libsvmdata";
 
-        std::string fit_out_path;
-        fit_out_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
-        
-        SVM_Object learner(model_path,te_data_path,fit_out_path,"");
-        
-        astar_search( tmm_
-                    , tmm_root_
-                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,mode)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,mode) )
-                    . predecessor_map(&predecessors[0])
-                    . distance_map(&distances[0])
-                    );
+//        std::string fit_out_path;
+//        fit_out_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
+//        
+//        SVM_Object learner(model_path,te_data_path,fit_out_path,"");
+//        
+//        ROS_DEBUG("Searching over TMM ...");
+//        astar_search( tmm_
+//                    , tmm_root_
+//                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,ml_mode)
+//                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,n_samples,ml_mode) )
+//                    . predecessor_map(&predecessors[0])
+//                    . distance_map(&distances[0])
+//                    );
         
         break;
       }
-      case 3:
+      case LWPR_ONLINE:
       {
-        // Use the same machine as mode=4 (LWPR) but the model is not updated online
-      }
-      case 4:
-      {
-        ROS_DEBUG("learner= LWPR");
+        ROS_DEBUG("learner= LWPR");// LWPR from Edinburg Univ.
         
-        // LWPR from Edinburg Univ.
-        std::string lwpr_model_path;
-        lwpr_model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/lwpr.bin";
+        std::string model_path;
+        model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/lwpr.bin";
                 
-        LWPR_Object lwpr_learner(lwpr_model_path.c_str());
+        LWPR_Object learner( model_path.c_str() );
         
-        ROS_DEBUG("Searching...");
+        ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
-                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&lwpr_learner,mode)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&lwpr_learner,mode) )
+                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&learner,ml_mode)
+                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
-            
+
         break;
+      }
+      default:
+      {
+        ROS_ERROR("ml_mode is unknown, return immediately.");
+        return false;
       }
     }
   }
@@ -324,7 +352,7 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     
     // Build the solution path. Here the solution path may be cancelled if there is an edge that has no motion plan (edge_color=red).
     std::vector<TMMEdge> sol_path;
-    bool recheck = true;// Optimistis that this is truly solution path
+    bool recheck = true;// Optimistis that this is truly the solution path
     std::list<TMMVertex>::iterator spvl_it = sol_path_vertex_list.begin();
 
     TMMVertex s;
@@ -408,6 +436,52 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
     }
   }// End of: catch(FoundGoalSignal fgs) 
   
+  // Write ml_data
+  std::string ml_log_path;
+  ml_log_path = std::string(log_path+".ml.log");
+  
+  std::ofstream ml_log;
+  ml_log.open(ml_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
+
+  for(std::vector< std::vector<double> >::const_iterator i=ml_data.begin(); i!=ml_data.end(); ++i)
+  {
+    ml_log << i->at(0) << "," << i->at(1) << ","<< i->at(2) << "," << i->at(3) << std::endl;
+  }
+
+  ml_log.close();
+  
+  // Put the last n_samples for the run.log 
+  *n_samples = ml_data.back().at(3);
+
+  // Write log for heuristics vs true distance 
+  // The reference is UCS-sol-path on the rerun base 
+  std::string h_log_path;
+  h_log_path = std::string(log_path+".h.log");
+  
+  std::ofstream h_log;
+  h_log.open(h_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
+  
+  TMMVertex curr_vertex;
+  curr_vertex = tmm_root_;
+  do// Loop for obtaining all paths from any vertex in a solution path to the goal vertex
+  {
+    double h;// = estimated cost-to-go
+    h = get(vertex_heu,tmm_,curr_vertex);
+    
+    double cost2go = 0.;// valid when cost2go > 0.0
+    cost2go = get_cost2go(curr_vertex,tmm_goal_,ucs_sol_tmm);
+    
+    h_log << h << "," << cost2go << std::endl;
+    
+    typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+    tie(oei,oei_end)=out_edges(curr_vertex,ucs_sol_tmm);// no need to iterate over oei because there is only one outedge in the ucs_sol_tmm (it is actually a graph)
+   
+    curr_vertex = target(*oei,ucs_sol_tmm);
+  }
+  while(curr_vertex != tmm_goal_);
+  
+  h_log.close();
+  
   // Write a fancy planned TMM
   std::string p_tmm_dot_path = data_path + "/fancy_tmm.dot";
   
@@ -450,9 +524,12 @@ PlannerManager::plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajec
   boost::dynamic_properties sol_tmm_dp;
   
   sol_tmm_dp.property( "vertex_id",get(vertex_name,sol_tmm) );
+  
   sol_tmm_dp.property( "label",get(edge_name, sol_tmm) );
   sol_tmm_dp.property( "jspace",get(edge_jspace, sol_tmm) );
   sol_tmm_dp.property( "planstr",get(edge_planstr, sol_tmm) );  
+//  sol_tmm_dp.property( "weight",get(edge_weight, sol_tmm) );
+//  sol_tmm_dp.property( "color",get(edge_color, sol_tmm) );
 
   std::string sol_tmm_dot_path = data_path + "/sol_tmm.dot";
   ofstream sol_tmm_dot;
@@ -504,6 +581,38 @@ PlannerManager::set_tidy_config()
   write_obj_cfg( tidy_cfg,std::string(data_path+"/tidy.cfg") );
   
   return true;
+}
+
+//! cost2go()
+/*!
+  Because we use a solution path from UCS, there must be a path from the start vertex to the goal vertex.
+  It is a graph not multigraph
+  All node but the goal node have exactly one out edge
+*/
+double
+PlannerManager::get_cost2go(const TMMVertex& start,const TMMVertex& goal,const TaskMotionMultigraph& tmm)
+{
+  double cost2go = 0.;
+  
+  TMMVertex v;
+  v = start;
+  do
+  {
+    typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+    tie(oei,oei_end) = out_edges(v,tmm);
+    
+    double cost;
+    cost = get(edge_weight,tmm,*oei);
+    ROS_DEBUG_STREAM("get(edge_weight,tmm,*oei)= " << get(edge_weight,tmm,*oei));
+    
+    cost2go += cost;
+    
+    v = target(*oei,tmm);
+    ROS_DEBUG_STREAM("get(vertex_name,tmm_,v)=" << get(vertex_name,tmm_,v));
+  }
+  while(v != goal);
+    
+  return cost2go;
 }
 
 int 

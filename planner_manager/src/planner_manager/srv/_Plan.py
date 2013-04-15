@@ -6,14 +6,16 @@ import struct
 
 
 class PlanRequest(genpy.Message):
-  _md5sum = "89b81386720be1cd0ce7a3953fcd1b19"
+  _md5sum = "dd4eecefbba533c08853534a8083b7c5"
   _type = "planner_manager/PlanRequest"
   _has_header = False #flag to mark the presence of a Header object
-  _full_text = """uint8 mode
+  _full_text = """uint8 ml_mode
+string log_path
+bool rerun
 
 """
-  __slots__ = ['mode']
-  _slot_types = ['uint8']
+  __slots__ = ['ml_mode','log_path','rerun']
+  _slot_types = ['uint8','string','bool']
 
   def __init__(self, *args, **kwds):
     """
@@ -23,7 +25,7 @@ class PlanRequest(genpy.Message):
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       mode
+       ml_mode,log_path,rerun
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -32,10 +34,16 @@ class PlanRequest(genpy.Message):
     if args or kwds:
       super(PlanRequest, self).__init__(*args, **kwds)
       #message fields cannot be None, assign default values for those that are
-      if self.mode is None:
-        self.mode = 0
+      if self.ml_mode is None:
+        self.ml_mode = 0
+      if self.log_path is None:
+        self.log_path = ''
+      if self.rerun is None:
+        self.rerun = False
     else:
-      self.mode = 0
+      self.ml_mode = 0
+      self.log_path = ''
+      self.rerun = False
 
   def _get_types(self):
     """
@@ -49,7 +57,14 @@ class PlanRequest(genpy.Message):
     :param buff: buffer, ``StringIO``
     """
     try:
-      buff.write(_struct_B.pack(self.mode))
+      buff.write(_struct_B.pack(self.ml_mode))
+      _x = self.log_path
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
+      buff.write(_struct_B.pack(self.rerun))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -62,7 +77,20 @@ class PlanRequest(genpy.Message):
       end = 0
       start = end
       end += 1
-      (self.mode,) = _struct_B.unpack(str[start:end])
+      (self.ml_mode,) = _struct_B.unpack(str[start:end])
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.log_path = str[start:end].decode('utf-8')
+      else:
+        self.log_path = str[start:end]
+      start = end
+      end += 1
+      (self.rerun,) = _struct_B.unpack(str[start:end])
+      self.rerun = bool(self.rerun)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -75,7 +103,14 @@ class PlanRequest(genpy.Message):
     :param numpy: numpy python module
     """
     try:
-      buff.write(_struct_B.pack(self.mode))
+      buff.write(_struct_B.pack(self.ml_mode))
+      _x = self.log_path
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
+      buff.write(_struct_B.pack(self.rerun))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -89,7 +124,20 @@ class PlanRequest(genpy.Message):
       end = 0
       start = end
       end += 1
-      (self.mode,) = _struct_B.unpack(str[start:end])
+      (self.ml_mode,) = _struct_B.unpack(str[start:end])
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.log_path = str[start:end].decode('utf-8')
+      else:
+        self.log_path = str[start:end]
+      start = end
+      end += 1
+      (self.rerun,) = _struct_B.unpack(str[start:end])
+      self.rerun = bool(self.rerun)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -107,10 +155,11 @@ import genpy
 import std_msgs.msg
 
 class PlanResponse(genpy.Message):
-  _md5sum = "100a5d3863958938cf4502ee2eaa68e1"
+  _md5sum = "ef74b0e717f11d07feb1ae778037e49a"
   _type = "planner_manager/PlanResponse"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """trajectory_msgs/JointTrajectory[] ctamp_sol
+uint32 n_samples
 
 
 ================================================================================
@@ -143,8 +192,8 @@ float64[] velocities
 float64[] accelerations
 duration time_from_start
 """
-  __slots__ = ['ctamp_sol']
-  _slot_types = ['trajectory_msgs/JointTrajectory[]']
+  __slots__ = ['ctamp_sol','n_samples']
+  _slot_types = ['trajectory_msgs/JointTrajectory[]','uint32']
 
   def __init__(self, *args, **kwds):
     """
@@ -154,7 +203,7 @@ duration time_from_start
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       ctamp_sol
+       ctamp_sol,n_samples
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -165,8 +214,11 @@ duration time_from_start
       #message fields cannot be None, assign default values for those that are
       if self.ctamp_sol is None:
         self.ctamp_sol = []
+      if self.n_samples is None:
+        self.n_samples = 0
     else:
       self.ctamp_sol = []
+      self.n_samples = 0
 
   def _get_types(self):
     """
@@ -220,6 +272,7 @@ duration time_from_start
           _v3 = val2.time_from_start
           _x = _v3
           buff.write(_struct_2i.pack(_x.secs, _x.nsecs))
+      buff.write(_struct_I.pack(self.n_samples))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -305,6 +358,9 @@ duration time_from_start
           (_x.secs, _x.nsecs,) = _struct_2i.unpack(str[start:end])
           val1.points.append(val2)
         self.ctamp_sol.append(val1)
+      start = end
+      end += 4
+      (self.n_samples,) = _struct_I.unpack(str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -357,6 +413,7 @@ duration time_from_start
           _v9 = val2.time_from_start
           _x = _v9
           buff.write(_struct_2i.pack(_x.secs, _x.nsecs))
+      buff.write(_struct_I.pack(self.n_samples))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -443,6 +500,9 @@ duration time_from_start
           (_x.secs, _x.nsecs,) = _struct_2i.unpack(str[start:end])
           val1.points.append(val2)
         self.ctamp_sol.append(val1)
+      start = end
+      end += 4
+      (self.n_samples,) = _struct_I.unpack(str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -452,6 +512,6 @@ _struct_2I = struct.Struct("<2I")
 _struct_2i = struct.Struct("<2i")
 class Plan(object):
   _type          = 'planner_manager/Plan'
-  _md5sum = '0d799699f9a6c4ebc406059b14aaf985'
+  _md5sum = '5a793042fcc4b3ea8758d345a00a8c3c'
   _request_class  = PlanRequest
   _response_class = PlanResponse

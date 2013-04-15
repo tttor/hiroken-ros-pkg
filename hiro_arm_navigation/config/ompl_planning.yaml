@@ -3,6 +3,8 @@ planner_configs:
     type: kinematic::SBL
   LBKPIECEkConfig1:
     type: kinematic::LBKPIECE
+  RRTStarkConfig1:
+    type: kinematic::RRTStar
 groups:
   - larm
   - larm_cartesian
@@ -17,24 +19,28 @@ larm:
   planner_configs:
     - SBLkConfig1
     - LBKPIECEkConfig1
+    - RRTStarkConfig1
   projection_evaluator: joint_state
 larm_U_chest:
   planner_type: JointPlanner
   planner_configs:
     - SBLkConfig1
     - LBKPIECEkConfig1
+    - RRTStarkConfig1
   projection_evaluator: joint_state
 rarm:
   planner_type: JointPlanner
   planner_configs:
     - SBLkConfig1
     - LBKPIECEkConfig1
+    - RRTStarkConfig1
   projection_evaluator: joint_state
 rarm_U_chest:
   planner_type: JointPlanner
   planner_configs:
     - SBLkConfig1
     - LBKPIECEkConfig1
+    - RRTStarkConfig1
   projection_evaluator: joint_state
 larm_cartesian:
   parent_frame: link_chest_yaw
@@ -68,6 +74,7 @@ larm_cartesian:
   planner_configs:
     - SBLkConfig1
     - LBKPIECEkConfig1
+    - RRTStarkConfig1
   kinematics_solver: arm_kinematics_constraint_aware/KDLArmKinematicsPlugin
   tip_name: link_lhand_palm
   root_name: link_chest_yaw
@@ -105,6 +112,7 @@ larm_U_chest_cartesian:
   planner_configs:
     - SBLkConfig1
     - LBKPIECEkConfig1
+    - RRTStarkConfig1
   kinematics_solver: arm_kinematics_constraint_aware/KDLArmKinematicsPlugin
   tip_name: link_lhand_palm
   root_name: link_base
@@ -142,6 +150,7 @@ rarm_cartesian:
   planner_configs:
     - SBLkConfig1
     - LBKPIECEkConfig1
+    - RRTStarkConfig1
   kinematics_solver: arm_kinematics_constraint_aware/KDLArmKinematicsPlugin
   tip_name: link_rhand_palm
   root_name: link_chest_yaw
@@ -179,6 +188,7 @@ rarm_U_chest_cartesian:
   planner_configs:
     - SBLkConfig1
     - LBKPIECEkConfig1
+    - RRTStarkConfig1
   kinematics_solver: arm_kinematics_constraint_aware/KDLArmKinematicsPlugin
   tip_name: link_rhand_palm
   root_name: link_base
