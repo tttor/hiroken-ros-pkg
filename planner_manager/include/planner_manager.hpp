@@ -39,17 +39,10 @@
 #include "planner_manager.hpp"
 #include "obj_cfg_rw.hpp"
 #include "utils.hpp"
+#include "ml_util.hpp"
 
 #include <lwpr.hh>
 #include "libsvm_util.hpp"
-
-typedef enum 
-{
-  NO_ML=1, 
-  SVR_OFFLINE=2, 
-  LWPR_OFFLINE=3,
-  LWPR_ONLINE=4
-} MLMode;
 
 class PlannerManager
 {
@@ -82,12 +75,18 @@ private:
   Instead, it makes a call to the former first in order to obtain all symbollically feasible task plans, then validate each of them using geometric planning.
   This is the most straightforward way to do combined symbolic and geometric planning.
   It also employs the concept of task motion multigraph.
+  
+  size_t& ml_mode CANNOT be MLMode& ml_mode
+  because it receive ml_mode from a service request, which does not have MLMode
 */
 bool
-plan(const size_t& mode,std::vector<trajectory_msgs::JointTrajectory>* man_plan);
+plan(const size_t& ml_mode,const bool& rerun,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,uint32_t* n_samples);
 
 bool
 set_tidy_config();
+
+double
+get_cost2go(const TMMVertex& start,const TMMVertex& goal,const TaskMotionMultigraph& tmm);
 
 //! A task motion multigraph variable
 /*!

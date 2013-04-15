@@ -11,11 +11,8 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
 rosbuild_init()
 
-rosbuild_find_ros_package(hiro_common)
-include_directories(${hiro_common_PACKAGE_PATH}/include)
-
-rosbuild_find_ros_package(planner_manager)
-include_directories(${planner_manager_PACKAGE_PATH}/include)
+rosbuild_find_ros_package(learning_machine)
+include_directories(${learning_machine_PACKAGE_PATH}/include)
 
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
@@ -33,4 +30,4 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 rosbuild_add_executable(general_mgr src/general_manager.cpp)
-target_link_libraries(general_mgr boost_filesystem boost_system)
+target_link_libraries(general_mgr boost_filesystem boost_system lwpr)
