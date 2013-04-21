@@ -86,10 +86,10 @@ convert(RawInput& r_in,Input* in,const std::vector<std::string>& labels)
 }
 
 bool
-write_libsvm_data(const Data& data,const std::string& data_out_path)
+write_libsvm_data(const Data& data,const std::string& data_out_path,std::ios_base::openmode mode = std::ios_base::out)
 {
   std::ofstream data_out;
-  data_out.open(data_out_path.c_str());// overwrite
+  data_out.open(data_out_path.c_str(),mode);
   
   for(Data::const_iterator i=data.begin(); i!=data.end(); ++i)
   {
@@ -112,11 +112,11 @@ write_libsvm_data(const Data& data,const std::string& data_out_path)
 
 //! For testing/predicting purpose where the output y is unknown
 bool
-write_libsvm_data(const Input& in,const std::string& data_out_path)
+write_libsvm_data(const Input& in,const std::string& data_out_path,std::ios_base::openmode mode = std::ios_base::out)
 {
   Data data;
   data[in] = 0.;// arbitrary_y;
 
-  return write_libsvm_data(data,data_out_path);
+  return write_libsvm_data(data,data_out_path,mode);
 }
 #endif // #ifndef DATA_HPP_INCLUDED

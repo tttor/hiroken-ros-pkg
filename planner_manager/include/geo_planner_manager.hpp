@@ -215,7 +215,7 @@ plan(TMMEdge e)
 bool
 get_samples_online(TMMVertex v,Data* samples)
 {
-  ROS_DEBUG("get_samples_online(): BEGIN");
+//  ROS_DEBUG("get_samples_online(): BEGIN");
   
   TaskMotionMultigraph tmm;
   tmm = pm_->tmm_;
@@ -256,7 +256,7 @@ get_samples_online(TMMVertex v,Data* samples)
   
   for(std::set<TMMEdge>::const_iterator i=tobe_removed_edges.begin(); i!=tobe_removed_edges.end(); ++i)
     remove_edge(*i,tmm);
-  ROS_DEBUG("Parallelism: removed");
+//  ROS_DEBUG("Parallelism: removed");
   
 //  // Filter only the planned edge to make dfs_visit more efficient by cutting the depth of the tmm
 //  PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, tmm) );
@@ -296,7 +296,7 @@ get_samples_online(TMMVertex v,Data* samples)
     
   }// end of: for_each avi
     
-  ROS_DEBUG("get_samples_online(): END");
+//  ROS_DEBUG("get_samples_online(): END");
   return true;
 }
 
@@ -557,7 +557,7 @@ get_planning_env_str(const TMMVertex& v)
 void
 init_vertex(const TMMVertex& v)
 {
-  ROS_DEBUG_STREAM("init_vertex(" << get(vertex_name,pm_->tmm_,v) << "): BEGIN");
+//  ROS_DEBUG_STREAM("init_vertex(" << get(vertex_name,pm_->tmm_,v) << "): BEGIN");
   
   // Call to /environment_server/get_robot_state srv
   arm_navigation_msgs::GetRobotState::Request req;
@@ -1222,13 +1222,13 @@ set_robot_state(const TMMVertex& v)
   if( !ros::param::get("/data_path", data_path) )
     ROS_WARN("Can not get /data_path, use the default value instead");
         
-  ROS_DEBUG_STREAM("Try to publish vertex_jstates. On " << data_path);
+//  ROS_DEBUG_STREAM("Try to publish vertex_jstates. On " << data_path);
   bool passed = false;
   do
   {
     joint_states_cmd_pub_.publish( get(vertex_jstates,pm_->tmm_,v) );
     passed = true;
-    ROS_DEBUG_STREAM("jstates: published (trial).On " << data_path);
+//    ROS_DEBUG_STREAM("jstates: published (trial).On " << data_path);
 //    ros::Duration(0.2).sleep();
     
     arm_navigation_msgs::GetRobotState::Request req;
@@ -1252,8 +1252,8 @@ set_robot_state(const TMMVertex& v)
         std::vector<std::string>::iterator j;
         j = std::find(jstates.name.begin(),jstates.name.end(),*ii);
         
-        ROS_DEBUG_STREAM("of X= " << jstates.position.at(j-jstates.name.begin()));
-        ROS_DEBUG_STREAM("of Y= " << res.robot_state.joint_state.position.at(ii-res.robot_state.joint_state.name.begin()));
+//        ROS_DEBUG_STREAM("of X= " << jstates.position.at(j-jstates.name.begin()));
+//        ROS_DEBUG_STREAM("of Y= " << res.robot_state.joint_state.position.at(ii-res.robot_state.joint_state.name.begin()));
         
         if( jstates.position.at(j-jstates.name.begin()) != res.robot_state.joint_state.position.at(ii-res.robot_state.joint_state.name.begin()) )
         {

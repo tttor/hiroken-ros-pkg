@@ -155,11 +155,11 @@ import genpy
 import std_msgs.msg
 
 class PlanResponse(genpy.Message):
-  _md5sum = "ef74b0e717f11d07feb1ae778037e49a"
+  _md5sum = "700e06dcc5e788860bef7920b6810e7b"
   _type = "planner_manager/PlanResponse"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """trajectory_msgs/JointTrajectory[] ctamp_sol
-uint32 n_samples
+float64[] ctamp_log
 
 
 ================================================================================
@@ -192,8 +192,8 @@ float64[] velocities
 float64[] accelerations
 duration time_from_start
 """
-  __slots__ = ['ctamp_sol','n_samples']
-  _slot_types = ['trajectory_msgs/JointTrajectory[]','uint32']
+  __slots__ = ['ctamp_sol','ctamp_log']
+  _slot_types = ['trajectory_msgs/JointTrajectory[]','float64[]']
 
   def __init__(self, *args, **kwds):
     """
@@ -203,7 +203,7 @@ duration time_from_start
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       ctamp_sol,n_samples
+       ctamp_sol,ctamp_log
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -214,11 +214,11 @@ duration time_from_start
       #message fields cannot be None, assign default values for those that are
       if self.ctamp_sol is None:
         self.ctamp_sol = []
-      if self.n_samples is None:
-        self.n_samples = 0
+      if self.ctamp_log is None:
+        self.ctamp_log = []
     else:
       self.ctamp_sol = []
-      self.n_samples = 0
+      self.ctamp_log = []
 
   def _get_types(self):
     """
@@ -272,7 +272,10 @@ duration time_from_start
           _v3 = val2.time_from_start
           _x = _v3
           buff.write(_struct_2i.pack(_x.secs, _x.nsecs))
-      buff.write(_struct_I.pack(self.n_samples))
+      length = len(self.ctamp_log)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sd'%length
+      buff.write(struct.pack(pattern, *self.ctamp_log))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -360,7 +363,11 @@ duration time_from_start
         self.ctamp_sol.append(val1)
       start = end
       end += 4
-      (self.n_samples,) = _struct_I.unpack(str[start:end])
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sd'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.ctamp_log = struct.unpack(pattern, str[start:end])
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -413,7 +420,10 @@ duration time_from_start
           _v9 = val2.time_from_start
           _x = _v9
           buff.write(_struct_2i.pack(_x.secs, _x.nsecs))
-      buff.write(_struct_I.pack(self.n_samples))
+      length = len(self.ctamp_log)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sd'%length
+      buff.write(self.ctamp_log.tostring())
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -502,7 +512,11 @@ duration time_from_start
         self.ctamp_sol.append(val1)
       start = end
       end += 4
-      (self.n_samples,) = _struct_I.unpack(str[start:end])
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sd'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.ctamp_log = numpy.frombuffer(str[start:end], dtype=numpy.float64, count=length)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -512,6 +526,6 @@ _struct_2I = struct.Struct("<2I")
 _struct_2i = struct.Struct("<2i")
 class Plan(object):
   _type          = 'planner_manager/Plan'
-  _md5sum = '5a793042fcc4b3ea8758d345a00a8c3c'
+  _md5sum = '88ec01b41a01a569deb9eb80adb4ff64'
   _request_class  = PlanRequest
   _response_class = PlanResponse

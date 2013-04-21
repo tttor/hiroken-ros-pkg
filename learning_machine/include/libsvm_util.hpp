@@ -181,7 +181,7 @@ read_problem(const char *filename,SVMNode* x_space,SVMProblem* prob,SVMParameter
 }
 
 void 
-do_predict(SVMModel* model,int predict_probability,int max_nr_attr,SVMNode*x,FILE *input, FILE *output)
+libsvm_predict(SVMModel* model,int predict_probability,int max_nr_attr,SVMNode*x,FILE *input, FILE *output)
 {
 	int correct = 0;
 	int total = 0;
@@ -299,12 +299,13 @@ class SVM_Object
 {
 public:
 SVM_Object(std::string model_path,std::string te_data_path,std::string fit_path,std::string tr_data_path)
-: model_path_(model_path),te_data_path_(te_data_path),fit_path_(fit_path),tr_data_path_(tr_data_path)
+: model_path_(model_path),te_data_path_(te_data_path),fit_data_path_(fit_path),tr_data_path_(tr_data_path)
 { }
 
 //! Predict 
 /*!
-  Note that because libsvm only accept data in file-form we have to do some conversions.
+  Note that because libsvm only accept data in file-form, 
+  therefor we have to write input data into a file and read the resulted fitting value from a file.
 */
 std::vector<double>
 predict(const Input& in)
@@ -316,6 +317,7 @@ predict(const Input& in)
     std::cerr << "can't write input file= " << te_data_path_ << std::endl;
     return std::vector<double>();
   }
+  std::cerr << "_in_ is written in te_data file" << std::endl;
   
   FILE *input;
 	input = fopen(te_data_path_.c_str(),"r");
@@ -324,14 +326,16 @@ predict(const Input& in)
     std::cerr << "can't open input file= " << te_data_path_ << std::endl;
     return std::vector<double>();
 	}
+	std::cerr << "te_data is opened" << std::endl;
   
   FILE *output;
-	output = fopen(fit_path_.c_str(),"w");
+	output = fopen(fit_data_path_.c_str(),"w");
 	if(output == NULL)
 	{
-    std::cerr << "can't open output file= " << fit_path_ << std::endl;
+    std::cerr << "can't open output file= " << fit_data_path_ << std::endl;
     return std::vector<double>();
 	}
+	std::cerr << "out file is opened" << std::endl;
 	
 	SVMModel* model;
 	if( (model=svm_load_model(model_path_.c_str())) == 0 )
@@ -339,7 +343,8 @@ predict(const Input& in)
     std::cerr << "can't open model file= " << model_path_ << std::endl;
     return std::vector<double>();
 	}
-
+  std::cerr << "model file is opened" << std::endl;
+  
   SVMNode* x;
   int max_nr_attr = 100;
   
@@ -347,15 +352,16 @@ predict(const Input& in)
 
   int predict_probability=0;
   
-  do_predict(model,predict_probability,max_nr_attr,x,input,output);
+  std::cerr << "libsvm_predict()..." << std::endl;
+  libsvm_predict(model,predict_probability,max_nr_attr,x,input,output);
 
-  // TODO make these work, now: causes ERR    
+  // TODO make these work, now: causes running-time ERR    
 //  svm_free_and_destroy_model(&model);
 //  free(x);
-//  free(line);
+//  free(line);// NOTE that line is a global var
   fclose(input);
   fclose(output);
-
+  
   return get_fit_vals();
 }
 
@@ -381,22 +387,24 @@ nData()
 {
   return 0;
 }
+
 private:
-//! Obtaining fitted values for one single instance
+//! Obtaining fitted values for _one_ single instance
 std::vector<double>
 get_fit_vals()
 {
   std::vector<double> fit_vals;
   
   //Read Only the first line
-  std::ifstream fit_in(fit_path_.c_str());
+  std::ifstream fit_in(fit_data_path_.c_str());
   
   if(fit_in.is_open())
   {
     std::string fit_val;
     getline(fit_in,fit_val);
     
-    fit_vals.push_back( boost::lexical_cast<double>(fit_val) );
+    if(fit_val.size() != 0)
+      fit_vals.push_back( boost::lexical_cast<double>(fit_val) );
   }
   fit_in.close();
   
@@ -405,7 +413,7 @@ get_fit_vals()
 
 std::string model_path_;
 std::string te_data_path_;
-std::string fit_path_;
+std::string fit_data_path_;
 std::string tr_data_path_;
 };
 

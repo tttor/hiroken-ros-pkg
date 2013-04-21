@@ -59,15 +59,37 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   // Update jstates of adjacent vertex av of this vertex v to the cheapest existing-just-planned edge
   gpm_->set_av_jstates(v); 
 
-  if(ml_mode_==LWPR_ONLINE)
+  // Obtain samples from paths from (root,root+1, ..., v) to adjacent of v where the edge costs are already defined
+  Data samples;
+  gpm_->get_samples_online(v,&samples);
+//    cerr << "online training: samples.size()= " << samples.size() << endl;
+
+  // Utilize samples
+  if(ml_mode_==NO_ML or ml_mode_==SVR_OFFLINE)// Store samples for offline training
   {
-    // Train online during search (the online LWPR)
-    Data samples;
+    // libsvmdata format
+    std::string libsvmdata_path;
+    libsvmdata_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.libsvmdata";// _must_ be synch with the one in planner_manager.cpp
     
-    // Obtain samples from paths from (root,root+1, ..., v) to adjacent of v where the edge costs are already defined
-    gpm_->get_samples_online(v,&samples);
-    cerr << "online training: samples.size()= " << samples.size() << endl;
+    write_libsvm_data(samples,libsvmdata_path,std::ios::app);
     
+    // CSV format
+    std::string csv_path;
+    csv_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.csv";// _must_ be synch with the one in planner_manager.cpp
+
+    std::ofstream csv;
+    csv.open( csv_path.c_str(),std::ios::app );
+    for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
+    {
+      for(Input::const_iterator j=i->first.begin(); j!=i->first.end(); ++j)
+        csv << *j << ",";// Write input=feature values
+        
+        csv << i->second << std::endl;
+    }
+    csv.close();
+  }
+  else if(ml_mode_==LWPR_ONLINE)// Train online during search (the online LWPR)
+  {
     for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
     {
       std::vector<double> x;
@@ -79,7 +101,7 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       std::vector<double> y_fit_test;// for prediction before the model is updated with this samples
       y_fit_test = learner_->predict(x);
 
-      std::vector<double> y_fit;
+      std::vector<double> y_fit;// for prediction on training data
       y_fit = learner_->update( x,y );// likely that this prediction after the model is updated, it differs from the prediction before updating 
 //      cerr << "y_fit= " << y_fit.at(0) << endl;
       
@@ -91,10 +113,10 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       
       // Keep ml-related data 
       std::vector<double> ml_datum;
-      ml_datum.push_back(y_fit_test.at(0));
-      ml_datum.push_back(y_fit.at(0));
-      ml_datum.push_back(y.at(0));
-      ml_datum.push_back(learner_->nData());
+      ml_datum.push_back(y_fit_test.at(0));// 0 
+      ml_datum.push_back(y_fit.at(0));// 1
+      ml_datum.push_back(y.at(0));// 2
+      ml_datum.push_back(learner_->nData());// 3
       
       ml_data_->push_back(ml_datum);
     }

@@ -1,7 +1,7 @@
 Background\ ColorB=0
 Background\ ColorG=0
 Background\ ColorR=0
-Camera\ Config=0.129802 0.279986 2.69328 -0.456355 -0.0324291 0.855123
+Camera\ Config=0.259803 5.95818 2.69328 -0.456355 -0.0324291 0.855123
 Camera\ Type=rviz::OrbitViewController
 FilteredPath.Alpha=0.6
 FilteredPath.Collision\ Enabled=0

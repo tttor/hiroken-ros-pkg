@@ -44,8 +44,8 @@ case 10:
 #include <boost/random/uniform_int.hpp>
 #include <boost/random/variate_generator.hpp>
 
-#include <lwpr.hh>
 #include "ml_util.hpp"
+#include <lwpr.hh>
 
 static boost::mt19937 gen( std::time(0) );
 
@@ -58,8 +58,8 @@ GeneralManager(ros::NodeHandle& nh)
   :nh_(nh)
 {
   online_ = false;// Set the default
-  if( !ros::param::get("/is_online", online_) )
-    ROS_WARN("Can not get /is_online, use the default value (=false) instead");
+  if( !ros::param::get("/online", online_) )
+    ROS_WARN("Can not get /online, use the default value (=false) instead");
     
   ros::service::waitForService("/sense");
   ros::service::waitForService("/plan");
@@ -142,14 +142,10 @@ sense(const size_t& n)
 
 //! Brief
 /*!
-  Mode = 
-  1 (without heuristic learner, heuristic is always equal to zero, UCS)
-  2 (with heuristic learner, the learning machine is trained offline, use epsilon-svr)
-  3 (with heuristic learner: LWPR, do NOT update its model online (during search)
-  4 (with heuristic learner: LWPR and train incrementally online)
+  For MLMode refer to ml_util.hpp
 */
 bool
-plan(const MLMode& ml_mode,const bool rerun=false,const std::string& log_path=std::string(""),uint32_t* n_samples=0)
+plan(const MLMode& ml_mode,const bool rerun=false,const std::string& log_path=std::string(""),std::vector<double>* ctamp_log=0)
 {
   ros::service::waitForService("/plan");
     
@@ -165,13 +161,14 @@ plan(const MLMode& ml_mode,const bool rerun=false,const std::string& log_path=st
   
   if( !plan_client.call(req, res) ) 
   {
-    ROS_WARN("Call to planner_manager/plan srv: FAILED");
+    ROS_ERROR("Call to planner_manager/plan srv: FAILED");
     return false;
   }
   
-  *n_samples = res.n_samples;
+  if(ctamp_log != NULL)
+    *ctamp_log = res.ctamp_log;
   
-  return !( res.ctamp_sol.empty() );
+  return true;
 }
 
 bool
@@ -232,96 +229,59 @@ bool online_;
 void
 set_instance_paths(const size_t n_obj,std::vector<std::string>* instance_paths)
 {
-  std::vector< std::list<std::string> > db;
   
-  // Type: 1-obj instances
-  std::list<std::string> a_paths;
-  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.0");
-  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.1");
-  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.2");
-  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.3");
-  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130308a.4");
-  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.0");
-  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.1");
-  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.2");
-  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.3");
-  a_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj/run.1obj.20130310a.4");// 10 
+
+  std::vector< std::list<std::string> > db;// 1st Dimension -> instance type; 2nd Dimension -> sources path
   
-  db.push_back(a_paths);
+  std::list<std::string> a_srcpaths;
+  a_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.3/1obj");
+  a_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.4/1obj");
+  db.push_back(a_srcpaths);
   
-  // Type: 2-obj instances
-  std::list<std::string> b_paths;
-  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.0");
-  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.1");
-  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.2");
-  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308a.4");
-  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308b.0");
-  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130308b.3");
-  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130310a.0");
-  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130310a.1");
-  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130310a.2");
-  b_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj/run.2obj.20130313a.0");// 10
+  std::list<std::string> b_srcpaths;
+  b_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.3/2obj");
+  b_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.4/2obj");
+  db.push_back(b_srcpaths);
   
-  db.push_back(b_paths);
+  std::list<std::string> c_srcpaths;
+  c_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj");
+  c_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.4/3obj");
+  c_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.5/3obj");
+  db.push_back(c_srcpaths);
   
-  // Type: 3-obj instances
-  std::list<std::string> c_paths;
-  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.0");
-  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.2");
-  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.3");
-  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.5");
-  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.6");
-  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130307b.7");
-  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130310a.0");
-  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130310d.2");
-  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130310f.0");
-  c_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/3obj/run.3obj.20130312f.4");// 10  
+  std::list<std::string> d_srcpaths;
+  d_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj");
+  d_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.4/4obj");
+  d_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.5/4obj");
+  db.push_back(d_srcpaths);
   
-  db.push_back(c_paths);
-  
-  // Type: 4-obj instances
-  std::list<std::string> d_paths;
-  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.1");
-  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.4");
-  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.7");
-  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.8");
-  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130307.9");
-  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130308c.0");
-  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130308c.2");
-  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130309.3");
-  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130310b.0");
-  d_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/4obj/run.4obj.20130310h.0");// 10
-  
-  db.push_back(d_paths);
-  
-  // Type: 5-obj instances
-  std::list<std::string> e_paths;  
-  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310a.0");
-  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310a.2");
-  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310a.3");
-  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310b.0");
-  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130310c.0");
-  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130312k.0");
-  e_paths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj/run.5obj.20130312o.0");// 7
-  
-  db.push_back(e_paths);
+  std::list<std::string> e_srcpaths;
+  e_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.3/5obj");
+  e_srcpaths.push_back("/home/vektor/rss-2013/data/baseline/v.5/5obj");
+  db.push_back(e_srcpaths);
   
   // Retrieving
-  if(n_obj==0)// alternate run, then put all type-instances together
+  for(std::vector< std::list<std::string> >::const_iterator i=db.begin(); i!=db.end(); ++i)
   {
-    for(std::vector< std::list<std::string> >::const_iterator i=db.begin(); i!=db.end(); ++i)
+    bool specific;
+    specific = n_obj;// n_obj = 0 means NOT-specific
+  
+    size_t instance_type;
+    instance_type = i - db.begin() + 1; // +1 because the vector idx begins at 0 and instance_type = [1,5]
+      
+    if(specific and (instance_type!=n_obj)) continue;
+    
+    for(std::list<std::string>::const_iterator j=i->begin(); j!=i->end(); ++j)
     {
-      for(std::list<std::string>::const_iterator j=i->begin(); j!=i->end(); ++j)
+      boost::filesystem::path dir_path(*j);
+      if ( !exists(dir_path) ) continue;
+      
+      boost::filesystem::directory_iterator end_itr; // default construction yields past-the-end
+      for ( boost::filesystem::directory_iterator itr( dir_path );itr != end_itr; ++itr )
       {
-        instance_paths->push_back(*j);
+        if ( is_directory(itr->status()) )
+          instance_paths->push_back( itr->path().string() );
       }
-    }
-  }
-  else// only n_obj-object instaces
-  {
-    for(std::list<std::string>::const_iterator j=db.at(n_obj-1).begin(); j!=db.at(n_obj-1).end(); ++j)
-    {
-      instance_paths->push_back(*j);
     }
   }
  
@@ -386,6 +346,8 @@ main(int argc, char **argv)
         
         boost::filesystem::create_directories(data_path);
         
+        boost::filesystem::copy_file( std::string(base_data_path+tidy_cfg_filename),std::string(data_path+"/tidy.cfg") );
+        
         // Sense!
         gm.sense(n_obj);
         
@@ -430,25 +392,25 @@ main(int argc, char **argv)
       gm.sense(std::string(base_data_path+messy_cfg_filename));
       break;
     }
-    case 7:// SENSE-PLAN(UCS) with a test-bed messy config under the base_data_path one time only
-    {
-      std::string data_path;
-      data_path = base_data_path + suffix_data_path;
-      
-      ros::param::set("/data_path",data_path);
-      boost::filesystem::create_directories(data_path);
-      
-      // Sense
-      gm.sense(std::string(base_data_path+messy_cfg_filename));
-      
-      // Plan, rerun=false
-      MLMode ml_mode;
-      ml_mode = NO_ML;
-      
-      gm.plan(ml_mode);// mode=1 -> UCS, no learning 
-      
-      break;
-    }
+//    case 7:// SENSE-PLAN(UCS) with a test-bed messy config under the base_data_path one time only
+//    {
+//      std::string data_path;
+//      data_path = base_data_path + suffix_data_path;
+//      
+//      ros::param::set("/data_path",data_path);
+//      boost::filesystem::create_directories(data_path);
+//      
+//      // Sense
+//      gm.sense(std::string(base_data_path+messy_cfg_filename));
+//      
+//      // Plan, rerun=false
+//      MLMode ml_mode;
+//      ml_mode = NO_ML;
+//      
+//      gm.plan(ml_mode);// mode=1 -> UCS, no learning 
+//      
+//      break;
+//    }
 //    case 8:// For testing (single run only) the heuristic machine::SVRegress that is trained offline and does not do incremental online learning.
 //    {
 //      std::string data_path;
@@ -486,7 +448,9 @@ main(int argc, char **argv)
 //      
 //      break;
 //    }
-    case 10:// Run online LWPR that updates its model during search on multiple instances.USAGE: $ roslaunch hiro_common a.launch  mode:=10 n_obj:=3 runth:=1
+    case 10:
+    // Run online LWPR that updates its model during search; Do runs on multiple instances.
+    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 n_obj:=3 runth:=1
     {
       // Init + Collect instances
       std::string run_id;
@@ -494,6 +458,7 @@ main(int argc, char **argv)
       
       std::vector<std::string> instance_paths;
       set_instance_paths(n_obj,&instance_paths);
+      if( instance_paths.empty() ) return false;
       
       std::string ml_data_path;
       ml_data_path = "/home/vektor/rss-2013/data/ml_data/h.onlwpr.log";
@@ -501,11 +466,12 @@ main(int argc, char **argv)
       std::ofstream run_log;
       run_log.open(std::string(ml_data_path+run_id+".log").c_str());
       
-      // Randomize instances, important because the data order matters as it influences how the model is updated; like randperm() in matlab
+      // Randomize instances, important because the data order matters as it influences how the model is updated; 
+      // works like randperm() in matlab
       boost::uniform_int<> dist( 0,instance_paths.size()-1 ) ;
       boost::variate_generator< boost::mt19937&, boost::uniform_int<> > rnd(gen,dist);
 
-      std::vector<size_t> idxes;
+      std::vector<size_t> idxes;// Store indexes of the randomized instance order
       for(size_t i=0; i<instance_paths.size(); ++i)
       {
         size_t idx;
@@ -550,9 +516,15 @@ main(int argc, char **argv)
       }
            
       // Run the trials
+      std::string log_path = std::string(ml_data_path+run_id);// in particular, for ml_data, cost-to-go vs. est. cost-to-go
+      boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );//remove if exists because will be appended in iteration over instances
+      boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );//remove if exists because will be appended in iteration over instances
+        
+      std::vector< std::vector<double> > tmp_run_log;
+      
       for(std::vector<size_t>::const_iterator i=idxes.begin(); i!=idxes.end(); ++i)
       {
-        // Prepare dir
+        // Prepare dir + tidy.cfg file
         base_data_path = instance_paths.at(*i);
         ros::param::set("/base_data_path",base_data_path);
         
@@ -564,101 +536,128 @@ main(int argc, char **argv)
         ros::param::set("/data_path",data_path);
         
         boost::filesystem::create_directories(data_path);
+        
+        boost::filesystem::copy_file( std::string(base_data_path+"/tidy.cfg"),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
                 
         // Sense
         gm.sense( std::string(base_data_path+messy_cfg_filename) );
         
         // Plan 
-        MLMode mode;
-        mode = LWPR_ONLINE;
-        
-        bool rerun;
-        rerun = true;
-        
-        std::string log_path;
-        log_path = std::string(ml_data_path+run_id);
-        
-        uint32_t n_samples;// Store n_samples at the end of planning for this instance
-        
-        gm.plan(mode,rerun,log_path,&n_samples);// Informed search, with the (planned) TMM under base_path
+        MLMode mode = LWPR_ONLINE;
+        bool rerun = true;
+        std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
 
-        run_log << n_samples << ",";
+        if( !gm.plan(mode,rerun,log_path,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        {
+          ROS_ERROR("gm.plan(mode,rerun,log_path,&ctamp_log): failed");
+          break;
+        }
+        
+        tmp_run_log.push_back(ctamp_log);
       }
       
+      // Write ctamp log from an ctamp instance
+      for(std::vector< std::vector<double> >::const_iterator i=tmp_run_log.begin(); i!=tmp_run_log.end(); ++i)
+        run_log << i->at(0) << ",";// write n_samples
+      run_log << std::endl;
+        
+      for(std::vector< std::vector<double> >::const_iterator i=tmp_run_log.begin(); i!=tmp_run_log.end(); ++i)
+        run_log << i->at(1) << ",";// write number of cost-to-go vs. est. cost-to-go
+      run_log << std::endl;
+          
       run_log.close();
       break;
     }
-//    case 11:// For testing the heuristic machine::SVRegress that is trained offline and does not do incremental online learning, multiple runs
-//    {
-//      // Collect instances
-//      std::vector<std::string> instance_paths;
-//      set_instance_paths(1,&instance_paths);
-//      
-//      // Execute
-//      for(std::vector<std::string>::const_iterator i=instance_paths.begin(); i!=instance_paths.end(); ++i)
-//      {
-//        // Prepare dir
-//        base_data_path = *i;
-//        ros::param::set("/base_data_path",base_data_path);
-//        
-//        suffix_data_path = "/h.epsvr";
-//        ros::param::set("/suffix_data_path",suffix_data_path);
-//        
-//        std::string data_path;
-//        data_path = base_data_path + suffix_data_path;
-//        ros::param::set("/data_path",data_path);
-//        
-//        boost::filesystem::create_directories(data_path);
-//        
-//        // Sense
-//        gm.sense( std::string(base_data_path+messy_cfg_filename) );
-//        
-//        // Plan 
-//        MLMode ml_mode;
-//        ml_mode = SVR_OFFLINE;
-//      
-//        bool rerun;
-//        rerun = true;
-//        
-//        gm.plan(ml_mode,rerun);// Informed search, with the (planned) TMM under base_path
-//      }
-//      
-//      break;
-//    }
-//    case 12:
-//    {
-//      // Collect instances
-//      std::vector<std::string> instance_paths;
-//      set_instance_paths(&instance_paths);
-//      
-//      // Execute
-//      for(std::vector<std::string>::const_iterator i=instance_paths.begin(); i!=instance_paths.end(); ++i)
-//      {
-//        // Prepare dir
-//        base_data_path = *i;
-//        ros::param::set("/base_data_path",base_data_path);
-//        
-//        suffix_data_path = "/h.offlwpr";
-//        ros::param::set("/suffix_data_path",suffix_data_path);
-//        
-//        std::string data_path;
-//        data_path = base_data_path + suffix_data_path;
-//        ros::param::set("/data_path",data_path);
-//        
-//        boost::filesystem::create_directories(data_path);
-//        
-//        // Sense
-//        gm.sense( std::string(base_data_path+messy_cfg_filename) );
-//        
-//        // Plan 
-//        size_t plan_mode;
-//        plan_mode = 3;// Offline LWPR
-//      
-//        gm.plan(plan_mode);// Informed search, with the (planned) TMM under base_path
-//      }
-//      
-//      break;
-//    }
+    case 11:
+    // Run offline SVR in a batchmode, the model is updated in between search, interleave training and testing; Do runs on multiple instances.
+    // USAGE: $ roslaunch hiro_common a.launch  mode:=11 n_obj:=3 runth:=1
+    {
+      // Init 
+      std::string run_id;
+      run_id = "/h.offepsvr." + boost::lexical_cast<string>(n_obj) + "obj.run" + boost::lexical_cast<string>(runth);
+      
+      std::string ml_data_path;
+      ml_data_path = "/home/vektor/rss-2013/data/ml_data/h.onlwpr.log";
+      
+      std::ofstream run_log;
+      run_log.open(std::string(ml_data_path+run_id+".log").c_str());
+      
+      std::string log_path = std::string(ml_data_path+run_id);// in particular, for ml_data, cost-to-go vs. est. cost-to-go
+      boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );//remove if exists because will be appended in iteration over instances
+      boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );//remove if exists because will be appended in iteration over instances
+      
+      for(boost::filesystem::directory_iterator itr( boost::filesystem::path("/home/vektor/hiroken-ros-pkg/learning_machine/data/hot") ),end_itr; itr != end_itr; ++itr) remove(itr->path());// delete any file under ML's hot dir
+      
+      // Collect instances + Randomize instances, 
+      // important because the data order matters as it influences how the model is updated; training is interleaved in between testing (search)
+      // works like randperm() in matlab
+      std::vector<std::string> instance_paths;
+      set_instance_paths(n_obj,&instance_paths);
+      if( instance_paths.empty() ) return false;
+      
+      boost::uniform_int<> dist( 0,instance_paths.size()-1 ) ;
+      boost::variate_generator< boost::mt19937&, boost::uniform_int<> > rnd(gen,dist);
+
+      std::vector<size_t> idxes;// Store indexes of the randomized instance order
+      for(size_t i=0; i<instance_paths.size(); ++i)
+      {
+        size_t idx;
+        bool already;
+        
+        do
+        {
+          already = false;
+          
+          idx = rnd();
+          
+          std::vector<size_t>::iterator it;
+          it = std::find(idxes.begin(),idxes.end(),idx);
+          
+          if(it != idxes.end())
+            already = true;
+        }
+        while(already);
+        
+        idxes.push_back(idx);
+        run_log << instance_paths.at(idx) << ",";
+      }
+      run_log << std::endl;
+      
+      // Run the for several instances
+      for(std::vector<size_t>::const_iterator i=idxes.begin(); i!=idxes.end() and ros::ok(); ++i)
+      {
+       // Prepare dir + tidy.cfg file
+        base_data_path = instance_paths.at(*i);
+        ros::param::set("/base_data_path",base_data_path);
+        
+        suffix_data_path = run_id;
+        ros::param::set("/suffix_data_path",suffix_data_path);
+        
+        std::string data_path;
+        data_path = base_data_path + suffix_data_path;
+        ros::param::set("/data_path",data_path);
+        
+        boost::filesystem::create_directories(data_path);
+        
+        boost::filesystem::copy_file( std::string(base_data_path+"/tidy.cfg"),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
+                
+        // Sense
+        gm.sense( std::string(base_data_path+messy_cfg_filename) );
+        
+        // Plan 
+        bool rerun = true;
+        MLMode mode; !(i-idxes.begin()) ? mode = NO_ML : mode = SVR_OFFLINE;// for the first fed intance, NO_ML is trained yet.
+        std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples, (1) number of (cost-to-go vs. est. cost-to-go)
+        
+        if( !gm.plan(mode,rerun,log_path,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        {
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i-idxes.begin()+1 << "... " << instance_paths.at(*i) );
+          break;
+        }
+      }
+      
+      break;
+    }
     default:
     {
       ROS_WARN("Unknown mode; do nothing!");
