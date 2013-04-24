@@ -36,23 +36,17 @@ static const double TABLE_RADIUS = 0.600;
 static const double TABLE_THICKNESS = 0.050;
 static const double DIST_TO_WALL_BEHIND = -0.540;
 
-//// Three kinds of tabletop objects that we consider, 
-//// i.e. A (Georgia coffee blue), B (Suntory white), C (Gebisu brown)
-//static const double A_RADIUS = 0.052/2.;
-//static const double A_HEIGHT = 0.105;// This height seems too low
-//static const double B_RADIUS = 0.065/2.;
-//static const double B_HEIGHT = 0.123;
-//static const double C_RADIUS = 0.065/2.;
-//static const double C_HEIGHT = 0.167;
 static const double VASE_R = 0.075;
+static const double VASE_H = 0.400;
 static const double VASE_X = 0.350;
 static const double VASE_Y = 0.;
 
 static const size_t UPRIGHT = 0;
-static const size_t DOWN = 1;
 
 static const size_t PIXEL_PER_M = 500; // means that 1m is equal to <PIXEL_PER_M> pixels
 static const double DEG_PER_RAD = 57.2957795; // 1 radian = 57.2957795 degree
+
+static boost::mt19937 g_cc_rng( static_cast<unsigned int>(std::time(0)) );
 
 class VisionSensor
 {
@@ -65,7 +59,9 @@ VisionSensor(ros::NodeHandle nh)
   
   ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
   set_planning_scene_diff_client_ = nh.serviceClient<arm_navigation_msgs::SetPlanningSceneDiff> (SET_PLANNING_SCENE_DIFF_NAME);
-    
+  
+  init_cc_img();
+  
   ROS_INFO("sensor_vis: up and running");
 }
 
@@ -75,24 +71,37 @@ VisionSensor(ros::NodeHandle nh)
 bool
 see_srv_handle(hiro_sensor::See::Request& req, hiro_sensor::See::Response& res)
 {
-  // Hardcode the sensed_objects
-  see_static_cfg();
-  
-  if(req.random)
+  // Hardcode the sensed_objects instead of from any vision sensor. Generate messy configs.
+  if( !req.rerun )
   {
-    see_obj_cfg(req.n);
+    set_unmovable_obj_cfg(req.n_vase,req.randomized_vase);
+    set_movable_obj_cfg(req.n_movable_object);
   }
-  else
+  else// == rerun
   {
-    see_obj_cfg_replay(req.path);
-  }  
+    set_obj_cfg(req.path);
+  }
+  
+  // Write the randomized messy obj_cfg_
+  std::string  data_path= ".";
+  if( !ros::param::get("/data_path", data_path) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
+    
+  write_obj_cfg( obj_cfg_,std::string(data_path+"/messy.cfg") );
+  
+  // Note that the object poses are mirrored because coordinate frame transformation is ignored: 
+  // the robot is facing to the right of the img, the left side becomes the right side
+  cv::imwrite( data_path+"/messy.cfg.jpg",cc_img_ );
    
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
   arm_navigation_msgs::SetPlanningSceneDiff::Response planning_scene_res;
 
-  if(!set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res)) 
-    ROS_WARN("Can't get planning scene. Env can not be configured correctly");
+  if( !set_planning_scene_diff_client_.call(planning_scene_req, planning_scene_res) )
+  {
+    ROS_ERROR("Can't get planning scene. Env can not be configured correctly");
+    return false;
+  }
   
   return true;
 }
@@ -105,7 +114,7 @@ run()
   
   while( ros::ok() )
   {
-    for( std::map<std::string,geometry_msgs::PoseStamped>::iterator iter = obj_pose_map_.begin(); iter != obj_pose_map_.end(); ++iter )
+    for( std::map<std::string,geometry_msgs::PoseStamped>::iterator iter = movable_obj_pose_map_.begin(); iter != movable_obj_pose_map_.end(); ++iter )
     {
       tf::Transform transform;
       
@@ -122,12 +131,22 @@ run()
 }
 
 private:
+//! Set unmovable objs
+/*!
+  Unmovable objects are objects whose poses are fixed during planning, e.g. table, vase, wall, ...
+  On most cases, they act as (unmovable) obstacles.
+  
+  Notice that some unmovable object configurations vary from one instance to another, e.g. vase objects
+  
+  \param n number of vases
+*/
 bool
-see_static_cfg()
+set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
 {
+  //---------------------------------------------------------------------------------------The table
   arm_navigation_msgs::CollisionObject table;
   
-  table.id = "table";
+  table.id = "unmovable.table";
   table.header.frame_id = "/link_base";
   table.header.stamp = ros::Time::now();
   table.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
@@ -154,13 +173,11 @@ see_static_cfg()
 
   table.poses.push_back(table_pose);
   
-  collision_space_pub_.publish(table);
-  ROS_INFO("The table should have been published");
-  
-//  // THe wall behind
+  spawn_object(table,&obj_cfg_);
+//  //-------------------------------------------------------------------------------------- The wall behind
 //  arm_navigation_msgs::CollisionObject wall;
 //  
-//  wall.id = "wall";
+//  wall.id = "unmovable.wall";
 //  wall.header.frame_id = "/link_base";
 //  wall.header.stamp = ros::Time::now();
 //  wall.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
@@ -185,145 +202,203 @@ see_static_cfg()
 //  
 //  wall.shapes.push_back(wall_shape);
 //  wall.poses.push_back(wall_pose);
-//  
-//  collision_space_pub_.publish(wall);
-//  ROS_INFO("The wall should have been published");
-  
-  // The vase 
-  arm_navigation_msgs::CollisionObject vase;
-  
-  vase.id = "vase";
-  vase.header.frame_id = "/link_base";
-  vase.header.stamp = ros::Time::now();
-  vase.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-  
-  arm_navigation_msgs::Shape vase_shape;
-  
-  vase_shape.type = arm_navigation_msgs::Shape::CYLINDER;
-  vase_shape.dimensions.resize(2);
-  vase_shape.dimensions[0] = VASE_R;
-  vase_shape.dimensions[1] = 0.40;// The real size of the flower vase is 0.40m
-  
-  geometry_msgs::Pose vase_pose;
-  
-  vase_pose.position.x = VASE_X;
-  vase_pose.position.y = VASE_Y;
-  vase_pose.position.z = TABLE_HEIGHT + (TABLE_THICKNESS/2) + (vase_shape.dimensions[1]/2);
-  vase_pose.orientation.x = 0;
-  vase_pose.orientation.y = 0;
-  vase_pose.orientation.z = 0;
-  vase_pose.orientation.w = 1;
-  
-  vase.shapes.push_back(vase_shape);
-  vase.poses.push_back(vase_pose);
-  
-  collision_space_pub_.publish(vase);
-  ROS_INFO("The vase should have been published");
 
-//  // The vase_2 
-//  arm_navigation_msgs::CollisionObject vase_2;
-//  
-//  vase_2.id = "vase_2";
-//  vase_2.header.frame_id = "/link_base";
-//  vase_2.header.stamp = ros::Time::now();
-//  vase_2.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-//  
-//  arm_navigation_msgs::Shape vase_2_shape;
-//  
-//  vase_2_shape.type = arm_navigation_msgs::Shape::CYLINDER;
-//  vase_2_shape.dimensions.resize(2);
-//  vase_2_shape.dimensions[0] = VASE_R;
-//  vase_2_shape.dimensions[1] = 0.40;// The real size of the flower vase_2 is 0.40m
-//  
-//  geometry_msgs::Pose vase_2_pose;
-//  
-//  vase_2_pose.position.x = VASE_X * -1.;
-//  vase_2_pose.position.y = VASE_Y;
-//  vase_2_pose.position.z = TABLE_HEIGHT + (TABLE_THICKNESS/2) + (vase_2_shape.dimensions[1]/2);
-//  vase_2_pose.orientation.x = 0;
-//  vase_2_pose.orientation.y = 0;
-//  vase_2_pose.orientation.z = 0;
-//  vase_2_pose.orientation.w = 1;
-//  
-//  vase_2.shapes.push_back(vase_2_shape);
-//  vase_2.poses.push_back(vase_2_pose);
-//  
-//  collision_space_pub_.publish(vase_2);
-//  ROS_INFO("The vase_2 should have been published");
+//  spawn_object(wall,&obj_cfg_);
+
+  //-------------------------------------------------------------------------------------- The vase(s)
+  std::string common_id = "unmovable.VASE";
+
+  // Randomize the poses and the shape of each vase
+  for(size_t i=0; i<n; ++i)
+  {
+    // Init
+    std::string id = std::string( common_id+boost::lexical_cast<std::string>(i+1) );
     
+    double r,h;
+    double x,y,z;
+    tf::Quaternion q = tf::createQuaternionFromRPY(0.,0.,0.);// The orientation is fixed at UPRIGHT    
+    
+    if( !randomized )
+    {
+      r = VASE_R;
+      h = VASE_H;
+      
+      x = VASE_X;
+      y = VASE_Y;
+      
+      break;// only one vase if not randomized
+    }
+    else
+    {
+      // Randomize the shape
+      const double r_min = 0.030;
+      const double r_max = 0.085;
+      boost::uniform_real<double> uni_real_dist_r(r_min,r_max);
+      
+      r = uni_real_dist_r(g_cc_rng);
+
+      const double h_min = 0.200;
+      const double h_max = 0.500;
+      boost::uniform_real<double> uni_real_dist_h(h_min,h_max);
+      
+      h = uni_real_dist_h(g_cc_rng);
+      
+      // Randomize the position: x, y
+      const double x_max = TABLE_RADIUS;// Play safe!
+      const double x_min = -1 * x_max;
+      const double y_max = x_max;
+      const double y_min = x_min;
+      boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
+      boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
+      
+      while( true and ros::ok() )
+      {
+        x = uni_real_dist_x(g_cc_rng);
+        y = uni_real_dist_y(g_cc_rng);
+        
+        double r_here;
+        r_here = sqrt( pow(x,2)+pow(y,2) );
+        
+        // TODO 3D collision check between the vase and the robot
+        
+        if( (r_here < (TABLE_RADIUS-B_HEIGHT)) and !is_in_collision(x,y,0.,0.,r,h,&cc_img_) )
+        {
+          break;
+        }
+      }
+    }
+    
+    z = (TABLE_THICKNESS/2)+(h/2);// because this vase is always UPRIGHT and frame_id = "/table"
+    
+    // Spawn the object to the planning environment
+    spawn_object( id, std::string("/table"),
+                  r, h, 
+                  x, y, z, 
+                  q.x(), q.y(), q.z(), q.w(),
+                  &obj_cfg_ );
+  }// end of: FOR each ordered VASE
+ 
   return true;
 }  
 
+//! set_movable_obj_cfg
+/*!
+  Assume that all objects are cylindrical: radius and height.
+  Assume that orientation can be divided into 2 main groups: standing up-right and lying-down, for the latter there is an infiniti number of possible orientation.
+*/
 bool
-sense_movable_object(arm_navigation_msgs::CollisionObject object)
+set_movable_obj_cfg(const size_t& n)
 {
-  const std::string frame_id = "/table";
-  ros::Time time_stamp = ros::Time::now();
-  
-  // For tf needs
-  geometry_msgs::PoseStamped pose_stamped;
+  std::string common_id = "CAN";
 
-  pose_stamped.header.stamp = time_stamp;
-  pose_stamped.header.frame_id = frame_id;
+  // Randomize the object pose
+  for(size_t i=0; i<n; ++i)
+  {
+    std::string id = std::string(common_id+boost::lexical_cast<std::string>(i+1));
+    const double r = B_RADIUS;
+    const double h = B_HEIGHT;
+    
+    // Randomize the orientation
+    const double roll = 0.;// Because the object is cylindrical, rolling affects nothing.
+    
+    boost::uniform_int<> uni_int_dist(0,1); 
+    const size_t pitch_sym = uni_int_dist(g_cc_rng);
+    
+    double pitch;
+    if(pitch_sym == UPRIGHT)
+      pitch = 0.;
+    else
+      pitch = M_PI/2;
+    
+    boost::uniform_real<double> uni_real_dist(0.,2*M_PI);
+    const double yaw = uni_real_dist(g_cc_rng) * DEG_PER_RAD;
+    
+    const tf::Quaternion q = tf::createQuaternionFromRPY(roll, pitch, yaw);
+    
+    // Randomize the position.
+    double z;
+    if(pitch == 0.)
+     z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);
+    else
+     z = (TABLE_THICKNESS/2)+(B_RADIUS);
+    
+    const double x_max = TABLE_RADIUS;// Play safe!
+    const double x_min = -1 * x_max;
+    const double y_max = x_max;
+    const double y_min = x_min;
+    boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
+    boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
+    
+    double x, y;
+    while( true and ros::ok() )
+    {
+      x = uni_real_dist_x(g_cc_rng);
+      y = uni_real_dist_y(g_cc_rng);
+      
+      double r_here;
+      r_here = sqrt( pow(x,2)+pow(y,2) );
+      
+      if( (r_here < (TABLE_RADIUS-B_HEIGHT)) and !is_in_collision(x,y,pitch,yaw,r,h,&cc_img_) )
+      {
+        break;
+      }
+    }
+    
+    // Spawn the object to the planning environment
+    spawn_object( id, std::string("/table"),
+                  r, h, 
+                  x, y, z, 
+                  q.x(), q.y(), q.z(), q.w(),
+                  &obj_cfg_ );
+  }
+
+  return true;
+}
+//! Set both movable and unmovable object config from a given path
+/*!
+  More ...
+*/
+bool
+set_obj_cfg(const std::string& path)
+{
+  ObjCfg obj_cfg;
   
-  pose_stamped.pose.position.x = object.poses.at(0).position.x;
-  pose_stamped.pose.position.y = object.poses.at(0).position.y;
-  pose_stamped.pose.position.z = object.poses.at(0).position.z;
-     
-  pose_stamped.pose.orientation.x = object.poses.at(0).orientation.x;
-  pose_stamped.pose.orientation.y = object.poses.at(0).orientation.y;
-  pose_stamped.pose.orientation.z = object.poses.at(0).orientation.z;
-  pose_stamped.pose.orientation.w = object.poses.at(0).orientation.w;
-  
-  // Registering this movable object's pose_stamped
-  obj_pose_map_[object.id] = pose_stamped;
-  
- // For collision_object needs
-  object.header.frame_id = frame_id;
-  object.header.stamp = time_stamp;
-  object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-  
-  collision_space_pub_.publish(object);
-  ROS_DEBUG_STREAM("Have published= " << object.id << " (" << object.poses.at(0).position.x << "," << object.poses.at(0).position.y << "," << object.poses.at(0).position.z << ")");
-  
-  return true;  
+  // read movable+unmovable obj cfg
+  if( !read_obj_cfg(path,&obj_cfg) )
+  {
+    ROS_ERROR_STREAM("Can not find " << path);
+    return false;
+  }
+  ROS_DEBUG_STREAM("obj_cfg.size()= " << obj_cfg.size());
+ 
+  // Spawn objects in the planning environment
+  for(ObjCfg::iterator i=obj_cfg.begin(); i!=obj_cfg.end(); ++i)
+    spawn_object(*i,&obj_cfg_);
+
+  return true;
 }
 
+//! Spawn an (movable and or unmovable) object into the planning scene
+/*!
+  For movable objects, some registration for tf is also carried out.
+*/
 bool
-sense_movable_object( const std::string& object_id, 
-                      const double& radius, const double& height,
-                      const double& x, const double& y, const double& z,
-                      const double& qx, const double& qy, const double& qz, const double& qw,
-                      ObjCfg* obj_cfg
-                    )
+spawn_object( const std::string& id, const std::string& frame,
+              const double& radius, const double& height,
+              const double& x, const double& y, const double& z,
+              const double& qx, const double& qy, const double& qz, const double& qw,
+              ObjCfg* obj_cfg
+             )
 {
-  const std::string frame_id = "/table";
-  ros::Time time_stamp = ros::Time::now();
+  ros::Time time_stamp;
+  time_stamp = ros::Time::now();
   
-  // For tf needs
-  geometry_msgs::PoseStamped pose_stamped;
-
-  pose_stamped.header.stamp = time_stamp;
-  pose_stamped.header.frame_id = frame_id;
-  
-  pose_stamped.pose.position.x = x;
-  pose_stamped.pose.position.y = y;  
-  pose_stamped.pose.position.z = z;    
-     
-  pose_stamped.pose.orientation.x = qx;
-  pose_stamped.pose.orientation.y = qy;
-  pose_stamped.pose.orientation.z = qz;
-  pose_stamped.pose.orientation.w = qw;
-  
-  // Registering this movable object's pose_stamped 
-  obj_pose_map_[object_id] = pose_stamped;
-  
-  // For collision_object needs
+  // Publish the object into planning environment
   arm_navigation_msgs::CollisionObject object;
   
-  object.id = object_id;
-  object.header.frame_id = frame_id;
-  object.header.stamp = time_stamp;
+  object.id = id;
+  object.header.frame_id = frame;
+  object.header.stamp = ros::Time::now();
   object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
   
   arm_navigation_msgs::Shape object_shape;
@@ -348,14 +423,94 @@ sense_movable_object( const std::string& object_id,
   object.poses.push_back(object_pose);
   
   collision_space_pub_.publish(object);
-  ROS_DEBUG_STREAM("Have published " << object_id << " (" << object_pose.position.x << "," << object_pose.position.y << "," << object_pose.position.z << ")");
+  ROS_DEBUG_STREAM("Have published " << id << " (" << object_pose.position.x << "," << object_pose.position.y << "," << object_pose.position.z << ")");
  
-  obj_cfg->push_back(object);
+  if(obj_cfg != NULL)
+    obj_cfg->push_back(object);
+  
+  // Register for tf if the object is movable object
+  std::vector<std::string> id_parts;// e.g. "unmovable.vase", "CAN1"
+  boost::split( id_parts,id,boost::is_any_of(".") );
+  
+  std::string type;
+  type = id_parts.at(0);
+  
+  if( !strcmp(type.c_str(),"unmovable") )
+  {
+    // do nothing!
+  }
+  else// type=="movable"
+  {
+    geometry_msgs::PoseStamped pose_stamped;
+
+    pose_stamped.header.stamp = time_stamp;
+    pose_stamped.header.frame_id = frame;
+    
+    pose_stamped.pose.position.x = object.poses.at(0).position.x;
+    pose_stamped.pose.position.y = object.poses.at(0).position.y;
+    pose_stamped.pose.position.z = object.poses.at(0).position.z;
+       
+    pose_stamped.pose.orientation.x = object.poses.at(0).orientation.x;
+    pose_stamped.pose.orientation.y = object.poses.at(0).orientation.y;
+    pose_stamped.pose.orientation.z = object.poses.at(0).orientation.z;
+    pose_stamped.pose.orientation.w = object.poses.at(0).orientation.w;
+    
+    // Registering this movable object's pose_stamped
+    movable_obj_pose_map_[id] = pose_stamped;
+  }
+  
   return true;
 }
 
 bool
-is_in_collision(cv::Mat* img, const double& x, const double& y, const size_t& pitch_sym, const double& yaw)
+spawn_object(arm_navigation_msgs::CollisionObject object,ObjCfg* obj_cfg)
+{
+  ros::Time time_stamp;
+  time_stamp = ros::Time::now();
+  
+  // Publish the object into planning environment
+  collision_space_pub_.publish(object);
+  ROS_DEBUG_STREAM("Have published= " << object.id << " (" << object.poses.at(0).position.x << "," << object.poses.at(0).position.y << "," << object.poses.at(0).position.z << ")"); 
+  
+  if(obj_cfg != NULL)
+    obj_cfg->push_back(object);
+    
+  // Register for tf if the object is movable object
+  std::vector<std::string> id_parts;// e.g. "unmovable.vase", "CAN1"
+  boost::split( id_parts,object.id,boost::is_any_of(".") );
+  
+  std::string type;
+  type = id_parts.at(0);
+  
+  if( !strcmp(type.c_str(),"unmovable") )
+  {
+    // do nothing!
+  }
+  else// type=="movable"
+  {
+    geometry_msgs::PoseStamped pose_stamped;
+
+    pose_stamped.header.stamp = time_stamp;
+    pose_stamped.header.frame_id = object.header.frame_id;
+    
+    pose_stamped.pose.position.x = object.poses.at(0).position.x;
+    pose_stamped.pose.position.y = object.poses.at(0).position.y;
+    pose_stamped.pose.position.z = object.poses.at(0).position.z;
+       
+    pose_stamped.pose.orientation.x = object.poses.at(0).orientation.x;
+    pose_stamped.pose.orientation.y = object.poses.at(0).orientation.y;
+    pose_stamped.pose.orientation.z = object.poses.at(0).orientation.z;
+    pose_stamped.pose.orientation.w = object.poses.at(0).orientation.w;
+    
+    // Registering this movable object's pose_stamped
+    movable_obj_pose_map_[object.id] = pose_stamped;
+  } 
+  
+  return true;
+}
+
+bool
+is_in_collision(const double& x,const double& y,const double& pitch,const double& yaw,const double& r,const double& h,cv::Mat* img)
 {
   // Get the initial number of contour
   cv::Mat img_bin;
@@ -375,20 +530,18 @@ is_in_collision(cv::Mat* img, const double& x, const double& y, const size_t& pi
   img2 = img->clone();
   
   cv::Point2f p;
-//  p.x = (x*PIXEL_PER_M) + img2.rows/2;
-//  p.y = (y*PIXEL_PER_M) + img2.cols/2;
   p.x = (x*PIXEL_PER_M) + img2.cols/2;
   p.y = (y*PIXEL_PER_M) + img2.rows/2;
   
-  if(pitch_sym == UPRIGHT)
+  if(pitch == 0.)// == UPRIGHT
   {
-    cv::circle( img2, p, B_RADIUS*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA);
+    cv::circle( img2, p, r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA);
   }
   else
   {
     cv::Size2f size;
-    size.width = 2*B_RADIUS*PIXEL_PER_M;
-    size.height = B_HEIGHT*PIXEL_PER_M;
+    size.width = 2*r*PIXEL_PER_M;
+    size.height = h*PIXEL_PER_M;
     
     cv::RotatedRect rect = cv::RotatedRect(p, size, yaw);
     
@@ -404,9 +557,9 @@ is_in_collision(cv::Mat* img, const double& x, const double& y, const size_t& pi
 
   std::vector< std::vector<cv::Point> > contours_f;
   cv::findContours( img_bin2, 
-	                  contours_f, // a vector of contours 
-	                  CV_RETR_EXTERNAL,
-	                  CV_CHAIN_APPROX_NONE  // retrieve all pixels of each contours
+                    contours_f, // a vector of contours 
+                    CV_RETR_EXTERNAL,
+                    CV_CHAIN_APPROX_NONE  // retrieve all pixels of each contours
                   );
 
 //  cv::Mat img_con;
@@ -434,32 +587,24 @@ is_in_collision(cv::Mat* img, const double& x, const double& y, const size_t& pi
     return false;
   }
 }
-//! Generate messy configs
-/*!
-  Assume that all objects are cylindrical: radius and height.
-  Assume that orientation can be divided into 2 main groups: standing up-right and lying-down, for the latter there is an infiniti number of possible orientation.
-*/
-bool
-see_obj_cfg(const size_t& n)
-{
-  ObjCfg obj_cfg;// for keeping objects for being written at the end.
-  
-  std::string common_id = "CAN";
-  
-  std::vector<std::string> ids;
-  for(size_t i=0; i<n; ++i)
-    ids.push_back( std::string(common_id+boost::lexical_cast<std::string>(i+1)) );
 
-  // TODO how to make sure that no object is in collision with the others ?
-  // Workaround: use opencv, check in 2D, the projection of objects
+//!init_cc_img();
+/*!
+  how to make sure that no object is in collision with the others ?
+  Workaround: use opencv, check in 2D, the projection of objects
   
-  boost::mt19937 rng( static_cast<unsigned int>(std::time(0)) );
-  
-  // Set the base 2D img for collision checking
+  This sets cc_img_
+*/
+
+void
+init_cc_img()
+{
+  // Set the base 2D img for 2D image collision checking using opencv
   const size_t rows = (2*TABLE_RADIUS*PIXEL_PER_M); 
   const size_t cols = (2*TABLE_RADIUS*PIXEL_PER_M);
   
   cv::Mat img( rows, cols, CV_8UC1, cv::Scalar(255));// White image single channel 8 Unsigned
+  cc_img_ = img;
   
   // Set the dead zone: robot's torso 
   const double rbt_r = 0.250;
@@ -467,142 +612,33 @@ see_obj_cfg(const size_t& n)
   cv::Point rbt_p;
   rbt_p.x = (rows/2);
   rbt_p.y = (cols/2);
-  cv::circle( img, rbt_p, rbt_r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA );  
   
-  // Set the unmovable_object (obstacles): vase
-  const double vase_r = VASE_R;
+  cv::circle( cc_img_, rbt_p, rbt_r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA );
   
-  cv::Point vase_p;
-//  vase_p.x = (VASE_X*PIXEL_PER_M) + (rows/2);
-//  vase_p.y = (VASE_Y*PIXEL_PER_M) + (rows/2);
-  vase_p.x = (VASE_X*PIXEL_PER_M) + (cols/2);
-  vase_p.y = (VASE_Y*PIXEL_PER_M) + (rows/2);
-  cv::circle( img, vase_p, vase_r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA );
-  
-//  // Set the unmovable_object (obstacles): vase_2
-//  cv::Point vase_2_p;
-////  vase_2_p.x = (VASE_X*PIXEL_PER_M) + (rows/2);
-////  vase_2_p.y = (VASE_Y*PIXEL_PER_M) + (rows/2);
-//  vase_2_p.x = (-1*VASE_X*PIXEL_PER_M) + (cols/2);
-//  vase_2_p.y = (VASE_Y*PIXEL_PER_M) + (rows/2);
-//  cv::circle( img, vase_2_p, vase_r*PIXEL_PER_M, cv::Scalar(0), -1, CV_AA );
-  
-  // Randomize the object pose
-  for(std::vector<std::string>::const_iterator i=ids.begin(); i!=ids.end(); ++i)
-  {
-    std::string id = *i;
-    const double r = B_RADIUS;
-    const double h = B_HEIGHT;
-    
-    // Randomize the orientation
-    const double roll = 0.;// Because the object is cylindrical, rolling affects nothing.
-    
-    boost::uniform_int<> uni_int_dist(0,1); 
-    const size_t pitch_sym = uni_int_dist(rng);
-    
-    double pitch;
-    if(pitch_sym == UPRIGHT)
-      pitch = 0.;
-    else
-      pitch = M_PI/2;
-    
-    boost::uniform_real<double> uni_real_dist(0.,2*M_PI);
-    const double yaw = uni_real_dist(rng) * DEG_PER_RAD;
-    
-    const tf::Quaternion q = tf::createQuaternionFromRPY(roll, pitch, yaw);
-    
-    // Randomize the position.
-    double z;
-    if(pitch == 0.)
-     z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);
-    else
-     z = (TABLE_THICKNESS/2)+(B_RADIUS);
-    
-    const double x_max = TABLE_RADIUS;// Play safe!
-    const double x_min = -1 * x_max;
-    const double y_max = x_max;
-    const double y_min = x_min;
-    boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
-    boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
-    
-    double x, y;
-    while( true and ros::ok() )
-    {
-      x = uni_real_dist_x(rng);
-      y = uni_real_dist_y(rng);
-      
-      double r_here;
-      r_here = sqrt( pow(x,2)+pow(y,2) );
-      
-      if( (r_here < (TABLE_RADIUS-B_HEIGHT)) and !is_in_collision(&img, x, y, pitch_sym, yaw) )
-      {
-        break;
-      }
-    }
-    
-    // Spawn the object    
-    sense_movable_object( id, r, h, x, y, z, q.x(), q.y(), q.z(), q.w(),&obj_cfg );
-  }
-  
-  // Write the randomized obj_cfg
-  std::string  data_path= ".";
-  if( !ros::param::get("/data_path", data_path) )
-    ROS_WARN("Can not get /data_path, use the default value instead");
-    
-  write_obj_cfg( obj_cfg,std::string(data_path+"/messy.cfg") );
-
-  // Draw the table boundary + save img for debugging purpose. 
-  // Note that the object poses are mirrored because coordinate frame transformation is ignored
-  // the robot is facing to the right of the img
-  // the left side becomes the right side
-  cv::Point tbl_p;
-  tbl_p.x = (rows/2);
+  // Draw the table boundary
+  cv::Point tbl_p; 
+  tbl_p.x = (rows/2); 
   tbl_p.y = (cols/2);
-  cv::circle( img, tbl_p, TABLE_RADIUS*PIXEL_PER_M, cv::Scalar(0), 1, CV_AA );
- 
-  cv::imwrite( data_path+"/messy.cfg.jpg", img );
-//  cv::imshow("img", img);
-//  cv::waitKey(0);
+  
+  cv::circle( cc_img_, tbl_p, TABLE_RADIUS*PIXEL_PER_M, cv::Scalar(0), 1, CV_AA );
 
-  return true;
 }
-//! Generate a obj config for test bed
-/*!
-  More ...
-*/
-bool
-see_obj_cfg_replay(const std::string& path)
-{
-  ObjCfg cfg;
-
-  if( !read_obj_cfg(path,&cfg) )
-  {
-    ROS_ERROR("Can not find the obj_cfg file.");
-    return false;
-  }
-  ROS_DEBUG_STREAM("cfg.size()= " << cfg.size());
  
-  for(ObjCfg::iterator i=cfg.begin(); i!=cfg.end(); ++i)
-    sense_movable_object(*i);
-
-  // Re-write the messy_cfg
-  std::string  data_path= ".";
-  if( !ros::param::get("/data_path", data_path) )
-    ROS_WARN("Can not get /data_path, use the default value instead");
-    
-  write_obj_cfg( cfg,std::string(data_path+"/messy.cfg") );
-    
-  return true;
-}
-
 ros::NodeHandle nh_;
 
-std::map<std::string,geometry_msgs::PoseStamped> obj_pose_map_;// Modified in sense_movable_object(),...
+//! Modified in sense_movable_object(),...
+std::map<std::string,geometry_msgs::PoseStamped> movable_obj_pose_map_;
 
 ros::Publisher collision_space_pub_;
 tf::TransformBroadcaster object_tf_bc_;// Must be outside the  while() loop
 
 ros::ServiceClient set_planning_scene_diff_client_;
+
+//! Keeps all sense objects including both movable and unmovable objects
+ObjCfg obj_cfg_;
+
+//! Keeps an image used for collision checking
+cv::Mat cc_img_;
 };// enf of: class VisionSensor
 
 int 
@@ -611,8 +647,8 @@ main(int argc, char** argv)
   ros::init(argc, argv, "vis_sensor");
   ros::NodeHandle nh;\
   
-//  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
-//  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
+  log4cxx::LoggerPtr my_logger = log4cxx::Logger::getLogger(ROSCONSOLE_DEFAULT_NAME);
+  my_logger->setLevel(ros::console::g_level_lookup[ros::console::levels::Debug]);
     
   VisionSensor vis_sensor(nh);
   

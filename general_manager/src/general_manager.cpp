@@ -98,21 +98,27 @@ sense(const std::string& path)
   sensor_manager::Sense::Response res;
 
   req.id = 1;
-  req.uint_args.push_back(false);// randomized=false
-  req.uint_args.push_back(0);// any number, meaningless here
+  
+  req.bool_args.push_back(true);// rerun=yes
+  req.bool_args.push_back(false);// consequently,randomized_vase=false;
+  
+  req.uint_args.push_back(size_t());//any
+  req.uint_args.push_back(size_t());//any
+  
   req.string_args.push_back(path);
 
   if( !sense_client.call(req,res) ) 
   {
-    ROS_WARN("A call to /sense srv: FAILED");
+    ROS_ERROR("Call to /sense srv: FAILED");
     return false;
   }
   
   return true;
 }
 
+//! sense with expected n_movable_object
 bool
-sense(const size_t& n)
+sense(const size_t& n_movable_object)
 {
 //  // At least 3 times, otherwise the planner_manager will miss collission object publications.
 //  for(size_t i=0; i<3; ++i)
@@ -126,9 +132,14 @@ sense(const size_t& n)
     sensor_manager::Sense::Response res;
     
     req.id = 1;// for sense::see
-    req.uint_args.push_back(true);
-    req.uint_args.push_back(n);
-    req.string_args.push_back("");
+    
+    req.bool_args.push_back(false);// rerun
+    req.bool_args.push_back(true);// randomized_vase_pose
+    
+    req.uint_args.push_back(n_movable_object);
+    req.uint_args.push_back(1);// for n_vase
+    
+    req.string_args.push_back(std::string());
     
     if( !sense_client.call(req,res) ) 
     {
@@ -145,7 +156,7 @@ sense(const size_t& n)
   For MLMode refer to ml_util.hpp
 */
 bool
-plan(const MLMode& ml_mode,const bool rerun=false,const std::string& log_path=std::string(""),std::vector<double>* ctamp_log=0)
+plan(const MLMode& ml_mode,const bool rerun=false,const std::string& log_path=std::string(""),std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol=0,std::vector<double>* ctamp_log=0)
 {
   ros::service::waitForService("/plan");
     
@@ -164,7 +175,10 @@ plan(const MLMode& ml_mode,const bool rerun=false,const std::string& log_path=st
     ROS_ERROR("Call to planner_manager/plan srv: FAILED");
     return false;
   }
-  
+
+  if(ctamp_sol != NULL)
+    *ctamp_sol = res.ctamp_sol;
+      
   if(ctamp_log != NULL)
     *ctamp_log = res.ctamp_log;
   
@@ -346,16 +360,25 @@ main(int argc, char **argv)
         
         boost::filesystem::create_directories(data_path);
         
-        boost::filesystem::copy_file( std::string(base_data_path+tidy_cfg_filename),std::string(data_path+"/tidy.cfg") );
+        boost::filesystem::copy_file( std::string(base_data_path+tidy_cfg_filename),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
         
         // Sense!
         gm.sense(n_obj);
         
         // Plan, rerun=false
-        MLMode ml_mode;
-        ml_mode = NO_ML;
+        MLMode mode = NO_ML;
+        bool rerun = false;
+        std::string log_path;// not used in this mode
+        std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
+        std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
         
-        if( gm.plan(ml_mode) )// mode=1 -> UCS, no learning 
+        if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        {
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << j+1  );
+          break;
+        }
+        
+        if( !ctamp_sol.empty() )
           epi_log << j << ",";
       }
       epi_log << endl;
@@ -545,9 +568,10 @@ main(int argc, char **argv)
         // Plan 
         MLMode mode = LWPR_ONLINE;
         bool rerun = true;
+        std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
 
-        if( !gm.plan(mode,rerun,log_path,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
           ROS_ERROR("gm.plan(mode,rerun,log_path,&ctamp_log): failed");
           break;
@@ -647,9 +671,10 @@ main(int argc, char **argv)
         // Plan 
         bool rerun = true;
         MLMode mode; !(i-idxes.begin()) ? mode = NO_ML : mode = SVR_OFFLINE;// for the first fed intance, NO_ML is trained yet.
+        std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples, (1) number of (cost-to-go vs. est. cost-to-go)
         
-        if( !gm.plan(mode,rerun,log_path,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
           ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i-idxes.begin()+1 << "... " << instance_paths.at(*i) );
           break;

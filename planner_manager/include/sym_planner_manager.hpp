@@ -25,7 +25,7 @@ plan(PlannerManager pm)
   task_planner::PlanTask::Request plan_task_req;
   task_planner::PlanTask::Response plan_task_res;
   
-  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::const_iterator i=pm.messy_cfg_.begin(); i!=pm.messy_cfg_.end(); ++i)
+  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::const_iterator i=pm.movable_obj_messy_cfg_.begin(); i!=pm.movable_obj_messy_cfg_.end(); ++i)
     plan_task_req.objects.push_back(i->second);
   
   ros::service::waitForService("plan_task"); 
