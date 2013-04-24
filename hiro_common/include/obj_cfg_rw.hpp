@@ -61,7 +61,10 @@ read_obj_cfg(const std::string& cfg_path,ObjCfg* cfg)
       {
         object.id = line_comps.at(1);
         object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
-        object.header.frame_id = "/table";
+      }
+      else if( !strcmp(line_comps.at(0).c_str(),"frame") )
+      {
+        object.header.frame_id = line_comps.at(1);
       }
       else if( !strcmp(line_comps.at(0).c_str(),"pos") )
       {
@@ -101,7 +104,7 @@ read_obj_cfg(const std::string& cfg_path,ObjCfg* cfg)
   }
   else
   {
-   cerr << "Unable to open the foo.cfg file" << endl;
+   cerr << "Unable to open" << cfg_path << endl;
    return false;
   }
   
@@ -126,6 +129,8 @@ write_obj_cfg(const ObjCfg& cfg,const std::string& path)
     for(ObjCfg::const_iterator i=cfg.begin(); i!=cfg.end(); ++i)
     {
       cfg_out << "id=" << i->id << endl;
+      
+      cfg_out << "frame=" << i->header.frame_id << endl;
       
       cfg_out << "pos=" << i->poses.at(0).position.x << "," << i->poses.at(0).position.y << "," << i->poses.at(0).position.z << endl;
       cfg_out << "ori=" << i->poses.at(0).orientation.x << "," << i->poses.at(0).orientation.y << "," << i->poses.at(0).orientation.z << "," << i->poses.at(0).orientation.w << endl;

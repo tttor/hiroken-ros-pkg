@@ -25,13 +25,17 @@ sense_srv_handle(sensor_manager::Sense::Request& root_req, sensor_manager::Sense
       hiro_sensor::See::Request req;
       hiro_sensor::See::Response res;
 
-      req.random = root_req.uint_args.at(0);// Whether using a random messy cfg or a hardcoded testbed      
-      req.n = root_req.uint_args.at(1);// number of expected sensed objects
+      req.rerun = root_req.bool_args.at(0);// Whether using a random messy cfg or a hardcoded testbed      
       req.path = root_req.string_args.at(0);// path for replay messy_cfg
+              
+      req.n_vase = root_req.uint_args.at(1);
+      req.randomized_vase = root_req.bool_args.at(1);
+      
+      req.n_movable_object = root_req.uint_args.at(0);// number of expected sensed movable objects
         
       if( !see_client.call(req,res) ) 
       {
-        ROS_WARN("A call to /see srv: FAILED");
+        ROS_ERROR("Call to /see srv: FAILED");
         return false;
       }
       break;

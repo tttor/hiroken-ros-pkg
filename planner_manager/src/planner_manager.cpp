@@ -21,17 +21,24 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
 PlannerManager::~PlannerManager()
 { }
 
+//! collision_object_cb
+/*!
+  Movable object id -> CAN1, CAN2. ..., CANn
+  Unmovable object id -> unmovable.table, unmovable.vase, ...
+*/
 void 
 PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::ConstPtr& msg)
 {
   ROS_DEBUG_STREAM("Heard= " << msg->id.c_str());
   
-  // Filter unmovable_object
-  if( !strcmp(msg->id.c_str(), "table")
-      or !strcmp(msg->id.c_str(), "wall")
-      or !strcmp(msg->id.c_str(), "vase")
-      or !strcmp(msg->id.c_str(), "vase_2")
-    )
+  // Filter out unmovable object
+  std::vector<std::string> id_parts;// e.g. "unmovable.vase", "CAN1"
+  boost::split( id_parts,msg->id,boost::is_any_of(".") );
+  
+  std::string type;
+  type = id_parts.at(0);
+  
+  if( !strcmp(type.c_str(),"unmovable") )
   {
     return;
   }
@@ -39,7 +46,7 @@ PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::
   std::map<std::string, arm_navigation_msgs::CollisionObject>::iterator it;
   bool inserted;
   
-  boost::tie(it,inserted) = messy_cfg_.insert( std::pair<std::string, arm_navigation_msgs::CollisionObject>(msg->id, *msg) );
+  boost::tie(it,inserted) = movable_obj_messy_cfg_.insert( std::pair<std::string, arm_navigation_msgs::CollisionObject>(msg->id, *msg) );
   
   if(!inserted)
     it->second = *msg;// Update with the newer one
@@ -652,57 +659,60 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
   }
   
-  // Write ml_data
-  std::string ml_log_path;
-  ml_log_path = std::string(log_path+".ml.log");
-  
-  std::ofstream ml_log;
-  ml_log.open(ml_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
-  
-  ROS_DEBUG_STREAM("ml_data.size()= " << ml_data.size());
-  for(std::vector< std::vector<double> >::const_iterator i=ml_data.begin(); i!=ml_data.end(); ++i)
+  if(ml_mode==SVR_OFFLINE or ml_mode==LWPR_ONLINE)
   {
-    ml_log << i->at(0) << "," << i->at(1) << ","<< i->at(2) << "," << i->at(3) << std::endl;
+    // Write ml_data
+    std::string ml_log_path;
+    ml_log_path = std::string(log_path+".ml.log");
+    
+    std::ofstream ml_log;
+    ml_log.open(ml_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
+    
+    ROS_DEBUG_STREAM("ml_data.size()= " << ml_data.size());
+    for(std::vector< std::vector<double> >::const_iterator i=ml_data.begin(); i!=ml_data.end(); ++i)
+    {
+      ml_log << i->at(0) << "," << i->at(1) << ","<< i->at(2) << "," << i->at(3) << std::endl;
+    }
+
+    ml_log.close();
+    
+    // Write log for heuristics vs true distance 
+    // The reference is UCS-sol-path on the rerun base 
+    std::string h_log_path;
+    h_log_path = std::string(log_path+".h.log");
+    
+    std::ofstream h_log;
+    h_log.open(h_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
+    
+    TMMVertex curr_vertex;
+    curr_vertex = tmm_root_;
+    size_t n_hcomp = 0;
+    do// Loop for obtaining all paths from any vertex in a solution path to the goal vertex
+    {
+      double h;// = estimated cost-to-go
+      h = get(vertex_heu,tmm_,curr_vertex);
+      
+      double cost2go = 0.;// valid when cost2go > 0.0
+      cost2go = get_cost2go(curr_vertex,tmm_goal_,ucs_sol_tmm);
+      
+      h_log << h << "," << cost2go << std::endl;
+      n_hcomp++;
+      
+      typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+      tie(oei,oei_end)=out_edges(curr_vertex,ucs_sol_tmm);// no need to iterate over oei because there is only one outedge in the ucs_sol_tmm (it is actually a graph)
+     
+      curr_vertex = target(*oei,ucs_sol_tmm);
+    }
+    while(curr_vertex != tmm_goal_);
+    
+    h_log.close();
+
+    // Store ctamp log for this ctamp instance
+    if( !ml_data.empty() )
+      ctamp_log->push_back( ml_data.back().at(3) );// at idx=0, note n_samples is casted from size_t to double
+
+    ctamp_log->push_back( n_hcomp ); // at idx=1, note n_samples is casted from size_t to double  
   }
-
-  ml_log.close();
-
-  // Write log for heuristics vs true distance 
-  // The reference is UCS-sol-path on the rerun base 
-  std::string h_log_path;
-  h_log_path = std::string(log_path+".h.log");
-  
-  std::ofstream h_log;
-  h_log.open(h_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
-  
-  TMMVertex curr_vertex;
-  curr_vertex = tmm_root_;
-  size_t n_hcomp = 0;
-  do// Loop for obtaining all paths from any vertex in a solution path to the goal vertex
-  {
-    double h;// = estimated cost-to-go
-    h = get(vertex_heu,tmm_,curr_vertex);
-    
-    double cost2go = 0.;// valid when cost2go > 0.0
-    cost2go = get_cost2go(curr_vertex,tmm_goal_,ucs_sol_tmm);
-    
-    h_log << h << "," << cost2go << std::endl;
-    n_hcomp++;
-    
-    typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
-    tie(oei,oei_end)=out_edges(curr_vertex,ucs_sol_tmm);// no need to iterate over oei because there is only one outedge in the ucs_sol_tmm (it is actually a graph)
-   
-    curr_vertex = target(*oei,ucs_sol_tmm);
-  }
-  while(curr_vertex != tmm_goal_);
-  
-  h_log.close();
-
-  // Store ctamp log for this ctamp instance
-  if( !ml_data.empty() )
-    ctamp_log->push_back( ml_data.back().at(3) );// at idx=0, note n_samples is casted from size_t to double
-
-  ctamp_log->push_back( n_hcomp ); // at idx=1, note n_samples is casted from size_t to double
 
   // Write a fancy planned TMM
   std::string p_tmm_dot_path = data_path + "/fancy_tmm.dot";
@@ -788,7 +798,7 @@ PlannerManager::set_tidy_config()
   }
   
   for(ObjCfg::iterator i=tidy_cfg.begin(); i!=tidy_cfg.end(); ++i)
-    tidy_cfg_[i->id] = *i; 
+    movable_obj_tidy_cfg_[i->id] = *i; 
   
   return true;
 }

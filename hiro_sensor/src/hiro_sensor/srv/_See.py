@@ -6,16 +6,18 @@ import struct
 
 
 class SeeRequest(genpy.Message):
-  _md5sum = "2a0590a7ed91113b12ac2f7d51f68332"
+  _md5sum = "bbe84daac54043cac37fe08e055733cf"
   _type = "hiro_sensor/SeeRequest"
   _has_header = False #flag to mark the presence of a Header object
-  _full_text = """bool random
-uint16 n
+  _full_text = """bool rerun
 string path
+uint16 n_movable_object
+uint16 n_vase
+bool randomized_vase
 
 """
-  __slots__ = ['random','n','path']
-  _slot_types = ['bool','uint16','string']
+  __slots__ = ['rerun','path','n_movable_object','n_vase','randomized_vase']
+  _slot_types = ['bool','string','uint16','uint16','bool']
 
   def __init__(self, *args, **kwds):
     """
@@ -25,7 +27,7 @@ string path
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       random,n,path
+       rerun,path,n_movable_object,n_vase,randomized_vase
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -34,16 +36,22 @@ string path
     if args or kwds:
       super(SeeRequest, self).__init__(*args, **kwds)
       #message fields cannot be None, assign default values for those that are
-      if self.random is None:
-        self.random = False
-      if self.n is None:
-        self.n = 0
+      if self.rerun is None:
+        self.rerun = False
       if self.path is None:
         self.path = ''
+      if self.n_movable_object is None:
+        self.n_movable_object = 0
+      if self.n_vase is None:
+        self.n_vase = 0
+      if self.randomized_vase is None:
+        self.randomized_vase = False
     else:
-      self.random = False
-      self.n = 0
+      self.rerun = False
       self.path = ''
+      self.n_movable_object = 0
+      self.n_vase = 0
+      self.randomized_vase = False
 
   def _get_types(self):
     """
@@ -57,14 +65,15 @@ string path
     :param buff: buffer, ``StringIO``
     """
     try:
-      _x = self
-      buff.write(_struct_BH.pack(_x.random, _x.n))
+      buff.write(_struct_B.pack(self.rerun))
       _x = self.path
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
+      _x = self
+      buff.write(_struct_2HB.pack(_x.n_movable_object, _x.n_vase, _x.randomized_vase))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -75,11 +84,10 @@ string path
     """
     try:
       end = 0
-      _x = self
       start = end
-      end += 3
-      (_x.random, _x.n,) = _struct_BH.unpack(str[start:end])
-      self.random = bool(self.random)
+      end += 1
+      (self.rerun,) = _struct_B.unpack(str[start:end])
+      self.rerun = bool(self.rerun)
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -89,6 +97,11 @@ string path
         self.path = str[start:end].decode('utf-8')
       else:
         self.path = str[start:end]
+      _x = self
+      start = end
+      end += 5
+      (_x.n_movable_object, _x.n_vase, _x.randomized_vase,) = _struct_2HB.unpack(str[start:end])
+      self.randomized_vase = bool(self.randomized_vase)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -101,14 +114,15 @@ string path
     :param numpy: numpy python module
     """
     try:
-      _x = self
-      buff.write(_struct_BH.pack(_x.random, _x.n))
+      buff.write(_struct_B.pack(self.rerun))
       _x = self.path
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
+      _x = self
+      buff.write(_struct_2HB.pack(_x.n_movable_object, _x.n_vase, _x.randomized_vase))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -120,11 +134,10 @@ string path
     """
     try:
       end = 0
-      _x = self
       start = end
-      end += 3
-      (_x.random, _x.n,) = _struct_BH.unpack(str[start:end])
-      self.random = bool(self.random)
+      end += 1
+      (self.rerun,) = _struct_B.unpack(str[start:end])
+      self.rerun = bool(self.rerun)
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -134,12 +147,18 @@ string path
         self.path = str[start:end].decode('utf-8')
       else:
         self.path = str[start:end]
+      _x = self
+      start = end
+      end += 5
+      (_x.n_movable_object, _x.n_vase, _x.randomized_vase,) = _struct_2HB.unpack(str[start:end])
+      self.randomized_vase = bool(self.randomized_vase)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
 
 _struct_I = genpy.struct_I
-_struct_BH = struct.Struct("<BH")
+_struct_B = struct.Struct("<B")
+_struct_2HB = struct.Struct("<2HB")
 """autogenerated by genpy from hiro_sensor/SeeResponse.msg. Do not edit."""
 import sys
 python3 = True if sys.hexversion > 0x03000000 else False
@@ -228,6 +247,6 @@ class SeeResponse(genpy.Message):
 _struct_I = genpy.struct_I
 class See(object):
   _type          = 'hiro_sensor/See'
-  _md5sum = '2a0590a7ed91113b12ac2f7d51f68332'
+  _md5sum = 'bbe84daac54043cac37fe08e055733cf'
   _request_class  = SeeRequest
   _response_class = SeeResponse

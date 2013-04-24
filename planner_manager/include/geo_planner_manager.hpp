@@ -600,7 +600,7 @@ init_vertex(const TMMVertex& v)
   }
   
   std::vector<arm_navigation_msgs::CollisionObject> wstate;
-  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::const_iterator i=pm_->messy_cfg_.begin(); i!=pm_->messy_cfg_.end(); ++i)
+  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::const_iterator i=pm_->movable_obj_messy_cfg_.begin(); i!=pm_->movable_obj_messy_cfg_.end(); ++i)
   {
     std::vector<std::string>::iterator it;
     it = std::find(tidied_object_ids.begin(),tidied_object_ids.end(),i->first);
@@ -608,7 +608,7 @@ init_vertex(const TMMVertex& v)
     if( it==tidied_object_ids.end() )
       wstate.push_back(i->second);
     else
-      wstate.push_back( pm_->tidy_cfg_[i->first] );
+      wstate.push_back( pm_->movable_obj_tidy_cfg_[i->first] );
   }
   
 //  for(std::vector<arm_navigation_msgs::CollisionObject>::const_iterator i=wstate.begin(); i!=wstate.end(); ++i)
@@ -755,14 +755,14 @@ get_goal_set(const TMMVertex& sv,const TMMVertex& v, const std::string& jspace)
     if( !strcmp(state_name.c_str(), "Grasped") )// Assume that GRASP is always in messy_spot
     {
       arm_navigation_msgs::CollisionObject object;
-      object = pm_->messy_cfg_[object_id];
+      object = pm_->movable_obj_messy_cfg_[object_id];
     
       plan_grasp(object,rbt_id,jspace,&goal_set);
     }
     else if( !strcmp(state_name.c_str(), "Released") )// Assume that UNGRASP is always in tidy_spot
     {
       arm_navigation_msgs::CollisionObject object;
-      object = pm_->tidy_cfg_[object_id];
+      object = pm_->movable_obj_tidy_cfg_[object_id];
       
       plan_ungrasp(object,rbt_id,jspace,&goal_set);
     }
@@ -1035,7 +1035,7 @@ bool
 reset_planning_env()
 {
   // Reset the workspace===================================================================================================================
-  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::iterator i=pm_->messy_cfg_.begin(); i!=pm_->messy_cfg_.end(); ++i)
+  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::iterator i=pm_->movable_obj_messy_cfg_.begin(); i!=pm_->movable_obj_messy_cfg_.end(); ++i)
   {
     i->second.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     
@@ -1122,7 +1122,7 @@ set_workspace(const TMMVertex& v,const bool sim_grasped_or_released=false)
   for(std::vector<std::string>::const_iterator i=tidied_object_ids.begin(); i!=tidied_object_ids.end(); ++i)
   {
     arm_navigation_msgs::CollisionObject object;
-    object = pm_->tidy_cfg_[*i];
+    object = pm_->movable_obj_tidy_cfg_[*i];
       
     object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     collision_object_pub_.publish(object);
@@ -1151,7 +1151,7 @@ set_workspace(const TMMVertex& v,const bool sim_grasped_or_released=false)
   {
     // Set the released object in the tidy spot
     arm_navigation_msgs::CollisionObject object;
-    object = pm_->tidy_cfg_[object_id];
+    object = pm_->movable_obj_tidy_cfg_[object_id];
       
     object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     collision_object_pub_.publish(object);
@@ -1183,7 +1183,7 @@ set_workspace(const TMMVertex& v,const bool sim_grasped_or_released=false)
 //    att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ATTACH_AND_REMOVE_AS_OBJECT;
 
     // Method 2 [http://www.ros.org/wiki/arm_navigation/Tutorials/Planning%20Scene/Attaching%20Virtual%20Objects%20to%20the%20Robot]
-    att_object.object = pm_->messy_cfg_[object_id];// Assume that Grasped_XXX is always at messy_cfg_
+    att_object.object = pm_->movable_obj_messy_cfg_[object_id];// Assume that Grasped_XXX is always at movable_obj_messy_cfg_
     att_object.object.header.frame_id = get_eof_link(rbt_id);
     // update (overwrite) the pose to conform with frame_id=link_XXXX_palm
     geometry_msgs::Pose pose;

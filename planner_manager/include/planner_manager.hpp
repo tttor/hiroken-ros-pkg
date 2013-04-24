@@ -110,8 +110,8 @@ std::string planner_manager_path_;
 /*!
   More ...
 */
-std::map<std::string, arm_navigation_msgs::CollisionObject> messy_cfg_;
-std::map<std::string, arm_navigation_msgs::CollisionObject> tidy_cfg_;
+std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_messy_cfg_;
+std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg_;
 
 //! Keeps the number of samples that have been used to trained a SVR model
 size_t n_data_;
