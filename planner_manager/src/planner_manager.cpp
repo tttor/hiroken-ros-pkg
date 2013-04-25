@@ -13,6 +13,8 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
   nh_(nh)
 {
   ros::service::waitForService("plan_grasp");
+  n_ctamp_attempt_ = 0;
+  n_data_ = 0;
 }
 //! A destructor.
 /*!
@@ -222,7 +224,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   // ml-related data keeper
   std::vector< std::vector<double> > ml_data;
 
-  std::string model_path;// Used only in SVR_OFFLINE mode
+  std::string model_path;// Used only in ml_util::SVR_OFFLINE mode
   model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/svm.libsvmmodel";
   
   // Search 
@@ -235,16 +237,22 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   {
     switch(ml_mode)
     {
-      case NO_ML:
+      case ml_util::NO_ML:
       {
-        // use "as is" mode=SVR_OFFLINE, 
+        // use "as is" mode=ml_util::SVR_OFFLINE, 
         //the learner is useless though, see astar_utils.hpp where the heuristic for this mode is always set to h=0
-        ROS_DEBUG("learner= NO_ML but via learner= SVR");
+        ROS_DEBUG("learner= ml_util::NO_ML but via learner= SVR");
       }
-      case SVR_OFFLINE:
+      case ml_util::SVR_OFFLINE:
       {
         ROS_DEBUG("learner= SVR");
         
+        size_t search_ml_mode;
+        if(n_ctamp_attempt_==0)
+          search_ml_mode = ml_util::NO_ML;// for the first ctamp instance, use ml_util::NO_ML because there is no SVR is trained yet.
+        else
+          search_ml_mode = ml_mode;
+          
         // SVR from libsvm
         std::string te_data_path;// for prediction using SVM
         te_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/te_data.libsvmdata";
@@ -252,20 +260,21 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         std::string fit_out_path;// for prediction using SVM
         fit_out_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
         
-        SVM_Object learner(model_path,te_data_path,fit_out_path,"");
-        
+        svr_max_n_attr_ = 100;
+        SVM_Object learner(svr_model_,svr_max_n_attr_);
+
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
-                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,ml_mode)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode) )
+                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_ml_mode)
+                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,search_ml_mode) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
         
         break;
       }
-      case LWPR_ONLINE:
+      case ml_util::LWPR_ONLINE:
       {
         ROS_DEBUG("learner= LWPR");// LWPR from Edinburg Univ.
         
@@ -442,224 +451,144 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
   }// End of: catch(FoundGoalSignal fgs) 
   
-  if(ml_mode==SVR_OFFLINE)
+  if(ml_mode==ml_util::SVR_OFFLINE)
   {
     // Initialize
-    std::string tr_data_path;// is appended with samples from one CTAMP instance to anothor
+    std::string tr_data_path;// is appended with samples obtained from one CTAMP instance to another
     tr_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.libsvmdata";// _must_ be synch with the one in astar_utils.hpp
     
-    std::string fit_data_path;// _must_ be always overwritten
-    fit_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
-        
-//    // BENCHmark:Obtain testing data error: the different between the fitting and the true value of testing data (which have _not_ been used to train the model)
-//    FILE *input;
-//    input = fopen(tr_data_path.c_str(),"r");
-//    if(input == NULL)
-//    {
-//      std::cerr << "can't open input file= " << tr_data_path << std::endl;
-//      return false;
-//    }
-//    
-//    FILE *output;
-//    output = fopen(fit_data_path.c_str(),"w");// overwrite
-//    if(output == NULL)
-//    {
-//      std::cerr << "can't open output file= " << fit_data_path << std::endl;
-//      return false;
-//    }
+    std::string delta_tr_data_path;// is appended with samples obtained from one CTAMP instance to another
+    delta_tr_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.libsvmdata";// _must_ be synch with the one in astar_utils.hpp
 
-//    SVMModel* trained_model;// trained/updated using a bunch of data from seach for this instance
-//    if( (trained_model=svm_load_model(model_path.c_str())) == 0 )
-//    {
-//      std::cerr << "can't open model file= " << model_path << std::endl;
-//      return false;
-//    }
+    std::string delta_csv_tr_data_path;
+    delta_csv_tr_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.csv";// _must_ be synch with the one in astar_utils.hpp
+          
+    std::string tmp_data_path;// _must_ be always overwritten
+    tmp_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
+    
+    // Benchmark:Obtain testing data error
+    // :the different between the fitting and the true value of testing data (which have _not_ been used to train the model)
+    std::vector<double> y_fit_te;
+    
+    if(n_ctamp_attempt_ > 0)
+    {
+      ROS_DEBUG("Obtaining te_err ...");
 
-//    SVMNode* x;
-//    int max_nr_attr = 100;
-//    
-//    x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));
+      FILE *input;// for holding tr_data
+      input = fopen(delta_tr_data_path.c_str(),"r");
+      if(input == NULL)
+      {
+        std::cerr << "can't open input file= " << delta_tr_data_path << std::endl;
+        return false;
+      }
 
-//    int predict_probability=0;
-//    
-//    libsvm_predict(trained_model,predict_probability,max_nr_attr,x,input,output);
-//    
-//    // TODO make these work, now: causes running-time ERR
-////    svm_free_and_destroy_model(&model);
-////    free(x);
-//    fclose(input);
-//    fclose(output);
-//    
-//    // Obtain y_fit from a tmp(hot) file, then put it in ml_data, 
-//    // have to read fit.out file because libsvm_predict() returns the results in a file
-//    std::string line;
-//    
-//    std::vector<double> fit_out_content;
-//    std::ifstream fit_out_file(fit_data_path.c_str());
-//    if(fit_out_file.is_open())
-//    {
-//      while ( fit_out_file.good() )
-//      {
-//        std::getline(fit_out_file,line);
-//        if(line.size() != 0)
-//          fit_out_content.push_back( boost::lexical_cast<double>(line) );
-//      }
-//      fit_out_file.close();
-//    }
-//    else
-//    {
-//     std::cout << "fit_out_file.is_open(): Failed" << std::endl;
-//     return false;
-//    }
-        
+      FILE *output;// for holding fitting outputs          
+      output = fopen(tmp_data_path.c_str(),"w");// overwrite
+      if(output == NULL)
+      {
+        std::cerr << "can't open output file= " << tmp_data_path << std::endl;
+        return false;
+      }
+
+      SVMNode* x;// for inputs 
+      x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));
+      
+      libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
+      free(x); fclose(input); fclose(output);
+
+      y_fit_te = ml_util::get_y_fit(tmp_data_path);// Retrieve y_fit from the tmp file
+    }
+    
     // Interleave SVR training, building the model from scratch will all stored data
+    ROS_DEBUG("SVR training ...");
+    
     SVMParameter param;
     init_svmparam(&param);
     
     SVMNode* x_space;
     x_space = 0;
   
-    SVMProblem prob;
-    if( !read_problem(tr_data_path.c_str(),x_space,&prob,&param) )
+    SVMProblem problem;
+    if( !read_problem(tr_data_path.c_str(),x_space,&problem,&param) )
     {
       ROS_ERROR("libsvr read_problem(): failed");
       return false;
     }
     
-    SVMModel* model;
-    model = svm_train(&prob,&param);
-
-    if( svm_save_model(model_path.c_str(),model) )
+    svr_model_ = svm_train(&problem,&param);
+//    if( svm_save_model(model_path.c_str(),svr_model_) )
+//    {
+//      ROS_ERROR("Cannot save svm model.");
+//      return false;
+//    }
+    svm_destroy_param(&param); free(problem.y); free(problem.x); free(x_space);
+    
+    // Benchmark: obtain prediction error with tr_data + put data into ml_data
+    // Note that the svm model used to predict is trained/updated using a bunch of data (samples obtained from this CTAMP instance), 
+    // instead of being trained one-by-one (which wil take long time)
+    std::vector<double> y_fit_tr;
+    
+    if(n_ctamp_attempt_ > 0)
     {
-      ROS_ERROR("Cannot save svm model.");
-      return false;
-    }
-    
-    svm_free_and_destroy_model(&model);
-    svm_destroy_param(&param);
-    free(prob.y);
-    free(prob.x);
-    free(x_space);
-    
-    // Benchmark: obtain prediction error with tr_data 
-    // Note that the svm model used to predict is trained/updated using a bunch of data, instead of one-by-one (which wil take long time)
-    FILE *input;
-    input = fopen(tr_data_path.c_str(),"r");
-    if(input == NULL)
-    {
-      std::cerr << "can't open input file= " << tr_data_path << std::endl;
-      return false;
-    }
-    
-    FILE *output;
-    output = fopen(fit_data_path.c_str(),"w");// overwrite
-    if(output == NULL)
-    {
-      std::cerr << "can't open output file= " << fit_data_path << std::endl;
-      return false;
-    }
-
-    SVMModel* trained_model;// trained/updated using a bunch of data from seach for this instance
-    if( (trained_model=svm_load_model(model_path.c_str())) == 0 )
-    {
-      std::cerr << "can't open model file= " << model_path << std::endl;
-      return false;
-    }
-
-    SVMNode* x;
-    int max_nr_attr = 100;
-    
-    x = (struct svm_node *) malloc(max_nr_attr*sizeof(struct svm_node));
-
-    int predict_probability=0;
-    
-    libsvm_predict(trained_model,predict_probability,max_nr_attr,x,input,output);
-    
-    // TODO make these work, now: causes running-time ERR
-//    svm_free_and_destroy_model(&model);
-//    free(x);
-    fclose(input);
-    fclose(output);
-    
-    // Obtain y_fit from a tmp(hot) file, then put it in ml_data, 
-    // have to read fit.out file because libsvm_predict() returns the results in a file
-    std::string line;
-    
-    std::vector<double> fit_out_content;
-    std::ifstream fit_out_file(fit_data_path.c_str());
-    if(fit_out_file.is_open())
-    {
-      while ( fit_out_file.good() )
+      ROS_DEBUG("Obtaining tr_err ...");
+      
+      FILE *input;// for holding tr_data
+      input = fopen(delta_tr_data_path.c_str(),"r");
+      if(input == NULL)
       {
-        std::getline(fit_out_file,line);
-        if(line.size() != 0)
-          fit_out_content.push_back( boost::lexical_cast<double>(line) );
+        std::cerr << "can't open input file= " << delta_tr_data_path << std::endl;
+        return false;
       }
-      fit_out_file.close();
-    }
-    else
-    {
-     std::cout << "fit_out_file.is_open(): Failed" << std::endl;
-     return false;
-    }
 
-    std::string tr_data_path_csv;
-    tr_data_path_csv = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.csv";// _must_ be synch with the one in astar_utils.hpp
-    
-    std::vector<double> y_only_sample_file_content;
-    std::ifstream sample_file(tr_data_path_csv.c_str());
-    if(sample_file.is_open())
-    {
-      while ( sample_file.good() )
+      FILE *output;// for holding fitting outputs          
+      output = fopen(tmp_data_path.c_str(),"w");// overwrite
+      if(output == NULL)
       {
-        std::getline(sample_file,line);
-        
-        // Parsing the csv, the output is at the last element
-        std::vector<std::string> line_parts;
-        boost::split( line_parts,line,boost::is_any_of(",") );
-        
-       if(line.size() != 0)
-         y_only_sample_file_content.push_back( boost::lexical_cast<double>(line_parts.back()) );
+        std::cerr << "can't open output file= " << tmp_data_path << std::endl;
+        return false;
       }
-      sample_file.close();
-    }
-    else
-    {
-     std::cout << "sample_file.is_open(): Failed" << std::endl;
-     return false;
-    }
+      
+      SVMNode* x;// for inputs 
+      x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));
+      
+      libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
+      free(x); fclose(input); fclose(output);      
+      
+      y_fit_tr = ml_util::get_y_fit(tmp_data_path);// Retrieve y_fit from the tmp file
 
-    if(fit_out_content.size() != y_only_sample_file_content.size())
-    {
-      ROS_ERROR("fit_out_content.size() != y_only_sample_file_content.size(): mismatch");
-      return false;
-    }
-    else
-    {
-      n_data_ += y_only_sample_file_content.size();
+      std::vector<double> y_true;
+      y_true = ml_util::get_y_true(delta_csv_tr_data_path);
+
+      // Put the content to variables to make it consistent with the one in ml_util::LWPR_ONLINE
+      if( (y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size()) )
+      {
+        n_data_ += y_true.size();
+      }
+      else
+      {
+        ROS_ERROR("(y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size())): FALSE");
+        return false;
+      }
+      
+      for(size_t i=0; i < y_true.size(); ++i)
+      {
+        std::vector<double> ml_datum;
+        
+        ml_datum.push_back( y_fit_te.at(i) );// 0
+        ml_datum.push_back( y_fit_tr.at(i) );// 1
+        ml_datum.push_back( y_true.at(i) );// 2
+        ml_datum.push_back(n_data_);// 3: number of samples that are used to trained so far.
+        
+        ml_data.push_back(ml_datum);
+      }
     }
         
-    // Obtain y (true from), then put it in ml_data,
-    for(size_t i=0; i < y_only_sample_file_content.size(); ++i)
-    {
-      // Put the content to variables to make it consistent with the one in LWPR_ONLINE
-      std::vector<double> y;
-      std::vector<double> y_fit;
-      
-      y.push_back( fit_out_content.at(i) );
-      y_fit.push_back( y_only_sample_file_content.at(i) );
-      
-      std::vector<double> ml_datum;
-      ml_datum.push_back(0.);// 0 TODO think this value
-      ml_datum.push_back( y_fit.at(0) );// 1
-      ml_datum.push_back( y.at(0) );// 2
-      ml_datum.push_back(n_data_);// 3
-      
-      ml_data.push_back(ml_datum);
-    }
+    // Remove deltas after every te_err and tr_err retrieval; clear after one ctamp attempt
+    boost::filesystem::remove( boost::filesystem::path(delta_tr_data_path) );
+    boost::filesystem::remove( boost::filesystem::path(delta_csv_tr_data_path) );
   }
   
-  if(ml_mode==SVR_OFFLINE or ml_mode==LWPR_ONLINE)
+  if(ml_mode==ml_util::SVR_OFFLINE or ml_mode==ml_util::LWPR_ONLINE)
   {
     // Write ml_data
     std::string ml_log_path;
@@ -773,8 +702,10 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   // Addition info. for perf.log
   perf_log << "tidy.cfg=" << base_data_path << tidy_cfg_filename;
   
+  // Closure
   perf_log.close();
   csv_perf_log.close();
+  ++n_ctamp_attempt_;
   return true;
 }
 

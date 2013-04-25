@@ -226,7 +226,7 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
     r_in.insert( std::make_pair(name,(double)idx) );
   }
   
-  cerr << "r_in.size()= " << r_in.size() << endl;
+//  cerr << "r_in.size()= " << r_in.size() << endl;
 //    for(RawInput::iterator z=r_in.begin(); z!=r_in.end(); ++z)
 //      cerr << z->first << "= " << z->second << endl;
 //    cerr << "y= " << out << endl;

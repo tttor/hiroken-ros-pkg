@@ -22,6 +22,7 @@
 #include <fstream>
 #include <math.h>
 
+#include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/config.hpp>
 #include <boost/random.hpp>
@@ -115,6 +116,9 @@ std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg
 
 //! Keeps the number of samples that have been used to trained a SVR model
 size_t n_data_;
+SVMModel* svr_model_;
+int svr_max_n_attr_;
+size_t n_ctamp_attempt_;
 };// end of: class PlannerManager
 
 #endif // #ifndef PLANNER_MANAGER_HPP_INCLUDED
