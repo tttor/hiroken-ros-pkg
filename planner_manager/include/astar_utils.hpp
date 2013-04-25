@@ -65,30 +65,46 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
 //    cerr << "online training: samples.size()= " << samples.size() << endl;
 
   // Utilize samples
-  if(ml_mode_==NO_ML or ml_mode_==SVR_OFFLINE)// Store samples for offline training
+  if(ml_mode_==ml_util::NO_ML or ml_mode_==ml_util::SVR_OFFLINE)// Store samples for offline training
   {
-    // libsvmdata format
+    // Write samples to a libsvmdata format
     std::string libsvmdata_path;
     libsvmdata_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.libsvmdata";// _must_ be synch with the one in planner_manager.cpp
     
-    write_libsvm_data(samples,libsvmdata_path,std::ios::app);
+    std::string delta_libsvmdata_path;
+    delta_libsvmdata_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.libsvmdata";// _must_ be synch with the one in planner_manager.cpp
     
-    // CSV format
+    write_libsvm_data(samples,libsvmdata_path,std::ios::app);
+    write_libsvm_data(samples,delta_libsvmdata_path,std::ios::app);
+    
+    // Write samples to a CSV format
     std::string csv_path;
     csv_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.csv";// _must_ be synch with the one in planner_manager.cpp
 
+    std::string delta_csv_path;
+    delta_csv_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.csv";// _must_ be synch with the one in planner_manager.cpp
+    
     std::ofstream csv;
     csv.open( csv_path.c_str(),std::ios::app );
+    
+    std::ofstream delta_csv;
+    delta_csv.open( delta_csv_path.c_str(),std::ios::app );
+    
     for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
     {
       for(Input::const_iterator j=i->first.begin(); j!=i->first.end(); ++j)
+      {
         csv << *j << ",";// Write input=feature values
+        delta_csv << *j << ",";
+      }
         
-        csv << i->second << std::endl;
+      csv << i->second << std::endl;
+      delta_csv << i->second << std::endl;
     }
     csv.close();
+    delta_csv.close();
   }
-  else if(ml_mode_==LWPR_ONLINE)// Train online during search (the online LWPR)
+  else if(ml_mode_==ml_util::LWPR_ONLINE)// Train online during search (the online LWPR)
   {
     for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
     {
@@ -165,11 +181,11 @@ operator()(Vertex v)
   cerr << "Compute h(" << v << "): BEGIN" << endl;
   double h;
   
-  if( (ml_mode_==NO_ML)or(v==goal_) )// or ml_mode=UCS, no learning
+  if( (ml_mode_==ml_util::NO_ML)or(v==goal_) )// or ml_mode=UCS, no learning
   {
       h = 0.;
   }
-  else// get the heuristic from a learning machine, so far either ml_mode= SVR_OFFLINE or ml_mode=LWPR_ONLINE
+  else// get the heuristic from a learning machine, so far either ml_mode= ml_util::SVR_OFFLINE or ml_mode=ml_util::LWPR_ONLINE
   {
     // Extract feature x
     Input x;

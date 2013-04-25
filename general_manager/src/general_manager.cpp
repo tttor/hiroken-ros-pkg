@@ -153,10 +153,10 @@ sense(const size_t& n_movable_object)
 
 //! Brief
 /*!
-  For MLMode refer to ml_util.hpp
+  For ml_util::MLMode refer to ml_util.hpp
 */
 bool
-plan(const MLMode& ml_mode,const bool rerun=false,const std::string& log_path=std::string(""),std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol=0,std::vector<double>* ctamp_log=0)
+plan(const ml_util::MLMode& ml_mode,const bool rerun=false,const std::string& log_path=std::string(""),std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol=0,std::vector<double>* ctamp_log=0)
 {
   ros::service::waitForService("/plan");
     
@@ -344,7 +344,9 @@ main(int argc, char **argv)
 
   switch(mode)
   {
-    case 1:// SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
+    case 1:
+    // SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
+    // USAGE: $ roslaunch hiro_common a.launch mode:=1 n_obj:=1 n_run:=1 tidy_cfg:=/tidy_baseline.1.cfg suffix:=/run.test.20130220
     {
       // Open a log file for this episode
       std::ofstream epi_log;
@@ -366,7 +368,7 @@ main(int argc, char **argv)
         gm.sense(n_obj);
         
         // Plan, rerun=false
-        MLMode mode = NO_ML;
+        ml_util::MLMode mode = ml_util::NO_ML;
         bool rerun = false;
         std::string log_path;// not used in this mode
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
@@ -427,8 +429,8 @@ main(int argc, char **argv)
 //      gm.sense(std::string(base_data_path+messy_cfg_filename));
 //      
 //      // Plan, rerun=false
-//      MLMode ml_mode;
-//      ml_mode = NO_ML;
+//      ml_util::MLMode ml_mode;
+//      ml_mode = ml_util::NO_ML;
 //      
 //      gm.plan(ml_mode);// mode=1 -> UCS, no learning 
 //      
@@ -566,7 +568,7 @@ main(int argc, char **argv)
         gm.sense( std::string(base_data_path+messy_cfg_filename) );
         
         // Plan 
-        MLMode mode = LWPR_ONLINE;
+        ml_util::MLMode mode = ml_util::LWPR_ONLINE;
         bool rerun = true;
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
@@ -670,7 +672,7 @@ main(int argc, char **argv)
         
         // Plan 
         bool rerun = true;
-        MLMode mode; !(i-idxes.begin()) ? mode = NO_ML : mode = SVR_OFFLINE;// for the first fed intance, NO_ML is trained yet.
+        ml_util::MLMode mode = ml_util::SVR_OFFLINE;
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples, (1) number of (cost-to-go vs. est. cost-to-go)
         

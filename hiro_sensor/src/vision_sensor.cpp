@@ -79,6 +79,7 @@ see_srv_handle(hiro_sensor::See::Request& req, hiro_sensor::See::Response& res)
   }
   else// == rerun
   {
+    set_unmovable_obj_cfg(1,false);// TODO remove me once a new baseline with the new messy.cfg exists
     set_obj_cfg(req.path);
   }
   
@@ -372,6 +373,8 @@ set_obj_cfg(const std::string& path)
   ROS_DEBUG_STREAM("obj_cfg.size()= " << obj_cfg.size());
  
   // Spawn objects in the planning environment
+  for(ObjCfg::iterator i=obj_cfg.begin(); i!=obj_cfg.end(); ++i) i->header.frame_id = std::string("/table");// TODO remove me once a new baseline with the new messy.cfg exists
+    
   for(ObjCfg::iterator i=obj_cfg.begin(); i!=obj_cfg.end(); ++i)
     spawn_object(*i,&obj_cfg_);
 
