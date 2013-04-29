@@ -26,27 +26,37 @@ struct SeeRequest_ {
   typedef SeeRequest_<ContainerAllocator> Type;
 
   SeeRequest_()
-  : random(false)
-  , n(0)
+  : rerun(false)
   , path()
+  , n_movable_object(0)
+  , n_vase(0)
+  , randomized_vase(false)
   {
   }
 
   SeeRequest_(const ContainerAllocator& _alloc)
-  : random(false)
-  , n(0)
+  : rerun(false)
   , path(_alloc)
+  , n_movable_object(0)
+  , n_vase(0)
+  , randomized_vase(false)
   {
   }
 
-  typedef uint8_t _random_type;
-  uint8_t random;
-
-  typedef uint16_t _n_type;
-  uint16_t n;
+  typedef uint8_t _rerun_type;
+  uint8_t rerun;
 
   typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _path_type;
   std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  path;
+
+  typedef uint16_t _n_movable_object_type;
+  uint16_t n_movable_object;
+
+  typedef uint16_t _n_vase_type;
+  uint16_t n_vase;
+
+  typedef uint8_t _randomized_vase_type;
+  uint8_t randomized_vase;
 
 
   typedef boost::shared_ptr< ::hiro_sensor::SeeRequest_<ContainerAllocator> > Ptr;
@@ -104,12 +114,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::hiro_sensor::SeeRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "2a0590a7ed91113b12ac2f7d51f68332";
+    return "bbe84daac54043cac37fe08e055733cf";
   }
 
   static const char* value(const  ::hiro_sensor::SeeRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0x2a0590a7ed91113bULL;
-  static const uint64_t static_value2 = 0x12ac2f7d51f68332ULL;
+  static const uint64_t static_value1 = 0xbbe84daac54043caULL;
+  static const uint64_t static_value2 = 0xc37fe08e055733cfULL;
 };
 
 template<class ContainerAllocator>
@@ -126,9 +136,11 @@ template<class ContainerAllocator>
 struct Definition< ::hiro_sensor::SeeRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "bool random\n\
-uint16 n\n\
+    return "bool rerun\n\
 string path\n\
+uint16 n_movable_object\n\
+uint16 n_vase\n\
+bool randomized_vase\n\
 \n\
 ";
   }
@@ -193,9 +205,11 @@ template<class ContainerAllocator> struct Serializer< ::hiro_sensor::SeeRequest_
 {
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
-    stream.next(m.random);
-    stream.next(m.n);
+    stream.next(m.rerun);
     stream.next(m.path);
+    stream.next(m.n_movable_object);
+    stream.next(m.n_vase);
+    stream.next(m.randomized_vase);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -228,7 +242,7 @@ template<>
 struct MD5Sum<hiro_sensor::See> {
   static const char* value() 
   {
-    return "2a0590a7ed91113b12ac2f7d51f68332";
+    return "bbe84daac54043cac37fe08e055733cf";
   }
 
   static const char* value(const hiro_sensor::See&) { return value(); } 
@@ -248,7 +262,7 @@ template<class ContainerAllocator>
 struct MD5Sum<hiro_sensor::SeeRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "2a0590a7ed91113b12ac2f7d51f68332";
+    return "bbe84daac54043cac37fe08e055733cf";
   }
 
   static const char* value(const hiro_sensor::SeeRequest_<ContainerAllocator> &) { return value(); } 
@@ -268,7 +282,7 @@ template<class ContainerAllocator>
 struct MD5Sum<hiro_sensor::SeeResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "2a0590a7ed91113b12ac2f7d51f68332";
+    return "bbe84daac54043cac37fe08e055733cf";
   }
 
   static const char* value(const hiro_sensor::SeeResponse_<ContainerAllocator> &) { return value(); } 

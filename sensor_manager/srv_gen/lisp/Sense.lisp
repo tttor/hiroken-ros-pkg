@@ -12,6 +12,11 @@
     :initarg :id
     :type cl:fixnum
     :initform 0)
+   (bool_args
+    :reader bool_args
+    :initarg :bool_args
+    :type (cl:vector cl:boolean)
+   :initform (cl:make-array 0 :element-type 'cl:boolean :initial-element cl:nil))
    (uint_args
     :reader uint_args
     :initarg :uint_args
@@ -37,6 +42,11 @@
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader sensor_manager-srv:id-val is deprecated.  Use sensor_manager-srv:id instead.")
   (id m))
 
+(cl:ensure-generic-function 'bool_args-val :lambda-list '(m))
+(cl:defmethod bool_args-val ((m <Sense-request>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader sensor_manager-srv:bool_args-val is deprecated.  Use sensor_manager-srv:bool_args instead.")
+  (bool_args m))
+
 (cl:ensure-generic-function 'uint_args-val :lambda-list '(m))
 (cl:defmethod uint_args-val ((m <Sense-request>))
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader sensor_manager-srv:uint_args-val is deprecated.  Use sensor_manager-srv:uint_args instead.")
@@ -50,6 +60,13 @@
   "Serializes a message object of type '<Sense-request>"
   (cl:write-byte (cl:ldb (cl:byte 8 0) (cl:slot-value msg 'id)) ostream)
   (cl:write-byte (cl:ldb (cl:byte 8 8) (cl:slot-value msg 'id)) ostream)
+  (cl:let ((__ros_arr_len (cl:length (cl:slot-value msg 'bool_args))))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_arr_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) __ros_arr_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) __ros_arr_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) __ros_arr_len) ostream))
+  (cl:map cl:nil #'(cl:lambda (ele) (cl:write-byte (cl:ldb (cl:byte 8 0) (cl:if ele 1 0)) ostream))
+   (cl:slot-value msg 'bool_args))
   (cl:let ((__ros_arr_len (cl:length (cl:slot-value msg 'uint_args))))
     (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_arr_len) ostream)
     (cl:write-byte (cl:ldb (cl:byte 8 8) __ros_arr_len) ostream)
@@ -75,6 +92,15 @@
   "Deserializes a message object of type '<Sense-request>"
     (cl:setf (cl:ldb (cl:byte 8 0) (cl:slot-value msg 'id)) (cl:read-byte istream))
     (cl:setf (cl:ldb (cl:byte 8 8) (cl:slot-value msg 'id)) (cl:read-byte istream))
+  (cl:let ((__ros_arr_len 0))
+    (cl:setf (cl:ldb (cl:byte 8 0) __ros_arr_len) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 8) __ros_arr_len) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 16) __ros_arr_len) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 24) __ros_arr_len) (cl:read-byte istream))
+  (cl:setf (cl:slot-value msg 'bool_args) (cl:make-array __ros_arr_len))
+  (cl:let ((vals (cl:slot-value msg 'bool_args)))
+    (cl:dotimes (i __ros_arr_len)
+    (cl:setf (cl:aref vals i) (cl:not (cl:zerop (cl:read-byte istream)))))))
   (cl:let ((__ros_arr_len 0))
     (cl:setf (cl:ldb (cl:byte 8 0) __ros_arr_len) (cl:read-byte istream))
     (cl:setf (cl:ldb (cl:byte 8 8) __ros_arr_len) (cl:read-byte istream))
@@ -111,19 +137,20 @@
   "sensor_manager/SenseRequest")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<Sense-request>)))
   "Returns md5sum for a message object of type '<Sense-request>"
-  "321a9d12d35a991430b703db88e8fea8")
+  "b439673f47e31c8bf33de7b93a39c937")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'Sense-request)))
   "Returns md5sum for a message object of type 'Sense-request"
-  "321a9d12d35a991430b703db88e8fea8")
+  "b439673f47e31c8bf33de7b93a39c937")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<Sense-request>)))
   "Returns full string definition for message of type '<Sense-request>"
-  (cl:format cl:nil "uint16 id~%uint16[] uint_args~%string[] string_args~%~%~%"))
+  (cl:format cl:nil "uint16 id~%bool[] bool_args~%uint16[] uint_args~%string[] string_args~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'Sense-request)))
   "Returns full string definition for message of type 'Sense-request"
-  (cl:format cl:nil "uint16 id~%uint16[] uint_args~%string[] string_args~%~%~%"))
+  (cl:format cl:nil "uint16 id~%bool[] bool_args~%uint16[] uint_args~%string[] string_args~%~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <Sense-request>))
   (cl:+ 0
      2
+     4 (cl:reduce #'cl:+ (cl:slot-value msg 'bool_args) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ 1)))
      4 (cl:reduce #'cl:+ (cl:slot-value msg 'uint_args) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ 2)))
      4 (cl:reduce #'cl:+ (cl:slot-value msg 'string_args) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ 4 (cl:length ele))))
 ))
@@ -131,6 +158,7 @@
   "Converts a ROS message object to a list"
   (cl:list 'Sense-request
     (cl:cons ':id (id msg))
+    (cl:cons ':bool_args (bool_args msg))
     (cl:cons ':uint_args (uint_args msg))
     (cl:cons ':string_args (string_args msg))
 ))
@@ -162,10 +190,10 @@
   "sensor_manager/SenseResponse")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<Sense-response>)))
   "Returns md5sum for a message object of type '<Sense-response>"
-  "321a9d12d35a991430b703db88e8fea8")
+  "b439673f47e31c8bf33de7b93a39c937")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'Sense-response)))
   "Returns md5sum for a message object of type 'Sense-response"
-  "321a9d12d35a991430b703db88e8fea8")
+  "b439673f47e31c8bf33de7b93a39c937")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<Sense-response>)))
   "Returns full string definition for message of type '<Sense-response>"
   (cl:format cl:nil "~%~%~%"))

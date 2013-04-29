@@ -226,7 +226,7 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
     r_in.insert( std::make_pair(name,(double)idx) );
   }
   
-  cerr << "r_in.size()= " << r_in.size() << endl;
+//  cerr << "r_in.size()= " << r_in.size() << endl;
 //    for(RawInput::iterator z=r_in.begin(); z!=r_in.end(); ++z)
 //      cerr << z->first << "= " << z->second << endl;
 //    cerr << "y= " << out << endl;
@@ -235,10 +235,17 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
   return convert( r_in,in,labels_ );
 }
 
+//! Obtain geometric-feature values
+/*!
+  Geometric features include:
+  (1) object pose in the source vertex
+  
+  
+*/
 bool 
 get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffix="")
 {
-  //(1) object pose in the source vertex
+  // Init 
   std::vector<std::string> srcstate_parts;
   boost::split( srcstate_parts, srcstate, boost::is_any_of(";") );
   
@@ -250,15 +257,16 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
 
   std::map<std::string,double> jname_jpos_map;// for obtaining jstate later on
   
+  //(1) object pose in the source vertex
   for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i )
   {
     std::vector<std::string> comps;
     boost::split( comps, *i, boost::is_any_of(",") );
     
-    if(comps.size()==8)// : id, x, y, z, qx, qy, qz, qw
+    if(comps.size()==8)// object's pose data: id, x, y, z, qx, qy, qz, qw
     {
       std::string obj_id = comps.at(0);
-      comps.erase(comps.begin());// to make comps and names (below) exactly have 7 elements
+      comps.erase(comps.begin());// remove the id so as to make comps and names (below) exactly have 7 elements
       
       std::vector<std::string> names;
       names.push_back(obj_id+".x"+suffix);
@@ -289,7 +297,7 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
     }
   }
 
-  //(2) joint-state on the source vertex
+  //(2) joint-state on the source vertex, jname_jpos_map is set in step (1)
   for(std::map<std::string,double>::const_iterator i=jname_jpos_map.begin(); i!=jname_jpos_map.end(); ++i)
   {
     r_in->insert(  std::make_pair( i->first,i->second )  );

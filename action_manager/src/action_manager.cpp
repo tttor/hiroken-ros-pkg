@@ -97,7 +97,7 @@ void examine_edge(typename boost::graph_traits<Graph>::edge_descriptor e,Graph& 
 {
   ROS_DEBUG_STREAM("Examine e= " << get(edge_name,g,e));
   
-  commit_motion(  get_plan( get(edge_planstr,g,e) )   );
+  commit_motion(  utils::get_plan( get(edge_planstr,g,e) )   );
 }
 
 private:
@@ -193,9 +193,14 @@ read_sol(TaskMotionMultigraph* sol_tmm,TMMVertex* sol_tmm_root)
   boost::dynamic_properties sol_tmm_dp;
   
   sol_tmm_dp.property("vertex_id", get(vertex_name, *sol_tmm));
-  sol_tmm_dp.property("label", get(edge_name, *sol_tmm));
-  sol_tmm_dp.property("jspace", get(edge_jspace, *sol_tmm)); 
-  sol_tmm_dp.property("planstr", get(edge_planstr,*sol_tmm));
+  
+  sol_tmm_dp.property( "label",get(edge_name, *sol_tmm) );
+  sol_tmm_dp.property( "weight",get(edge_weight, *sol_tmm) );  
+  sol_tmm_dp.property( "jspace",get(edge_jspace, *sol_tmm) );
+  sol_tmm_dp.property( "color",get(edge_color, *sol_tmm) );
+  sol_tmm_dp.property( "srcstate",get(edge_srcstate, *sol_tmm) );  
+  sol_tmm_dp.property( "mptime",get(edge_mptime, *sol_tmm) );  
+  sol_tmm_dp.property( "planstr",get(edge_planstr, *sol_tmm) );
       
   std::string sol_tmm_path = data_path + "/sol_tmm.dot";
   std::ifstream sol_tmm_dot(sol_tmm_path.c_str());

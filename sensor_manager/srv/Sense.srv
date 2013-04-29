@@ -1,4 +1,5 @@
 uint16 id
+bool[] bool_args
 uint16[] uint_args
 string[] string_args
 ---

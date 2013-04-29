@@ -11,9 +11,11 @@ include($ENV{ROS_ROOT}/core/rosbuild/rosbuild.cmake)
 
 rosbuild_init()
 
+rosbuild_find_ros_package(hiro_common)
+include_directories(${hiro_common_PACKAGE_PATH}/include)
+
 rosbuild_find_ros_package(learning_machine)
 include_directories(${learning_machine_PACKAGE_PATH}/include)
-#include_directories(${learning_machine_PACKAGE_PATH}/libsvm-3.16)
 
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
@@ -21,16 +23,14 @@ set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 
 #uncomment if you have defined messages
-#rosbuild_genmsg()
+rosbuild_genmsg()
 #uncomment if you have defined services
-#rosbuild_gensrv()
+rosbuild_gensrv()
 
 #common commands for building c++ executables and libraries
 #rosbuild_add_library(${PROJECT_NAME} src/example.cpp)
-#rosbuild_add_library(${PROJECT_NAME} ${learning_machine_PACKAGE_PATH}/libsvm-3.16/svm.cpp)
 #target_link_libraries(${PROJECT_NAME} another_library)
-
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
-rosbuild_add_executable(general_mgr src/general_manager.cpp)
-target_link_libraries(general_mgr boost_filesystem boost_system lwpr)
+rosbuild_add_executable(trj_opt src/trj_opt.cpp)
+target_link_libraries(trj_opt log4cxx boost_graph boost_filesystem boost_system)

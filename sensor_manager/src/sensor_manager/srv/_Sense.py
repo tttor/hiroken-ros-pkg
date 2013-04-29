@@ -6,16 +6,17 @@ import struct
 
 
 class SenseRequest(genpy.Message):
-  _md5sum = "321a9d12d35a991430b703db88e8fea8"
+  _md5sum = "b439673f47e31c8bf33de7b93a39c937"
   _type = "sensor_manager/SenseRequest"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """uint16 id
+bool[] bool_args
 uint16[] uint_args
 string[] string_args
 
 """
-  __slots__ = ['id','uint_args','string_args']
-  _slot_types = ['uint16','uint16[]','string[]']
+  __slots__ = ['id','bool_args','uint_args','string_args']
+  _slot_types = ['uint16','bool[]','uint16[]','string[]']
 
   def __init__(self, *args, **kwds):
     """
@@ -25,7 +26,7 @@ string[] string_args
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       id,uint_args,string_args
+       id,bool_args,uint_args,string_args
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -36,12 +37,15 @@ string[] string_args
       #message fields cannot be None, assign default values for those that are
       if self.id is None:
         self.id = 0
+      if self.bool_args is None:
+        self.bool_args = []
       if self.uint_args is None:
         self.uint_args = []
       if self.string_args is None:
         self.string_args = []
     else:
       self.id = 0
+      self.bool_args = []
       self.uint_args = []
       self.string_args = []
 
@@ -58,6 +62,10 @@ string[] string_args
     """
     try:
       buff.write(_struct_H.pack(self.id))
+      length = len(self.bool_args)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sB'%length
+      buff.write(struct.pack(pattern, *self.bool_args))
       length = len(self.uint_args)
       buff.write(_struct_I.pack(length))
       pattern = '<%sH'%length
@@ -83,6 +91,14 @@ string[] string_args
       start = end
       end += 2
       (self.id,) = _struct_H.unpack(str[start:end])
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sB'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.bool_args = struct.unpack(pattern, str[start:end])
+      self.bool_args = map(bool, self.bool_args)
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -118,6 +134,10 @@ string[] string_args
     """
     try:
       buff.write(_struct_H.pack(self.id))
+      length = len(self.bool_args)
+      buff.write(_struct_I.pack(length))
+      pattern = '<%sB'%length
+      buff.write(self.bool_args.tostring())
       length = len(self.uint_args)
       buff.write(_struct_I.pack(length))
       pattern = '<%sH'%length
@@ -144,6 +164,14 @@ string[] string_args
       start = end
       end += 2
       (self.id,) = _struct_H.unpack(str[start:end])
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      pattern = '<%sB'%length
+      start = end
+      end += struct.calcsize(pattern)
+      self.bool_args = numpy.frombuffer(str[start:end], dtype=numpy.bool, count=length)
+      self.bool_args = map(bool, self.bool_args)
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -260,6 +288,6 @@ class SenseResponse(genpy.Message):
 _struct_I = genpy.struct_I
 class Sense(object):
   _type          = 'sensor_manager/Sense'
-  _md5sum = '321a9d12d35a991430b703db88e8fea8'
+  _md5sum = 'b439673f47e31c8bf33de7b93a39c937'
   _request_class  = SenseRequest
   _response_class = SenseResponse

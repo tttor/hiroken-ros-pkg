@@ -13,6 +13,7 @@
 
 #include "planner_manager.hpp"
 #include "tmm_utils.hpp"
+#include "utils.hpp"
 #include "hiro_utils.hpp"
 #include "data.hpp"
 #include "data_collector.hpp"
@@ -139,7 +140,7 @@ plan(TMMEdge e)
   
     found = false;
     sensor_msgs::JointState goal_state = *i;
-
+    
     if(  plan_motion( start_state,goal_state,get(edge_jspace,pm_->tmm_,e),&plan,&cost,&found )  )
     {
       if(found)
@@ -151,7 +152,7 @@ plan(TMMEdge e)
     }
   }
   ROS_INFO_STREAM("n_attempt= " << n_attempt);
- 
+  
   if( !found ) // even after considering all goal poses in the goal_set
   {
     ROS_INFO_STREAM("No motion plan for " << goal_set.size() << " goals for e= " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e));
@@ -215,7 +216,7 @@ plan(TMMEdge e)
 bool
 get_samples_online(TMMVertex v,Data* samples)
 {
-  ROS_DEBUG("get_samples_online(): BEGIN");
+//  ROS_DEBUG("get_samples_online(): BEGIN");
   
   TaskMotionMultigraph tmm;
   tmm = pm_->tmm_;
@@ -256,7 +257,7 @@ get_samples_online(TMMVertex v,Data* samples)
   
   for(std::set<TMMEdge>::const_iterator i=tobe_removed_edges.begin(); i!=tobe_removed_edges.end(); ++i)
     remove_edge(*i,tmm);
-  ROS_DEBUG("Parallelism: removed");
+//  ROS_DEBUG("Parallelism: removed");
   
 //  // Filter only the planned edge to make dfs_visit more efficient by cutting the depth of the tmm
 //  PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, tmm) );
@@ -296,7 +297,7 @@ get_samples_online(TMMVertex v,Data* samples)
     
   }// end of: for_each avi
     
-  ROS_DEBUG("get_samples_online(): END");
+//  ROS_DEBUG("get_samples_online(): END");
   return true;
 }
 
@@ -557,7 +558,7 @@ get_planning_env_str(const TMMVertex& v)
 void
 init_vertex(const TMMVertex& v)
 {
-  ROS_DEBUG_STREAM("init_vertex(" << get(vertex_name,pm_->tmm_,v) << "): BEGIN");
+//  ROS_DEBUG_STREAM("init_vertex(" << get(vertex_name,pm_->tmm_,v) << "): BEGIN");
   
   // Call to /environment_server/get_robot_state srv
   arm_navigation_msgs::GetRobotState::Request req;
@@ -586,7 +587,7 @@ init_vertex(const TMMVertex& v)
 
   put(vertex_jstates, pm_->tmm_, v, res.robot_state.joint_state);
   
-  //Set wstate 
+  //Set wstate based on the vertex's name
   std::string name = get(vertex_name, pm_->tmm_, v);
   
   std::vector<std::string> name_parts;
@@ -600,7 +601,8 @@ init_vertex(const TMMVertex& v)
   }
   
   std::vector<arm_navigation_msgs::CollisionObject> wstate;
-  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::const_iterator i=pm_->messy_cfg_.begin(); i!=pm_->messy_cfg_.end(); ++i)
+  
+  for(std::map<std::string,arm_navigation_msgs::CollisionObject>::const_iterator i=pm_->movable_obj_messy_cfg_.begin(); i!=pm_->movable_obj_messy_cfg_.end(); ++i)
   {
     std::vector<std::string>::iterator it;
     it = std::find(tidied_object_ids.begin(),tidied_object_ids.end(),i->first);
@@ -608,8 +610,31 @@ init_vertex(const TMMVertex& v)
     if( it==tidied_object_ids.end() )
       wstate.push_back(i->second);
     else
-      wstate.push_back( pm_->tidy_cfg_[i->first] );
+      wstate.push_back( pm_->movable_obj_tidy_cfg_[i->first] );
   }
+  
+  for(std::map<std::string,arm_navigation_msgs::CollisionObject>::const_iterator i=pm_->unmovable_obj_cfg_.begin(); i!=pm_->unmovable_obj_cfg_.end(); ++i)
+  {
+      wstate.push_back( pm_->unmovable_obj_cfg_[i->first] );
+  }
+  
+  // Plus setting wstate with unmovable object listed in messy.cfg file 
+//  std::string data_path;
+//  if( !ros::param::get("/data_path", data_path) )
+//    ROS_WARN("Can not get /data_path, use the default value instead");
+//  
+//  utils::ObjCfg all_obj_cfg;
+//  utils::read_obj_cfg(std::string(data_path+"/messy.cfg"),&all_obj_cfg);
+//  
+//  utils::ObjCfg unmovable_obj_cfg;
+//  for(utils::ObjCfg::const_iterator i=all_obj_cfg.begin(); i!=all_obj_cfg.end(); ++i)
+//  {
+//    std::string id;
+//    id = i->id;
+//    
+//    b
+//  }
+  
   
 //  for(std::vector<arm_navigation_msgs::CollisionObject>::const_iterator i=wstate.begin(); i!=wstate.end(); ++i)
 //  {
@@ -755,14 +780,14 @@ get_goal_set(const TMMVertex& sv,const TMMVertex& v, const std::string& jspace)
     if( !strcmp(state_name.c_str(), "Grasped") )// Assume that GRASP is always in messy_spot
     {
       arm_navigation_msgs::CollisionObject object;
-      object = pm_->messy_cfg_[object_id];
+      object = pm_->movable_obj_messy_cfg_[object_id];
     
       plan_grasp(object,rbt_id,jspace,&goal_set);
     }
     else if( !strcmp(state_name.c_str(), "Released") )// Assume that UNGRASP is always in tidy_spot
     {
       arm_navigation_msgs::CollisionObject object;
-      object = pm_->tidy_cfg_[object_id];
+      object = pm_->movable_obj_tidy_cfg_[object_id];
       
       plan_ungrasp(object,rbt_id,jspace,&goal_set);
     }
@@ -896,6 +921,11 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
   ros::service::waitForService("ompl_planning/plan_kinematic_path");
   ros::ServiceClient planning_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetMotionPlan>("ompl_planning/plan_kinematic_path");
   
+//  // DEBUG
+//  cerr << "jspace= " << jspace << endl;
+//  cerr << "goal_state inside plan_motion()" << endl;
+//  utils::print_robot_state(goal_state);
+  
   ros::Time planning_begin = ros::Time::now();
   if ( planning_client.call(req, res) )
   {
@@ -922,6 +952,8 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
     {
       ROS_INFO("Motion planning succeeded");
       *found = true;
+      
+//      utils::print_robot_state(res.trajectory.joint_trajectory,res.trajectory.joint_trajectory.points.size()-1);
       
       // Filter(smooth) the raw motion plan
       trajectory_msgs::JointTrajectory filtered_trajectory;
@@ -1035,7 +1067,7 @@ bool
 reset_planning_env()
 {
   // Reset the workspace===================================================================================================================
-  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::iterator i=pm_->messy_cfg_.begin(); i!=pm_->messy_cfg_.end(); ++i)
+  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::iterator i=pm_->movable_obj_messy_cfg_.begin(); i!=pm_->movable_obj_messy_cfg_.end(); ++i)
   {
     i->second.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     
@@ -1122,7 +1154,7 @@ set_workspace(const TMMVertex& v,const bool sim_grasped_or_released=false)
   for(std::vector<std::string>::const_iterator i=tidied_object_ids.begin(); i!=tidied_object_ids.end(); ++i)
   {
     arm_navigation_msgs::CollisionObject object;
-    object = pm_->tidy_cfg_[*i];
+    object = pm_->movable_obj_tidy_cfg_[*i];
       
     object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     collision_object_pub_.publish(object);
@@ -1151,7 +1183,7 @@ set_workspace(const TMMVertex& v,const bool sim_grasped_or_released=false)
   {
     // Set the released object in the tidy spot
     arm_navigation_msgs::CollisionObject object;
-    object = pm_->tidy_cfg_[object_id];
+    object = pm_->movable_obj_tidy_cfg_[object_id];
       
     object.header.stamp = ros::Time::now();// The time stamp _must_ be just before being published
     collision_object_pub_.publish(object);
@@ -1183,7 +1215,7 @@ set_workspace(const TMMVertex& v,const bool sim_grasped_or_released=false)
 //    att_object.object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ATTACH_AND_REMOVE_AS_OBJECT;
 
     // Method 2 [http://www.ros.org/wiki/arm_navigation/Tutorials/Planning%20Scene/Attaching%20Virtual%20Objects%20to%20the%20Robot]
-    att_object.object = pm_->messy_cfg_[object_id];// Assume that Grasped_XXX is always at messy_cfg_
+    att_object.object = pm_->movable_obj_messy_cfg_[object_id];// Assume that Grasped_XXX is always at movable_obj_messy_cfg_
     att_object.object.header.frame_id = get_eof_link(rbt_id);
     // update (overwrite) the pose to conform with frame_id=link_XXXX_palm
     geometry_msgs::Pose pose;
@@ -1222,13 +1254,13 @@ set_robot_state(const TMMVertex& v)
   if( !ros::param::get("/data_path", data_path) )
     ROS_WARN("Can not get /data_path, use the default value instead");
         
-  ROS_DEBUG_STREAM("Try to publish vertex_jstates. On " << data_path);
+//  ROS_DEBUG_STREAM("Try to publish vertex_jstates. On " << data_path);
   bool passed = false;
   do
   {
     joint_states_cmd_pub_.publish( get(vertex_jstates,pm_->tmm_,v) );
     passed = true;
-    ROS_DEBUG_STREAM("jstates: published (trial).On " << data_path);
+//    ROS_DEBUG_STREAM("jstates: published (trial).On " << data_path);
 //    ros::Duration(0.2).sleep();
     
     arm_navigation_msgs::GetRobotState::Request req;
@@ -1252,8 +1284,8 @@ set_robot_state(const TMMVertex& v)
         std::vector<std::string>::iterator j;
         j = std::find(jstates.name.begin(),jstates.name.end(),*ii);
         
-        ROS_DEBUG_STREAM("of X= " << jstates.position.at(j-jstates.name.begin()));
-        ROS_DEBUG_STREAM("of Y= " << res.robot_state.joint_state.position.at(ii-res.robot_state.joint_state.name.begin()));
+//        ROS_DEBUG_STREAM("of X= " << jstates.position.at(j-jstates.name.begin()));
+//        ROS_DEBUG_STREAM("of Y= " << res.robot_state.joint_state.position.at(ii-res.robot_state.joint_state.name.begin()));
         
         if( jstates.position.at(j-jstates.name.begin()) != res.robot_state.joint_state.position.at(ii-res.robot_state.joint_state.name.begin()) )
         {

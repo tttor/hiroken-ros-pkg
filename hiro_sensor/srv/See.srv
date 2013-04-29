@@ -1,4 +1,6 @@
-bool random #Whether using a random messy cfg or a hardcoded testbed/replay only
-uint16 n #Expected number of sensed can, only if set random
-string path #Used only if "replay"
+bool rerun 
+string path #Used only on rerun mode
+uint16 n_movable_object 
+uint16 n_vase
+bool randomized_vase #both the pose and the shape
 ---

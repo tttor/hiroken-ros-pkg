@@ -13,6 +13,8 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
   nh_(nh)
 {
   ros::service::waitForService("plan_grasp");
+  n_ctamp_attempt_ = 0;
+  n_data_ = 0;
 }
 //! A destructor.
 /*!
@@ -21,25 +23,34 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
 PlannerManager::~PlannerManager()
 { }
 
+//! collision_object_cb
+/*!
+  Movable object id -> CAN1, CAN2. ..., CANn
+  Unmovable object id -> unmovable.table, unmovable.vase, ...
+*/
 void 
 PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::ConstPtr& msg)
 {
   ROS_DEBUG_STREAM("Heard= " << msg->id.c_str());
   
-  // Filter unmovable_object
-  if( !strcmp(msg->id.c_str(), "table")
-      or !strcmp(msg->id.c_str(), "wall")
-      or !strcmp(msg->id.c_str(), "vase")
-      or !strcmp(msg->id.c_str(), "vase_2")
-    )
-  {
-    return;
-  }
+  // Distinguish unmovable object
+  std::vector<std::string> id_parts;// e.g. "unmovable.vase", "CAN1"
+  boost::split( id_parts,msg->id,boost::is_any_of(".") );
   
+  std::string type;
+  type = id_parts.at(0);
+
   std::map<std::string, arm_navigation_msgs::CollisionObject>::iterator it;
   bool inserted;
-  
-  boost::tie(it,inserted) = messy_cfg_.insert( std::pair<std::string, arm_navigation_msgs::CollisionObject>(msg->id, *msg) );
+    
+  if( !strcmp(type.c_str(),"unmovable") )
+  {
+    boost::tie(it,inserted) = unmovable_obj_cfg_.insert( std::pair<std::string, arm_navigation_msgs::CollisionObject>(msg->id, *msg) );
+  }
+  else// movable ones
+  {
+    boost::tie(it,inserted) = movable_obj_messy_cfg_.insert( std::pair<std::string, arm_navigation_msgs::CollisionObject>(msg->id, *msg) );
+  }
   
   if(!inserted)
     it->second = *msg;// Update with the newer one
@@ -48,7 +59,7 @@ PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::
 bool
 PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_manager::Plan::Response& res)
 {
-  return plan( req.ml_mode,req.rerun,req.log_path,&(res.ctamp_sol),&(res.n_samples) );
+  return plan( req.ml_mode,req.rerun,req.log_path,&(res.ctamp_sol),&(res.ctamp_log) );
 }
 
 //! Plan manipulation plans.
@@ -63,7 +74,7 @@ PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_man
   within which a geometric planner is called to validate each action whether it is symbollically feasible.
 */
 bool
-PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,uint32_t* n_samples)
+PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,std::vector<double>* ctamp_log)
 {
   std::string base_data_path;
   if( !ros::param::get("/base_data_path", base_data_path) )
@@ -98,10 +109,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       ROS_ERROR("Can not construct TMM!");
       return false;
     }
-    else
-    {
-      ROS_DEBUG("TMM is constructed successfully");
-    }
+    ROS_DEBUG("TMM is constructed successfully");
     
     boost::dynamic_properties tmm_dp;
     
@@ -136,9 +144,10 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     std::ifstream tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
     if( !read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id") )
     {
-      ROS_ERROR("read_graphviz(tmm_dot,...): Failed.");
+      ROS_ERROR("read_graphviz(tmm_dot,...): Failed");
       return false;
     }
+    ROS_DEBUG("read_graphviz(tmm_dot,...): Succeeded");
     
     // Put edge_planstr into edge_plan
     graph_traits<TaskMotionMultigraph>::edge_iterator ei,ei_end;
@@ -147,7 +156,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       std::string planstr;
       planstr = get(edge_planstr,tmm_,*ei);
       
-      put(edge_plan,tmm_,*ei, get_plan(planstr) );
+      put(edge_plan,tmm_,*ei, utils::get_plan(planstr) );
     }
     
     // Retrieve the sol path resulted using UCS for making comparison: true_cost-to-go vs predicted_cost-to-go 
@@ -156,11 +165,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     ucs_sol_tmm_dp.property("vertex_id", get(vertex_name, ucs_sol_tmm));
     
-    ucs_sol_tmm_dp.property("label", get(edge_name, ucs_sol_tmm));
-    ucs_sol_tmm_dp.property("jspace", get(edge_jspace, ucs_sol_tmm)); 
-    ucs_sol_tmm_dp.property("planstr",get(edge_planstr,ucs_sol_tmm));    
-//    ucs_sol_tmm_dp.property("weight", get(edge_weight, ucs_sol_tmm));
-//    ucs_sol_tmm_dp.property("color", get(edge_color,ucs_sol_tmm));
+    ucs_sol_tmm_dp.property( "label",get(edge_name, ucs_sol_tmm) );
+    ucs_sol_tmm_dp.property( "weight",get(edge_weight, ucs_sol_tmm) );  
+    ucs_sol_tmm_dp.property( "jspace",get(edge_jspace, ucs_sol_tmm) );
+    ucs_sol_tmm_dp.property( "color",get(edge_color, ucs_sol_tmm) );
+    ucs_sol_tmm_dp.property( "srcstate",get(edge_srcstate, ucs_sol_tmm) );  
+    ucs_sol_tmm_dp.property( "mptime",get(edge_mptime, ucs_sol_tmm) );  
+    ucs_sol_tmm_dp.property( "planstr",get(edge_planstr, ucs_sol_tmm) );
 
     std::ifstream ucs_sol_tmm_dot(  std::string(base_data_path+"/sol_tmm.dot").c_str()  );
     if( !read_graphviz(ucs_sol_tmm_dot, ucs_sol_tmm, ucs_sol_tmm_dp, "vertex_id") )
@@ -169,29 +180,29 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       return false;
     }
     
-    // Copy the weight from tmm_ to ucs_sol_tmm because currently ucs_sol_tmm does not contain these values
-    for(tie(ei,ei_end) = edges(ucs_sol_tmm); ei!=ei_end; ++ei )
-    {
-      graph_traits<TaskMotionMultigraph>::edge_iterator ej,ej_end;
-      for(tie(ej,ej_end) = edges(tmm_); ej!=ej_end; ++ej)
-      {
-        TMMVertex ei_source = source(*ei,ucs_sol_tmm);
-        TMMVertex ei_target = target(*ei,ucs_sol_tmm);
-        
-        TMMVertex ej_source = source(*ej,tmm_);
-        TMMVertex ej_target = target(*ej,tmm_);
-        
-        if( (ei_source==ej_source) and (ei_target==ej_target) )
-        {
-          double w;
-          w = get(edge_weight,tmm_,*ej);
-          
-          put(edge_weight,ucs_sol_tmm,*ei,w);
-          
-          break;
-        }
-      }
-    }
+//    // Copy the weight from tmm_ to ucs_sol_tmm because currently ucs_sol_tmm does not contain these values
+//    for(tie(ei,ei_end) = edges(ucs_sol_tmm); ei!=ei_end; ++ei )
+//    {
+//      graph_traits<TaskMotionMultigraph>::edge_iterator ej,ej_end;
+//      for(tie(ej,ej_end) = edges(tmm_); ej!=ej_end; ++ej)
+//      {
+//        TMMVertex ei_source = source(*ei,ucs_sol_tmm);
+//        TMMVertex ei_target = target(*ei,ucs_sol_tmm);
+//        
+//        TMMVertex ej_source = source(*ej,tmm_);
+//        TMMVertex ej_target = target(*ej,tmm_);
+//        
+//        if( (ei_source==ej_source) and (ei_target==ej_target) )
+//        {
+//          double w;
+//          w = get(edge_weight,tmm_,*ej);
+//          
+//          put(edge_weight,ucs_sol_tmm,*ei,w);
+//          
+//          break;
+//        }
+//      }
+//    }
   }
   
   // Mark the root and the goal vertex in the TMM
@@ -214,52 +225,60 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::ofstream csv_perf_log;
   csv_perf_log.open(std::string(data_path+"/perf.log.csv").c_str());
 
-  // ml data for analysis
+  // ml-related data keeper
   std::vector< std::vector<double> > ml_data;
-        
+
+  std::string model_path;// Used only in ml_util::SVR_OFFLINE mode
+  model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/svm.libsvmmodel";
+  
   // Search 
   GeometricPlannerManager gpm(this);
   std::vector<TMMVertex> predecessors(num_vertices(tmm_));
   std::vector<double> distances(num_vertices(tmm_));
   
-  ROS_DEBUG("Start searching over TMM.");
   ros::Time planning_begin = ros::Time::now();
   try 
   {
     switch(ml_mode)
     {
-      case NO_ML:
+      case ml_util::NO_ML:
       {
-        // use "as is" mode=SVR_OFFLINE, the learner is useless though, see astar_utils.hpp where the heuristic for this mode is always set to h=0
+        // use "as is" mode=ml_util::SVR_OFFLINE, 
+        //the learner is useless though, see astar_utils.hpp where the heuristic for this mode is always set to h=0
+        ROS_DEBUG("learner= ml_util::NO_ML but via learner= SVR");
       }
-      case SVR_OFFLINE:
+      case ml_util::SVR_OFFLINE:
       {
-//        ROS_DEBUG("learner= SVR");
-//        
-//        // SVR from libsvm
-//        std::string model_path;
-//        model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/svm.v4.libsvmmodel";
-//        
-//        std::string te_data_path;
-//        te_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/online_te_data.libsvmdata";
+        ROS_DEBUG("learner= SVR");
+        
+        size_t search_ml_mode;
+        if(n_ctamp_attempt_==0)
+          search_ml_mode = ml_util::NO_ML;// for the first ctamp instance, use ml_util::NO_ML because there is no SVR is trained yet.
+        else
+          search_ml_mode = ml_mode;
+          
+        // SVR from libsvm
+        std::string te_data_path;// for prediction using SVM
+        te_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/te_data.libsvmdata";
 
-//        std::string fit_out_path;
-//        fit_out_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
-//        
-//        SVM_Object learner(model_path,te_data_path,fit_out_path,"");
-//        
-//        ROS_DEBUG("Searching over TMM ...");
-//        astar_search( tmm_
-//                    , tmm_root_
-//                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,ml_mode)
-//                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,n_samples,ml_mode) )
-//                    . predecessor_map(&predecessors[0])
-//                    . distance_map(&distances[0])
-//                    );
+        std::string fit_out_path;// for prediction using SVM
+        fit_out_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
+        
+        svr_max_n_attr_ = 100;
+        SVM_Object learner(svr_model_,svr_max_n_attr_);
+
+        ROS_DEBUG("Searching over TMM ...");
+        astar_search( tmm_
+                    , tmm_root_
+                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_ml_mode)
+                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,search_ml_mode) )
+                    . predecessor_map(&predecessors[0])
+                    . distance_map(&distances[0])
+                    );
         
         break;
       }
-      case LWPR_ONLINE:
+      case ml_util::LWPR_ONLINE:
       {
         ROS_DEBUG("learner= LWPR");// LWPR from Edinburg Univ.
         
@@ -436,52 +455,198 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
   }// End of: catch(FoundGoalSignal fgs) 
   
-  // Write ml_data
-  std::string ml_log_path;
-  ml_log_path = std::string(log_path+".ml.log");
-  
-  std::ofstream ml_log;
-  ml_log.open(ml_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
-
-  for(std::vector< std::vector<double> >::const_iterator i=ml_data.begin(); i!=ml_data.end(); ++i)
+  if(ml_mode==ml_util::SVR_OFFLINE)
   {
-    ml_log << i->at(0) << "," << i->at(1) << ","<< i->at(2) << "," << i->at(3) << std::endl;
+    // Initialize
+    std::string tr_data_path;// is appended with samples obtained from one CTAMP instance to another
+    tr_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.libsvmdata";// _must_ be synch with the one in astar_utils.hpp
+    
+    std::string delta_tr_data_path;// is appended with samples obtained from one CTAMP instance to another
+    delta_tr_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.libsvmdata";// _must_ be synch with the one in astar_utils.hpp
+
+    std::string delta_csv_tr_data_path;
+    delta_csv_tr_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.csv";// _must_ be synch with the one in astar_utils.hpp
+          
+    std::string tmp_data_path;// _must_ be always overwritten
+    tmp_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
+    
+    // Benchmark:Obtain testing data error
+    // :the different between the fitting and the true value of testing data (which have _not_ been used to train the model)
+    std::vector<double> y_fit_te;
+    
+    if(n_ctamp_attempt_ > 0)
+    {
+      ROS_DEBUG("Obtaining te_err ...");
+
+      FILE *input;// for holding tr_data
+      input = fopen(delta_tr_data_path.c_str(),"r");
+      if(input == NULL)
+      {
+        std::cerr << "can't open input file= " << delta_tr_data_path << std::endl;
+        return false;
+      }
+
+      FILE *output;// for holding fitting outputs          
+      output = fopen(tmp_data_path.c_str(),"w");// overwrite
+      if(output == NULL)
+      {
+        std::cerr << "can't open output file= " << tmp_data_path << std::endl;
+        return false;
+      }
+
+      SVMNode* x;// for inputs 
+      x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));
+      
+      libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
+      free(x); fclose(input); fclose(output);
+
+      y_fit_te = ml_util::get_y_fit(tmp_data_path);// Retrieve y_fit from the tmp file
+    }
+    
+    // Interleave SVR training, building the model from scratch will all stored data
+    ROS_DEBUG("SVR training ...");
+    
+    SVMParameter param;
+    init_svmparam(&param);
+    
+    SVMNode* x_space;
+    x_space = 0;
+  
+    SVMProblem problem;
+    if( !read_problem(tr_data_path.c_str(),x_space,&problem,&param) )
+    {
+      ROS_ERROR("libsvr read_problem(): failed");
+      return false;
+    }
+    
+    svr_model_ = svm_train(&problem,&param);
+//    if( svm_save_model(model_path.c_str(),svr_model_) )
+//    {
+//      ROS_ERROR("Cannot save svm model.");
+//      return false;
+//    }
+    svm_destroy_param(&param); free(problem.y); free(problem.x); free(x_space);
+    
+    // Benchmark: obtain prediction error with tr_data + put data into ml_data
+    // Note that the svm model used to predict is trained/updated using a bunch of data (samples obtained from this CTAMP instance), 
+    // instead of being trained one-by-one (which wil take long time)
+    std::vector<double> y_fit_tr;
+    
+    if(n_ctamp_attempt_ > 0)
+    {
+      ROS_DEBUG("Obtaining tr_err ...");
+      
+      FILE *input;// for holding tr_data
+      input = fopen(delta_tr_data_path.c_str(),"r");
+      if(input == NULL)
+      {
+        std::cerr << "can't open input file= " << delta_tr_data_path << std::endl;
+        return false;
+      }
+
+      FILE *output;// for holding fitting outputs          
+      output = fopen(tmp_data_path.c_str(),"w");// overwrite
+      if(output == NULL)
+      {
+        std::cerr << "can't open output file= " << tmp_data_path << std::endl;
+        return false;
+      }
+      
+      SVMNode* x;// for inputs 
+      x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));
+      
+      libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
+      free(x); fclose(input); fclose(output);      
+      
+      y_fit_tr = ml_util::get_y_fit(tmp_data_path);// Retrieve y_fit from the tmp file
+
+      std::vector<double> y_true;
+      y_true = ml_util::get_y_true(delta_csv_tr_data_path);
+
+      // Put the content to variables to make it consistent with the one in ml_util::LWPR_ONLINE
+      if( (y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size()) )
+      {
+        n_data_ += y_true.size();
+      }
+      else
+      {
+        ROS_ERROR("(y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size())): FALSE");
+        return false;
+      }
+      
+      for(size_t i=0; i < y_true.size(); ++i)
+      {
+        std::vector<double> ml_datum;
+        
+        ml_datum.push_back( y_fit_te.at(i) );// 0
+        ml_datum.push_back( y_fit_tr.at(i) );// 1
+        ml_datum.push_back( y_true.at(i) );// 2
+        ml_datum.push_back(n_data_);// 3: number of samples that are used to trained so far.
+        
+        ml_data.push_back(ml_datum);
+      }
+    }
+        
+    // Remove deltas after every te_err and tr_err retrieval; clear after one ctamp attempt
+    boost::filesystem::remove( boost::filesystem::path(delta_tr_data_path) );
+    boost::filesystem::remove( boost::filesystem::path(delta_csv_tr_data_path) );
+  }
+  
+  if(ml_mode==ml_util::SVR_OFFLINE or ml_mode==ml_util::LWPR_ONLINE)
+  {
+    // Write ml_data
+    std::string ml_log_path;
+    ml_log_path = std::string(log_path+".ml.log");
+    
+    std::ofstream ml_log;
+    ml_log.open(ml_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
+    
+//    ROS_DEBUG_STREAM("ml_data.size()= " << ml_data.size());
+    for(std::vector< std::vector<double> >::const_iterator i=ml_data.begin(); i!=ml_data.end(); ++i)
+    {
+      ml_log << i->at(0) << "," << i->at(1) << ","<< i->at(2) << "," << i->at(3) << std::endl;
+    }
+
+    ml_log.close();
+    
+    // Write log for heuristics vs true distance 
+    // The reference is UCS-sol-path on the rerun base 
+    std::string h_log_path;
+    h_log_path = std::string(log_path+".h.log");
+    
+    std::ofstream h_log;
+    h_log.open(h_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
+    
+    TMMVertex curr_vertex;
+    curr_vertex = tmm_root_;
+    size_t n_hcomp = 0;
+    do// Loop for obtaining all paths from any vertex in a solution path to the goal vertex
+    {
+      double h;// = estimated cost-to-go
+      h = get(vertex_heu,tmm_,curr_vertex);
+      
+      double cost2go = 0.;// valid when cost2go > 0.0
+      cost2go = get_cost2go(curr_vertex,tmm_goal_,ucs_sol_tmm);
+      
+      h_log << h << "," << cost2go << std::endl;
+      n_hcomp++;
+      
+      typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+      tie(oei,oei_end)=out_edges(curr_vertex,ucs_sol_tmm);// no need to iterate over oei because there is only one outedge in the ucs_sol_tmm (it is actually a graph)
+     
+      curr_vertex = target(*oei,ucs_sol_tmm);
+    }
+    while(curr_vertex != tmm_goal_);
+    
+    h_log.close();
+
+    // Store ctamp log for this ctamp instance
+    if( !ml_data.empty() )
+      ctamp_log->push_back( ml_data.back().at(3) );// at idx=0, note n_samples is casted from size_t to double
+
+    ctamp_log->push_back( n_hcomp ); // at idx=1, note n_samples is casted from size_t to double  
   }
 
-  ml_log.close();
-  
-  // Put the last n_samples for the run.log 
-  *n_samples = ml_data.back().at(3);
-
-  // Write log for heuristics vs true distance 
-  // The reference is UCS-sol-path on the rerun base 
-  std::string h_log_path;
-  h_log_path = std::string(log_path+".h.log");
-  
-  std::ofstream h_log;
-  h_log.open(h_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
-  
-  TMMVertex curr_vertex;
-  curr_vertex = tmm_root_;
-  do// Loop for obtaining all paths from any vertex in a solution path to the goal vertex
-  {
-    double h;// = estimated cost-to-go
-    h = get(vertex_heu,tmm_,curr_vertex);
-    
-    double cost2go = 0.;// valid when cost2go > 0.0
-    cost2go = get_cost2go(curr_vertex,tmm_goal_,ucs_sol_tmm);
-    
-    h_log << h << "," << cost2go << std::endl;
-    
-    typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
-    tie(oei,oei_end)=out_edges(curr_vertex,ucs_sol_tmm);// no need to iterate over oei because there is only one outedge in the ucs_sol_tmm (it is actually a graph)
-   
-    curr_vertex = target(*oei,ucs_sol_tmm);
-  }
-  while(curr_vertex != tmm_goal_);
-  
-  h_log.close();
-  
   // Write a fancy planned TMM
   std::string p_tmm_dot_path = data_path + "/fancy_tmm.dot";
   
@@ -494,7 +659,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
                 );  
   
   p_tmm_dot.close();
-  
+
   // Write a simplistic planned TMM for later use, e.g. offline training
   boost::dynamic_properties p_tmm_dp;
   
@@ -514,7 +679,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       
   write_graphviz_dp( simple_p_tmm_dot, tmm_, p_tmm_dp, std::string("vertex_id"));
   simple_p_tmm_dot.close();
-  
+
   // Filter then write the solution tmm
   SolEdgeFilter<TMMEdgeColorMap> sol_edge_filter( get(edge_color, tmm_) );
   typedef filtered_graph< TaskMotionMultigraph, SolEdgeFilter<TMMEdgeColorMap> > SolTMM;
@@ -526,10 +691,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   sol_tmm_dp.property( "vertex_id",get(vertex_name,sol_tmm) );
   
   sol_tmm_dp.property( "label",get(edge_name, sol_tmm) );
+  sol_tmm_dp.property( "weight",get(edge_weight, sol_tmm) );  
   sol_tmm_dp.property( "jspace",get(edge_jspace, sol_tmm) );
-  sol_tmm_dp.property( "planstr",get(edge_planstr, sol_tmm) );  
-//  sol_tmm_dp.property( "weight",get(edge_weight, sol_tmm) );
-//  sol_tmm_dp.property( "color",get(edge_color, sol_tmm) );
+  sol_tmm_dp.property( "color",get(edge_color, sol_tmm) );
+  sol_tmm_dp.property( "srcstate",get(edge_srcstate, sol_tmm) );  
+  sol_tmm_dp.property( "mptime",get(edge_mptime, sol_tmm) );  
+  sol_tmm_dp.property( "planstr",get(edge_planstr, sol_tmm) );
 
   std::string sol_tmm_dot_path = data_path + "/sol_tmm.dot";
   ofstream sol_tmm_dot;
@@ -541,44 +708,34 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   // Addition info. for perf.log
   perf_log << "tidy.cfg=" << base_data_path << tidy_cfg_filename;
   
+  // Closure
   perf_log.close();
   csv_perf_log.close();
+  ++n_ctamp_attempt_;
   return true;
 }
 
 //! Set the tidy_config_
 /*!
-  More...
+  The tidy config is in a file named "tidy.cfg"
 */
 bool
 PlannerManager::set_tidy_config()
 {
-  ObjCfg tidy_cfg;
-  
-  // Read the given tidy_cfg under base_data_path
-  std::string base_data_path;
-  if( !ros::param::get("/base_data_path", base_data_path) )
-    ROS_WARN("Can not get /base_data_path, use the default value instead");
+  utils::ObjCfg tidy_cfg;
+
+  std::string  data_path= ".";
+  if( !ros::param::get("/data_path", data_path) )
+    ROS_WARN("Can not get /data_path, use the default value instead");
     
-  std::string tidy_cfg_filename;// The base_data_path is a constant
-  if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
-    ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead"); 
-    
-  if( !read_obj_cfg(std::string(base_data_path+tidy_cfg_filename),&tidy_cfg) )
+  if( !utils::read_obj_cfg(std::string(data_path+"/tidy.cfg"),&tidy_cfg) )
   {
     ROS_ERROR("Can not find the tidy*.cfg file.");
     return false;
   }
   
-  for(ObjCfg::iterator i=tidy_cfg.begin(); i!=tidy_cfg.end(); ++i)
-    tidy_cfg_[i->id] = *i; 
-
-  // Write the randomized obj_cfg
-  std::string  data_path= ".";
-  if( !ros::param::get("/data_path", data_path) )
-    ROS_WARN("Can not get /data_path, use the default value instead");
-    
-  write_obj_cfg( tidy_cfg,std::string(data_path+"/tidy.cfg") );
+  for(utils::ObjCfg::iterator i=tidy_cfg.begin(); i!=tidy_cfg.end(); ++i)
+    movable_obj_tidy_cfg_[i->id] = *i; 
   
   return true;
 }
@@ -586,7 +743,7 @@ PlannerManager::set_tidy_config()
 //! cost2go()
 /*!
   Because we use a solution path from UCS, there must be a path from the start vertex to the goal vertex.
-  It is a graph not multigraph
+  It is a graph _not_ a multigraph
   All node but the goal node have exactly one out edge
 */
 double
@@ -603,12 +760,12 @@ PlannerManager::get_cost2go(const TMMVertex& start,const TMMVertex& goal,const T
     
     double cost;
     cost = get(edge_weight,tmm,*oei);
-    ROS_DEBUG_STREAM("get(edge_weight,tmm,*oei)= " << get(edge_weight,tmm,*oei));
+//    ROS_DEBUG_STREAM("get(edge_weight,tmm,*oei)= " << get(edge_weight,tmm,*oei));
     
     cost2go += cost;
     
     v = target(*oei,tmm);
-    ROS_DEBUG_STREAM("get(vertex_name,tmm_,v)=" << get(vertex_name,tmm_,v));
+//    ROS_DEBUG_STREAM("get(vertex_name,tmm_,v)=" << get(vertex_name,tmm_,v));
   }
   while(v != goal);
     
