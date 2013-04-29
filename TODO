@@ -1,10 +1,11 @@
+>> apply the rule that a trailing slash indicates a directory
+>> use namespace
 >> make a parameter server that contains all static obstacle ids
 >> make service name under the node's name
 >> make headers under ../include/pkg-name/
 >> include smoothness and clearance in measuring path quality
 >> why is there an inf edge cost? likely from: iter_cost = exp( (double)n_failure/(double)(n_success+n_failure) );// (n_success+n_failure) = goal_set.size()
->> what if there is really no path in the goal, rethink removing an edge
->> put texts in objects
+>> put texts in objects, making object variance clear
 >> refine randomized messy_cfg: do not overlap with tidy-spot
 >> re-do motion planning for the cheapest almost-solution path, at the confirming step
 >> grasp planner can use uniform/biased sampling strategy for discretization.
@@ -22,3 +23,4 @@ Done...
 >> adjust hiro_joint_controller for dual arms, "rarm_joint_state_cmd" should be general, e.g. "joint_state_cmd", plus at the launch file for <rosparam param="source_list">['rarm_joint_state_cmd']</rosparam>
 >> solve in go-home, why the arm hit the vase (at the goal pose), especially when using only J_arm see run.3obj.20130122.d
 >> automate the way we set how many robots/eofs are in-duty
+>> what if there is really no path in the goal, rethink removing an edge: YES, when there is no grasp/ungrasp pose then the correspoding edge is removed

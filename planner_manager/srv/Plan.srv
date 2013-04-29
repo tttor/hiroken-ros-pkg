@@ -3,4 +3,4 @@ string log_path #
 bool rerun # whether plan from scratch or rerun previusly planned TMM, used for analysis to shorthen the time
 ---
 trajectory_msgs/JointTrajectory[] ctamp_sol
-uint32 n_samples # n_samples at the end of search
+float64[] ctamp_log # Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) n of (cost-to-go vs. est. cost-to-go)

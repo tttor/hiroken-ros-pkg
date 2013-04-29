@@ -10,6 +10,7 @@ typedef double Output;// which is the true geometric cost
 typedef std::vector<double> Input;// which contains feature-values, whose names are specified in the metadata
 typedef std::map<std::string, double> RawInput;// which consists of features-name--feature-value pairs, for sparse data
 typedef std::map<Input, Output> Data;
+typedef std::list<Input> InputOnlyData;
 
 //! This gets the upper bound of input-feature size
 /*!
@@ -50,7 +51,7 @@ get_labels(const std::string& metadata_path)
   }
   else 
   {
-    std::cerr << "Unable to open metadata file" << std::endl;
+    std::cerr << "Unable to open:" << metadata_path << std::endl;
   }
   
   return feature_names;
@@ -79,17 +80,17 @@ convert(RawInput& r_in,Input* in,const std::vector<std::string>& labels)
     if( j!=r_in.end() )
       in->push_back( j->second );
     else
-      in->push_back(0.);// The default val: Make it a point and at the Origin for object's pose; Set not-exist value for symbolic features
+      in->push_back(0.);// The default val e.g. Make it a point and at the Origin for object's pose; Set not-exist value for symbolic features
   }
   
   return true;
 }
 
 bool
-write_libsvm_data(const Data& data,const std::string& data_out_path)
+write_libsvm_data(const Data& data,const std::string& data_out_path,std::ios_base::openmode mode = std::ios_base::out)
 {
   std::ofstream data_out;
-  data_out.open(data_out_path.c_str());// overwrite
+  data_out.open(data_out_path.c_str(),mode);
   
   for(Data::const_iterator i=data.begin(); i!=data.end(); ++i)
   {
@@ -112,11 +113,39 @@ write_libsvm_data(const Data& data,const std::string& data_out_path)
 
 //! For testing/predicting purpose where the output y is unknown
 bool
-write_libsvm_data(const Input& in,const std::string& data_out_path)
+write_libsvm_data(const Input& in,const std::string& data_out_path,std::ios_base::openmode mode = std::ios_base::out)
 {
   Data data;
   data[in] = 0.;// arbitrary_y;
 
-  return write_libsvm_data(data,data_out_path);
+  return write_libsvm_data(data,data_out_path,mode);
 }
+
+namespace data_utils
+{
+
+//! Write to a csv file
+/*!
+Accept Input datatype only
+*/
+void
+write_csv(const InputOnlyData& data,const std::string& data_path)
+{
+  std::ofstream data_out;
+  data_out.open( data_path.c_str() );// overwrite
+  
+  for(InputOnlyData::const_iterator i=data.begin(); i!=data.end(); ++i)
+  {
+    for(Input::const_iterator j=i->begin(); j!=i->end(); ++j)
+    {
+      if(j != i->end()-1)
+        data_out << *j << ",";
+      else
+        data_out << *j << std::endl;
+    }
+  }
+}
+
+}// namespace data_utils
+
 #endif // #ifndef DATA_HPP_INCLUDED

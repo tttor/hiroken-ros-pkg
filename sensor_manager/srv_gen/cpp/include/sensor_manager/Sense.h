@@ -27,6 +27,7 @@ struct SenseRequest_ {
 
   SenseRequest_()
   : id(0)
+  , bool_args()
   , uint_args()
   , string_args()
   {
@@ -34,6 +35,7 @@ struct SenseRequest_ {
 
   SenseRequest_(const ContainerAllocator& _alloc)
   : id(0)
+  , bool_args(_alloc)
   , uint_args(_alloc)
   , string_args(_alloc)
   {
@@ -41,6 +43,9 @@ struct SenseRequest_ {
 
   typedef uint16_t _id_type;
   uint16_t id;
+
+  typedef std::vector<uint8_t, typename ContainerAllocator::template rebind<uint8_t>::other >  _bool_args_type;
+  std::vector<uint8_t, typename ContainerAllocator::template rebind<uint8_t>::other >  bool_args;
 
   typedef std::vector<uint16_t, typename ContainerAllocator::template rebind<uint16_t>::other >  _uint_args_type;
   std::vector<uint16_t, typename ContainerAllocator::template rebind<uint16_t>::other >  uint_args;
@@ -104,12 +109,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::sensor_manager::SenseRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "321a9d12d35a991430b703db88e8fea8";
+    return "b439673f47e31c8bf33de7b93a39c937";
   }
 
   static const char* value(const  ::sensor_manager::SenseRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0x321a9d12d35a9914ULL;
-  static const uint64_t static_value2 = 0x30b703db88e8fea8ULL;
+  static const uint64_t static_value1 = 0xb439673f47e31c8bULL;
+  static const uint64_t static_value2 = 0xf33de7b93a39c937ULL;
 };
 
 template<class ContainerAllocator>
@@ -127,6 +132,7 @@ struct Definition< ::sensor_manager::SenseRequest_<ContainerAllocator> > {
   static const char* value() 
   {
     return "uint16 id\n\
+bool[] bool_args\n\
 uint16[] uint_args\n\
 string[] string_args\n\
 \n\
@@ -194,6 +200,7 @@ template<class ContainerAllocator> struct Serializer< ::sensor_manager::SenseReq
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
     stream.next(m.id);
+    stream.next(m.bool_args);
     stream.next(m.uint_args);
     stream.next(m.string_args);
   }
@@ -228,7 +235,7 @@ template<>
 struct MD5Sum<sensor_manager::Sense> {
   static const char* value() 
   {
-    return "321a9d12d35a991430b703db88e8fea8";
+    return "b439673f47e31c8bf33de7b93a39c937";
   }
 
   static const char* value(const sensor_manager::Sense&) { return value(); } 
@@ -248,7 +255,7 @@ template<class ContainerAllocator>
 struct MD5Sum<sensor_manager::SenseRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "321a9d12d35a991430b703db88e8fea8";
+    return "b439673f47e31c8bf33de7b93a39c937";
   }
 
   static const char* value(const sensor_manager::SenseRequest_<ContainerAllocator> &) { return value(); } 
@@ -268,7 +275,7 @@ template<class ContainerAllocator>
 struct MD5Sum<sensor_manager::SenseResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "321a9d12d35a991430b703db88e8fea8";
+    return "b439673f47e31c8bf33de7b93a39c937";
   }
 
   static const char* value(const sensor_manager::SenseResponse_<ContainerAllocator> &) { return value(); } 

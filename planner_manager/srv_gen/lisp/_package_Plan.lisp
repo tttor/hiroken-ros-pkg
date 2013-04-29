@@ -7,6 +7,6 @@
           RERUN
           CTAMP_SOL-VAL
           CTAMP_SOL
-          N_SAMPLES-VAL
-          N_SAMPLES
+          CTAMP_LOG-VAL
+          CTAMP_LOG
 ))

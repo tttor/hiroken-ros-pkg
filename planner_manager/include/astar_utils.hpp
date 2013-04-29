@@ -59,15 +59,53 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   // Update jstates of adjacent vertex av of this vertex v to the cheapest existing-just-planned edge
   gpm_->set_av_jstates(v); 
 
-  if(ml_mode_==LWPR_ONLINE)
+  // Obtain samples from paths from (root,root+1, ..., v) to adjacent of v where the edge costs are already defined
+  Data samples;
+  gpm_->get_samples_online(v,&samples);
+//    cerr << "online training: samples.size()= " << samples.size() << endl;
+
+  // Utilize samples
+  if(ml_mode_==ml_util::NO_ML or ml_mode_==ml_util::SVR_OFFLINE)// Store samples for offline training
   {
-    // Train online during search (the online LWPR)
-    Data samples;
+    // Write samples to a libsvmdata format
+    std::string libsvmdata_path;
+    libsvmdata_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.libsvmdata";// _must_ be synch with the one in planner_manager.cpp
     
-    // Obtain samples from paths from (root,root+1, ..., v) to adjacent of v where the edge costs are already defined
-    gpm_->get_samples_online(v,&samples);
-    cerr << "online training: samples.size()= " << samples.size() << endl;
+    std::string delta_libsvmdata_path;
+    delta_libsvmdata_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.libsvmdata";// _must_ be synch with the one in planner_manager.cpp
     
+    write_libsvm_data(samples,libsvmdata_path,std::ios::app);
+    write_libsvm_data(samples,delta_libsvmdata_path,std::ios::app);
+    
+    // Write samples to a CSV format
+    std::string csv_path;
+    csv_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.csv";// _must_ be synch with the one in planner_manager.cpp
+
+    std::string delta_csv_path;
+    delta_csv_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.csv";// _must_ be synch with the one in planner_manager.cpp
+    
+    std::ofstream csv;
+    csv.open( csv_path.c_str(),std::ios::app );
+    
+    std::ofstream delta_csv;
+    delta_csv.open( delta_csv_path.c_str(),std::ios::app );
+    
+    for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
+    {
+      for(Input::const_iterator j=i->first.begin(); j!=i->first.end(); ++j)
+      {
+        csv << *j << ",";// Write input=feature values
+        delta_csv << *j << ",";
+      }
+        
+      csv << i->second << std::endl;
+      delta_csv << i->second << std::endl;
+    }
+    csv.close();
+    delta_csv.close();
+  }
+  else if(ml_mode_==ml_util::LWPR_ONLINE)// Train online during search (the online LWPR)
+  {
     for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
     {
       std::vector<double> x;
@@ -79,7 +117,7 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       std::vector<double> y_fit_test;// for prediction before the model is updated with this samples
       y_fit_test = learner_->predict(x);
 
-      std::vector<double> y_fit;
+      std::vector<double> y_fit;// for prediction on training data
       y_fit = learner_->update( x,y );// likely that this prediction after the model is updated, it differs from the prediction before updating 
 //      cerr << "y_fit= " << y_fit.at(0) << endl;
       
@@ -91,10 +129,10 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       
       // Keep ml-related data 
       std::vector<double> ml_datum;
-      ml_datum.push_back(y_fit_test.at(0));
-      ml_datum.push_back(y_fit.at(0));
-      ml_datum.push_back(y.at(0));
-      ml_datum.push_back(learner_->nData());
+      ml_datum.push_back(y_fit_test.at(0));// 0 
+      ml_datum.push_back(y_fit.at(0));// 1
+      ml_datum.push_back(y.at(0));// 2
+      ml_datum.push_back(learner_->nData());// 3
       
       ml_data_->push_back(ml_datum);
     }
@@ -143,16 +181,18 @@ operator()(Vertex v)
   cerr << "Compute h(" << v << "): BEGIN" << endl;
   double h;
   
-  if( (ml_mode_==NO_ML)or(v==goal_) )// or ml_mode=UCS, no learning
+  if( (ml_mode_==ml_util::NO_ML)or(v==goal_) )// or ml_mode=UCS, no learning
   {
-      h = 0.;
+    cerr << "(ml_mode_==ml_util::NO_ML)or(v==goal_) -> h = 0." << endl;
+    h = 0.;
   }
-  else// get the heuristic from a learning machine, so far either ml_mode= SVR_OFFLINE or ml_mode=LWPR_ONLINE
+  else// get the heuristic from a learning machine, so far either ml_mode= ml_util::SVR_OFFLINE or ml_mode=ml_util::LWPR_ONLINE
   {
     // Extract feature x
     Input x;
     if ( !gpm_->get_fval(v,&x) )
     {
+      cerr << "!gpm_->get_fval(v,&x) -> h = 0." << endl;
       h = 0.;
     }
     else

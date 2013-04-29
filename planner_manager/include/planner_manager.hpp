@@ -22,6 +22,7 @@
 #include <fstream>
 #include <math.h>
 
+#include <boost/filesystem.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/config.hpp>
 #include <boost/random.hpp>
@@ -37,11 +38,11 @@
 
 #include "tmm_utils.hpp"
 #include "planner_manager.hpp"
-#include "obj_cfg_rw.hpp"
 #include "utils.hpp"
-#include "ml_util.hpp"
 
 #include <lwpr.hh>
+#include "svm.h"
+#include "ml_util.hpp"
 #include "libsvm_util.hpp"
 
 class PlannerManager
@@ -80,7 +81,7 @@ private:
   because it receive ml_mode from a service request, which does not have MLMode
 */
 bool
-plan(const size_t& ml_mode,const bool& rerun,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,uint32_t* n_samples);
+plan(const size_t& ml_mode,const bool& rerun,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,std::vector<double>* ctamp_log);
 
 bool
 set_tidy_config();
@@ -109,8 +110,15 @@ std::string planner_manager_path_;
 /*!
   More ...
 */
-std::map<std::string, arm_navigation_msgs::CollisionObject> messy_cfg_;
-std::map<std::string, arm_navigation_msgs::CollisionObject> tidy_cfg_;
+std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_messy_cfg_;
+std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg_;
+std::map<std::string, arm_navigation_msgs::CollisionObject> unmovable_obj_cfg_;
+
+//! Keeps the number of samples that have been used to trained a SVR model
+size_t n_data_;
+SVMModel* svr_model_;
+int svr_max_n_attr_;
+size_t n_ctamp_attempt_;
 };// end of: class PlannerManager
 
 #endif // #ifndef PLANNER_MANAGER_HPP_INCLUDED

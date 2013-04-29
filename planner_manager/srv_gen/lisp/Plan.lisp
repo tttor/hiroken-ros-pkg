@@ -79,10 +79,10 @@
   "planner_manager/PlanRequest")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<Plan-request>)))
   "Returns md5sum for a message object of type '<Plan-request>"
-  "5a793042fcc4b3ea8758d345a00a8c3c")
+  "88ec01b41a01a569deb9eb80adb4ff64")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'Plan-request)))
   "Returns md5sum for a message object of type 'Plan-request"
-  "5a793042fcc4b3ea8758d345a00a8c3c")
+  "88ec01b41a01a569deb9eb80adb4ff64")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<Plan-request>)))
   "Returns full string definition for message of type '<Plan-request>"
   (cl:format cl:nil "uint8 ml_mode~%string log_path~%bool rerun~%~%~%"))
@@ -110,11 +110,11 @@
     :initarg :ctamp_sol
     :type (cl:vector trajectory_msgs-msg:JointTrajectory)
    :initform (cl:make-array 0 :element-type 'trajectory_msgs-msg:JointTrajectory :initial-element (cl:make-instance 'trajectory_msgs-msg:JointTrajectory)))
-   (n_samples
-    :reader n_samples
-    :initarg :n_samples
-    :type cl:integer
-    :initform 0))
+   (ctamp_log
+    :reader ctamp_log
+    :initarg :ctamp_log
+    :type (cl:vector cl:float)
+   :initform (cl:make-array 0 :element-type 'cl:float :initial-element 0.0)))
 )
 
 (cl:defclass Plan-response (<Plan-response>)
@@ -130,10 +130,10 @@
   (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader planner_manager-srv:ctamp_sol-val is deprecated.  Use planner_manager-srv:ctamp_sol instead.")
   (ctamp_sol m))
 
-(cl:ensure-generic-function 'n_samples-val :lambda-list '(m))
-(cl:defmethod n_samples-val ((m <Plan-response>))
-  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader planner_manager-srv:n_samples-val is deprecated.  Use planner_manager-srv:n_samples instead.")
-  (n_samples m))
+(cl:ensure-generic-function 'ctamp_log-val :lambda-list '(m))
+(cl:defmethod ctamp_log-val ((m <Plan-response>))
+  (roslisp-msg-protocol:msg-deprecation-warning "Using old-style slot reader planner_manager-srv:ctamp_log-val is deprecated.  Use planner_manager-srv:ctamp_log instead.")
+  (ctamp_log m))
 (cl:defmethod roslisp-msg-protocol:serialize ((msg <Plan-response>) ostream)
   "Serializes a message object of type '<Plan-response>"
   (cl:let ((__ros_arr_len (cl:length (cl:slot-value msg 'ctamp_sol))))
@@ -143,10 +143,21 @@
     (cl:write-byte (cl:ldb (cl:byte 8 24) __ros_arr_len) ostream))
   (cl:map cl:nil #'(cl:lambda (ele) (roslisp-msg-protocol:serialize ele ostream))
    (cl:slot-value msg 'ctamp_sol))
-  (cl:write-byte (cl:ldb (cl:byte 8 0) (cl:slot-value msg 'n_samples)) ostream)
-  (cl:write-byte (cl:ldb (cl:byte 8 8) (cl:slot-value msg 'n_samples)) ostream)
-  (cl:write-byte (cl:ldb (cl:byte 8 16) (cl:slot-value msg 'n_samples)) ostream)
-  (cl:write-byte (cl:ldb (cl:byte 8 24) (cl:slot-value msg 'n_samples)) ostream)
+  (cl:let ((__ros_arr_len (cl:length (cl:slot-value msg 'ctamp_log))))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) __ros_arr_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) __ros_arr_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) __ros_arr_len) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) __ros_arr_len) ostream))
+  (cl:map cl:nil #'(cl:lambda (ele) (cl:let ((bits (roslisp-utils:encode-double-float-bits ele)))
+    (cl:write-byte (cl:ldb (cl:byte 8 0) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 8) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 16) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 24) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 32) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 40) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 48) bits) ostream)
+    (cl:write-byte (cl:ldb (cl:byte 8 56) bits) ostream)))
+   (cl:slot-value msg 'ctamp_log))
 )
 (cl:defmethod roslisp-msg-protocol:deserialize ((msg <Plan-response>) istream)
   "Deserializes a message object of type '<Plan-response>"
@@ -160,10 +171,24 @@
     (cl:dotimes (i __ros_arr_len)
     (cl:setf (cl:aref vals i) (cl:make-instance 'trajectory_msgs-msg:JointTrajectory))
   (roslisp-msg-protocol:deserialize (cl:aref vals i) istream))))
-    (cl:setf (cl:ldb (cl:byte 8 0) (cl:slot-value msg 'n_samples)) (cl:read-byte istream))
-    (cl:setf (cl:ldb (cl:byte 8 8) (cl:slot-value msg 'n_samples)) (cl:read-byte istream))
-    (cl:setf (cl:ldb (cl:byte 8 16) (cl:slot-value msg 'n_samples)) (cl:read-byte istream))
-    (cl:setf (cl:ldb (cl:byte 8 24) (cl:slot-value msg 'n_samples)) (cl:read-byte istream))
+  (cl:let ((__ros_arr_len 0))
+    (cl:setf (cl:ldb (cl:byte 8 0) __ros_arr_len) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 8) __ros_arr_len) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 16) __ros_arr_len) (cl:read-byte istream))
+    (cl:setf (cl:ldb (cl:byte 8 24) __ros_arr_len) (cl:read-byte istream))
+  (cl:setf (cl:slot-value msg 'ctamp_log) (cl:make-array __ros_arr_len))
+  (cl:let ((vals (cl:slot-value msg 'ctamp_log)))
+    (cl:dotimes (i __ros_arr_len)
+    (cl:let ((bits 0))
+      (cl:setf (cl:ldb (cl:byte 8 0) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 8) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 16) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 24) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 32) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 40) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 48) bits) (cl:read-byte istream))
+      (cl:setf (cl:ldb (cl:byte 8 56) bits) (cl:read-byte istream))
+    (cl:setf (cl:aref vals i) (roslisp-utils:decode-double-float-bits bits))))))
   msg
 )
 (cl:defmethod roslisp-msg-protocol:ros-datatype ((msg (cl:eql '<Plan-response>)))
@@ -174,26 +199,26 @@
   "planner_manager/PlanResponse")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql '<Plan-response>)))
   "Returns md5sum for a message object of type '<Plan-response>"
-  "5a793042fcc4b3ea8758d345a00a8c3c")
+  "88ec01b41a01a569deb9eb80adb4ff64")
 (cl:defmethod roslisp-msg-protocol:md5sum ((type (cl:eql 'Plan-response)))
   "Returns md5sum for a message object of type 'Plan-response"
-  "5a793042fcc4b3ea8758d345a00a8c3c")
+  "88ec01b41a01a569deb9eb80adb4ff64")
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql '<Plan-response>)))
   "Returns full string definition for message of type '<Plan-response>"
-  (cl:format cl:nil "trajectory_msgs/JointTrajectory[] ctamp_sol~%uint32 n_samples~%~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectory~%Header header~%string[] joint_names~%JointTrajectoryPoint[] points~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.secs: seconds (stamp_secs) since epoch~%# * stamp.nsecs: nanoseconds since stamp_secs~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%# 0: no frame~%# 1: global frame~%string frame_id~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectoryPoint~%float64[] positions~%float64[] velocities~%float64[] accelerations~%duration time_from_start~%~%"))
+  (cl:format cl:nil "trajectory_msgs/JointTrajectory[] ctamp_sol~%float64[] ctamp_log~%~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectory~%Header header~%string[] joint_names~%JointTrajectoryPoint[] points~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.secs: seconds (stamp_secs) since epoch~%# * stamp.nsecs: nanoseconds since stamp_secs~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%# 0: no frame~%# 1: global frame~%string frame_id~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectoryPoint~%float64[] positions~%float64[] velocities~%float64[] accelerations~%duration time_from_start~%~%"))
 (cl:defmethod roslisp-msg-protocol:message-definition ((type (cl:eql 'Plan-response)))
   "Returns full string definition for message of type 'Plan-response"
-  (cl:format cl:nil "trajectory_msgs/JointTrajectory[] ctamp_sol~%uint32 n_samples~%~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectory~%Header header~%string[] joint_names~%JointTrajectoryPoint[] points~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.secs: seconds (stamp_secs) since epoch~%# * stamp.nsecs: nanoseconds since stamp_secs~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%# 0: no frame~%# 1: global frame~%string frame_id~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectoryPoint~%float64[] positions~%float64[] velocities~%float64[] accelerations~%duration time_from_start~%~%"))
+  (cl:format cl:nil "trajectory_msgs/JointTrajectory[] ctamp_sol~%float64[] ctamp_log~%~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectory~%Header header~%string[] joint_names~%JointTrajectoryPoint[] points~%================================================================================~%MSG: std_msgs/Header~%# Standard metadata for higher-level stamped data types.~%# This is generally used to communicate timestamped data ~%# in a particular coordinate frame.~%# ~%# sequence ID: consecutively increasing ID ~%uint32 seq~%#Two-integer timestamp that is expressed as:~%# * stamp.secs: seconds (stamp_secs) since epoch~%# * stamp.nsecs: nanoseconds since stamp_secs~%# time-handling sugar is provided by the client library~%time stamp~%#Frame this data is associated with~%# 0: no frame~%# 1: global frame~%string frame_id~%~%================================================================================~%MSG: trajectory_msgs/JointTrajectoryPoint~%float64[] positions~%float64[] velocities~%float64[] accelerations~%duration time_from_start~%~%"))
 (cl:defmethod roslisp-msg-protocol:serialization-length ((msg <Plan-response>))
   (cl:+ 0
      4 (cl:reduce #'cl:+ (cl:slot-value msg 'ctamp_sol) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ (roslisp-msg-protocol:serialization-length ele))))
-     4
+     4 (cl:reduce #'cl:+ (cl:slot-value msg 'ctamp_log) :key #'(cl:lambda (ele) (cl:declare (cl:ignorable ele)) (cl:+ 8)))
 ))
 (cl:defmethod roslisp-msg-protocol:ros-message-to-list ((msg <Plan-response>))
   "Converts a ROS message object to a list"
   (cl:list 'Plan-response
     (cl:cons ':ctamp_sol (ctamp_sol msg))
-    (cl:cons ':n_samples (n_samples msg))
+    (cl:cons ':ctamp_log (ctamp_log msg))
 ))
 (cl:defmethod roslisp-msg-protocol:service-request-type ((msg (cl:eql 'Plan)))
   'Plan-request)
