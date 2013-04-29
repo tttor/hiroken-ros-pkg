@@ -1,3 +1,4 @@
+>> apply the rule that a trailing slash indicates a directory
 >> use namespace
 >> make a parameter server that contains all static obstacle ids
 >> make service name under the node's name

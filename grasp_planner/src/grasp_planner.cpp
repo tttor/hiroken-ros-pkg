@@ -18,6 +18,7 @@
 #include "hiro_common/GetManipulability.h"
 
 #include "hiro_utils.hpp"
+#include "utils.hpp"
 
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 static const double GRASP_PADDING = 0.070;
@@ -238,7 +239,7 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request &req, grasp_planner::Pla
   } // End of for(size_t i=0; i<yaw_step;++i)
   ROS_DEBUG("Finished looping over yaw_steps");
   
-  // TODO Order the goal poses in the goal set based on their manipulability measures
+  // Order the goal poses in the goal set based on their manipulability measures
   GraspRanker ranker;
   std::sort(grasp_poses.begin(),grasp_poses.end(),ranker);
   
@@ -250,6 +251,9 @@ plan_grasp_srv_handle(grasp_planner::PlanGrasp::Request &req, grasp_planner::Pla
   const double failure_penalty = 100.;
   if(num_grasp_plan==0)
     res.process_cost += failure_penalty;
+
+//  sensor_msgs::JointState best_grasp_pose = grasp_poses.at(0).first;
+//  utils::print_robot_state(best_grasp_pose);
   
   // Put as the response
   for(std::vector< std::pair<sensor_msgs::JointState,double> >::const_iterator i=grasp_poses.begin(); i!=grasp_poses.end(); ++i)

@@ -25,7 +25,7 @@
 #include "hiro_sensor/Sense.h"
 #include "hiro_sensor/See.h"
 
-#include "obj_cfg_rw.hpp"
+#include "utils.hpp"
 
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 
@@ -60,8 +60,6 @@ VisionSensor(ros::NodeHandle nh)
   ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
   set_planning_scene_diff_client_ = nh.serviceClient<arm_navigation_msgs::SetPlanningSceneDiff> (SET_PLANNING_SCENE_DIFF_NAME);
   
-  init_cc_img();
-  
   ROS_INFO("sensor_vis: up and running");
 }
 
@@ -74,12 +72,12 @@ see_srv_handle(hiro_sensor::See::Request& req, hiro_sensor::See::Response& res)
   // Hardcode the sensed_objects instead of from any vision sensor. Generate messy configs.
   if( !req.rerun )
   {
+    init_cc_img();
     set_unmovable_obj_cfg(req.n_vase,req.randomized_vase);
     set_movable_obj_cfg(req.n_movable_object);
   }
   else// == rerun
   {
-    set_unmovable_obj_cfg(1,false);// TODO remove me once a new baseline with the new messy.cfg exists
     set_obj_cfg(req.path);
   }
   
@@ -88,7 +86,7 @@ see_srv_handle(hiro_sensor::See::Request& req, hiro_sensor::See::Response& res)
   if( !ros::param::get("/data_path", data_path) )
     ROS_WARN("Can not get /data_path, use the default value instead");
     
-  write_obj_cfg( obj_cfg_,std::string(data_path+"/messy.cfg") );
+  utils::write_obj_cfg( obj_cfg_,std::string(data_path+"/messy.cfg") );
   
   // Note that the object poses are mirrored because coordinate frame transformation is ignored: 
   // the robot is facing to the right of the img, the left side becomes the right side
@@ -262,7 +260,7 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
         
         // TODO 3D collision check between the vase and the robot
         
-        if( (r_here < (TABLE_RADIUS-B_HEIGHT)) and !is_in_collision(x,y,0.,0.,r,h,&cc_img_) )
+        if( (r_here < (TABLE_RADIUS-utils::B_HEIGHT)) and !is_in_collision(x,y,0.,0.,r,h,&cc_img_) )
         {
           break;
         }
@@ -296,8 +294,8 @@ set_movable_obj_cfg(const size_t& n)
   for(size_t i=0; i<n; ++i)
   {
     std::string id = std::string(common_id+boost::lexical_cast<std::string>(i+1));
-    const double r = B_RADIUS;
-    const double h = B_HEIGHT;
+    const double r = utils::B_RADIUS;
+    const double h = utils::B_HEIGHT;
     
     // Randomize the orientation
     const double roll = 0.;// Because the object is cylindrical, rolling affects nothing.
@@ -319,9 +317,9 @@ set_movable_obj_cfg(const size_t& n)
     // Randomize the position.
     double z;
     if(pitch == 0.)
-     z = (TABLE_THICKNESS/2)+(B_HEIGHT/2);
+     z = (TABLE_THICKNESS/2)+(utils::B_HEIGHT/2);
     else
-     z = (TABLE_THICKNESS/2)+(B_RADIUS);
+     z = (TABLE_THICKNESS/2)+(utils::B_RADIUS);
     
     const double x_max = TABLE_RADIUS;// Play safe!
     const double x_min = -1 * x_max;
@@ -339,7 +337,7 @@ set_movable_obj_cfg(const size_t& n)
       double r_here;
       r_here = sqrt( pow(x,2)+pow(y,2) );
       
-      if( (r_here < (TABLE_RADIUS-B_HEIGHT)) and !is_in_collision(x,y,pitch,yaw,r,h,&cc_img_) )
+      if( (r_here < (TABLE_RADIUS-utils::B_HEIGHT)) and !is_in_collision(x,y,pitch,yaw,r,h,&cc_img_) )
       {
         break;
       }
@@ -362,10 +360,10 @@ set_movable_obj_cfg(const size_t& n)
 bool
 set_obj_cfg(const std::string& path)
 {
-  ObjCfg obj_cfg;
+  utils::ObjCfg obj_cfg;
   
   // read movable+unmovable obj cfg
-  if( !read_obj_cfg(path,&obj_cfg) )
+  if( !utils::read_obj_cfg(path,&obj_cfg) )
   {
     ROS_ERROR_STREAM("Can not find " << path);
     return false;
@@ -373,9 +371,7 @@ set_obj_cfg(const std::string& path)
   ROS_DEBUG_STREAM("obj_cfg.size()= " << obj_cfg.size());
  
   // Spawn objects in the planning environment
-  for(ObjCfg::iterator i=obj_cfg.begin(); i!=obj_cfg.end(); ++i) i->header.frame_id = std::string("/table");// TODO remove me once a new baseline with the new messy.cfg exists
-    
-  for(ObjCfg::iterator i=obj_cfg.begin(); i!=obj_cfg.end(); ++i)
+  for(utils::ObjCfg::iterator i=obj_cfg.begin(); i!=obj_cfg.end(); ++i)
     spawn_object(*i,&obj_cfg_);
 
   return true;
@@ -390,7 +386,7 @@ spawn_object( const std::string& id, const std::string& frame,
               const double& radius, const double& height,
               const double& x, const double& y, const double& z,
               const double& qx, const double& qy, const double& qz, const double& qw,
-              ObjCfg* obj_cfg
+              utils::ObjCfg* obj_cfg
              )
 {
   ros::Time time_stamp;
@@ -466,7 +462,7 @@ spawn_object( const std::string& id, const std::string& frame,
 }
 
 bool
-spawn_object(arm_navigation_msgs::CollisionObject object,ObjCfg* obj_cfg)
+spawn_object(arm_navigation_msgs::CollisionObject object,utils::ObjCfg* obj_cfg)
 {
   ros::Time time_stamp;
   time_stamp = ros::Time::now();
@@ -638,7 +634,7 @@ tf::TransformBroadcaster object_tf_bc_;// Must be outside the  while() loop
 ros::ServiceClient set_planning_scene_diff_client_;
 
 //! Keeps all sense objects including both movable and unmovable objects
-ObjCfg obj_cfg_;
+utils::ObjCfg obj_cfg_;
 
 //! Keeps an image used for collision checking
 cv::Mat cc_img_;

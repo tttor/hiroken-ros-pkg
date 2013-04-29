@@ -33,22 +33,24 @@ PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::
 {
   ROS_DEBUG_STREAM("Heard= " << msg->id.c_str());
   
-  // Filter out unmovable object
+  // Distinguish unmovable object
   std::vector<std::string> id_parts;// e.g. "unmovable.vase", "CAN1"
   boost::split( id_parts,msg->id,boost::is_any_of(".") );
   
   std::string type;
   type = id_parts.at(0);
-  
-  if( !strcmp(type.c_str(),"unmovable") )
-  {
-    return;
-  }
-  
+
   std::map<std::string, arm_navigation_msgs::CollisionObject>::iterator it;
   bool inserted;
-  
-  boost::tie(it,inserted) = movable_obj_messy_cfg_.insert( std::pair<std::string, arm_navigation_msgs::CollisionObject>(msg->id, *msg) );
+    
+  if( !strcmp(type.c_str(),"unmovable") )
+  {
+    boost::tie(it,inserted) = unmovable_obj_cfg_.insert( std::pair<std::string, arm_navigation_msgs::CollisionObject>(msg->id, *msg) );
+  }
+  else// movable ones
+  {
+    boost::tie(it,inserted) = movable_obj_messy_cfg_.insert( std::pair<std::string, arm_navigation_msgs::CollisionObject>(msg->id, *msg) );
+  }
   
   if(!inserted)
     it->second = *msg;// Update with the newer one
@@ -154,7 +156,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       std::string planstr;
       planstr = get(edge_planstr,tmm_,*ei);
       
-      put(edge_plan,tmm_,*ei, get_plan(planstr) );
+      put(edge_plan,tmm_,*ei, utils::get_plan(planstr) );
     }
     
     // Retrieve the sol path resulted using UCS for making comparison: true_cost-to-go vs predicted_cost-to-go 
@@ -163,11 +165,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     ucs_sol_tmm_dp.property("vertex_id", get(vertex_name, ucs_sol_tmm));
     
-    ucs_sol_tmm_dp.property("label", get(edge_name, ucs_sol_tmm));
-    ucs_sol_tmm_dp.property("jspace", get(edge_jspace, ucs_sol_tmm)); 
-    ucs_sol_tmm_dp.property("planstr",get(edge_planstr,ucs_sol_tmm));    
-//    ucs_sol_tmm_dp.property("weight", get(edge_weight, ucs_sol_tmm));
-//    ucs_sol_tmm_dp.property("color", get(edge_color,ucs_sol_tmm));
+    ucs_sol_tmm_dp.property( "label",get(edge_name, ucs_sol_tmm) );
+    ucs_sol_tmm_dp.property( "weight",get(edge_weight, ucs_sol_tmm) );  
+    ucs_sol_tmm_dp.property( "jspace",get(edge_jspace, ucs_sol_tmm) );
+    ucs_sol_tmm_dp.property( "color",get(edge_color, ucs_sol_tmm) );
+    ucs_sol_tmm_dp.property( "srcstate",get(edge_srcstate, ucs_sol_tmm) );  
+    ucs_sol_tmm_dp.property( "mptime",get(edge_mptime, ucs_sol_tmm) );  
+    ucs_sol_tmm_dp.property( "planstr",get(edge_planstr, ucs_sol_tmm) );
 
     std::ifstream ucs_sol_tmm_dot(  std::string(base_data_path+"/sol_tmm.dot").c_str()  );
     if( !read_graphviz(ucs_sol_tmm_dot, ucs_sol_tmm, ucs_sol_tmm_dp, "vertex_id") )
@@ -176,29 +180,29 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       return false;
     }
     
-    // Copy the weight from tmm_ to ucs_sol_tmm because currently ucs_sol_tmm does not contain these values
-    for(tie(ei,ei_end) = edges(ucs_sol_tmm); ei!=ei_end; ++ei )
-    {
-      graph_traits<TaskMotionMultigraph>::edge_iterator ej,ej_end;
-      for(tie(ej,ej_end) = edges(tmm_); ej!=ej_end; ++ej)
-      {
-        TMMVertex ei_source = source(*ei,ucs_sol_tmm);
-        TMMVertex ei_target = target(*ei,ucs_sol_tmm);
-        
-        TMMVertex ej_source = source(*ej,tmm_);
-        TMMVertex ej_target = target(*ej,tmm_);
-        
-        if( (ei_source==ej_source) and (ei_target==ej_target) )
-        {
-          double w;
-          w = get(edge_weight,tmm_,*ej);
-          
-          put(edge_weight,ucs_sol_tmm,*ei,w);
-          
-          break;
-        }
-      }
-    }
+//    // Copy the weight from tmm_ to ucs_sol_tmm because currently ucs_sol_tmm does not contain these values
+//    for(tie(ei,ei_end) = edges(ucs_sol_tmm); ei!=ei_end; ++ei )
+//    {
+//      graph_traits<TaskMotionMultigraph>::edge_iterator ej,ej_end;
+//      for(tie(ej,ej_end) = edges(tmm_); ej!=ej_end; ++ej)
+//      {
+//        TMMVertex ei_source = source(*ei,ucs_sol_tmm);
+//        TMMVertex ei_target = target(*ei,ucs_sol_tmm);
+//        
+//        TMMVertex ej_source = source(*ej,tmm_);
+//        TMMVertex ej_target = target(*ej,tmm_);
+//        
+//        if( (ei_source==ej_source) and (ei_target==ej_target) )
+//        {
+//          double w;
+//          w = get(edge_weight,tmm_,*ej);
+//          
+//          put(edge_weight,ucs_sol_tmm,*ei,w);
+//          
+//          break;
+//        }
+//      }
+//    }
   }
   
   // Mark the root and the goal vertex in the TMM
@@ -597,7 +601,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     std::ofstream ml_log;
     ml_log.open(ml_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
     
-    ROS_DEBUG_STREAM("ml_data.size()= " << ml_data.size());
+//    ROS_DEBUG_STREAM("ml_data.size()= " << ml_data.size());
     for(std::vector< std::vector<double> >::const_iterator i=ml_data.begin(); i!=ml_data.end(); ++i)
     {
       ml_log << i->at(0) << "," << i->at(1) << ","<< i->at(2) << "," << i->at(3) << std::endl;
@@ -687,10 +691,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   sol_tmm_dp.property( "vertex_id",get(vertex_name,sol_tmm) );
   
   sol_tmm_dp.property( "label",get(edge_name, sol_tmm) );
+  sol_tmm_dp.property( "weight",get(edge_weight, sol_tmm) );  
   sol_tmm_dp.property( "jspace",get(edge_jspace, sol_tmm) );
-  sol_tmm_dp.property( "planstr",get(edge_planstr, sol_tmm) );  
-//  sol_tmm_dp.property( "weight",get(edge_weight, sol_tmm) );
-//  sol_tmm_dp.property( "color",get(edge_color, sol_tmm) );
+  sol_tmm_dp.property( "color",get(edge_color, sol_tmm) );
+  sol_tmm_dp.property( "srcstate",get(edge_srcstate, sol_tmm) );  
+  sol_tmm_dp.property( "mptime",get(edge_mptime, sol_tmm) );  
+  sol_tmm_dp.property( "planstr",get(edge_planstr, sol_tmm) );
 
   std::string sol_tmm_dot_path = data_path + "/sol_tmm.dot";
   ofstream sol_tmm_dot;
@@ -716,19 +722,19 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
 bool
 PlannerManager::set_tidy_config()
 {
-  ObjCfg tidy_cfg;
+  utils::ObjCfg tidy_cfg;
 
   std::string  data_path= ".";
   if( !ros::param::get("/data_path", data_path) )
     ROS_WARN("Can not get /data_path, use the default value instead");
     
-  if( !read_obj_cfg(std::string(data_path+"/tidy.cfg"),&tidy_cfg) )
+  if( !utils::read_obj_cfg(std::string(data_path+"/tidy.cfg"),&tidy_cfg) )
   {
     ROS_ERROR("Can not find the tidy*.cfg file.");
     return false;
   }
   
-  for(ObjCfg::iterator i=tidy_cfg.begin(); i!=tidy_cfg.end(); ++i)
+  for(utils::ObjCfg::iterator i=tidy_cfg.begin(); i!=tidy_cfg.end(); ++i)
     movable_obj_tidy_cfg_[i->id] = *i; 
   
   return true;

@@ -38,7 +38,6 @@
 
 #include "tmm_utils.hpp"
 #include "planner_manager.hpp"
-#include "obj_cfg_rw.hpp"
 #include "utils.hpp"
 
 #include <lwpr.hh>
@@ -113,6 +112,7 @@ std::string planner_manager_path_;
 */
 std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_messy_cfg_;
 std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg_;
+std::map<std::string, arm_navigation_msgs::CollisionObject> unmovable_obj_cfg_;
 
 //! Keeps the number of samples that have been used to trained a SVR model
 size_t n_data_;
