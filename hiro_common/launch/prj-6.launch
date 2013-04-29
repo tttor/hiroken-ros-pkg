@@ -1,0 +1,86 @@
+<launch>
+  <arg name="online" default="False" />
+    <param name="online" value="$(arg online)"/>
+
+  <arg name="joint_gui" default="False" />
+
+  <arg name="path" default="/home/vektor/6.tpctran/data" />
+    <param name="base_data_path" value="$(arg path)"/>
+    <param name="data_path" value="$(arg path)"/>
+
+  <arg name="suffix" default="/run.test" />
+    <param name="suffix_data_path" value="$(arg suffix)"/>
+
+  <arg name="tidy_cfg" default="/tidy_baseline.1.cfg" />
+    <param name="tidy_cfg_filename" value="$(arg tidy_cfg)"/>
+
+  <arg name="messy_cfg" default="/messy.cfg" />
+    <param name="messy_cfg_filename" value="$(arg messy_cfg)"/>
+            
+  <arg name="mode" default="12" />
+    <param name="mode" value="$(arg mode)"/>
+
+  <arg name="n_obj" default="1" />
+    <param name="n_obj" value="$(arg n_obj)"/>    
+
+  <arg name="n_run" default="1" />
+    <param name="n_run" value="$(arg n_run)"/>    
+    
+  <arg name="runth" default="1" />
+    <param name="runth" value="$(arg runth)"/>
+
+  <!-- rbt_id must be 4 characters AND UPPER_CASE -->
+  <rosparam param="rbt_ids">['RARM:rarm_U_chest']</rosparam>        
+
+  <!-- for finding recorded task plans resulted by shop2 planner in advance -->
+  <param name="task_planner_path" value="$(find task_planner)"/>
+  
+  <group if="$(arg online)">
+    <param name="hiro_driver_path" value="$(find hiro_control)/driver/hiro" />
+    <param name="hiro_ip_addr" value="192.168.128.129" />
+    
+    <node name="hiro_machine" pkg="hiro_control" type="hiro_machine.py"/> 
+    
+    <param name="hiro_hand_driver_path" value="$(find hiro_control)/driver/hiro_hand" />
+    <param name="hiro_hand_ip_addr" value="192.168.128.130" />
+    
+    <node name="hiro_hand_machine" pkg="hiro_control" type="hiro_hand_machine.py"/> 
+  </group>
+  
+  <group unless="$(arg online)">    
+    <!-- These are parameters for joint_state_publisher -->
+    <param name="use_gui" value="$(arg joint_gui)"/>
+    <param name="rate" value="30"/>
+    <rosparam param="source_list">['joint_state_cmd','joint_state_planning']</rosparam>
+  
+    <node name="hiro_machine_sim" pkg="joint_state_publisher" type="joint_state_publisher"/> 
+  </group>
+  
+  <include file="$(find hiro_arm_navigation)/launch/hiro_arm_navigation.launch"/>
+  <node name="helper" pkg="hiro_common" type="helper" output="screen" />  
+  <node name="vis_sensor" pkg="hiro_sensor" type="vis" output="screen" />  
+  
+  <param name="publish_frequency" value="50"/>
+  <node name="hiro_tf_gen" pkg="robot_state_publisher" type="state_publisher" />
+  
+  <!-- node name="joint_action_server" pkg="hiro_control" type="hjas" output="screen" /-->
+  <node name="joint_controller" pkg="hiro_control" type="hjc" output="screen" />
+  
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find hiro_arm_navigation)/config/common_disp.vcg" />
+  <node pkg="tf" type="static_transform_publisher" name="table_tf_bc" args="0 0 0.835 0 0 0 /link_base /table 100" />
+
+  <node name="grasper" pkg="grasp_planner" type="grasper" output="screen" />
+  <node name="tasker" pkg="task_planner" type="tasker" output="screen" />
+
+  <node name="sensor_mgr" pkg="sensor_manager" type="sensor" output="screen" />  
+  <node name="planner_mgr" pkg="planner_manager" type="planner" output="screen" />
+  <node name="action_mgr" pkg="action_manager" type="actor" output="screen" />
+    
+  <node name="general_mgr" pkg="general_manager" type="general_mgr" output="screen" />
+  
+  <param name="mode_2" value="2"/>
+  <param name="grid_path" value="/home/vektor/rss-2013/data/ws_analysis/ws.25.RARM.grid"/>
+  <!--node name="ws_analyzer" pkg="ws_anal" type="ws_analyzer" output="screen" /-->
+   
+  <!--node name="learner" pkg="learning_machine" type="learner" output="screen" /-->
+</launch>
