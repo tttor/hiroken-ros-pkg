@@ -183,7 +183,8 @@ operator()(Vertex v)
   
   if( (ml_mode_==ml_util::NO_ML)or(v==goal_) )// or ml_mode=UCS, no learning
   {
-      h = 0.;
+    cerr << "(ml_mode_==ml_util::NO_ML)or(v==goal_) -> h = 0." << endl;
+    h = 0.;
   }
   else// get the heuristic from a learning machine, so far either ml_mode= ml_util::SVR_OFFLINE or ml_mode=ml_util::LWPR_ONLINE
   {
@@ -191,6 +192,7 @@ operator()(Vertex v)
     Input x;
     if ( !gpm_->get_fval(v,&x) )
     {
+      cerr << "!gpm_->get_fval(v,&x) -> h = 0." << endl;
       h = 0.;
     }
     else

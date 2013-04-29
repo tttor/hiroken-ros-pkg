@@ -31,7 +31,7 @@
 
   <!-- rbt_id must be 4 characters AND UPPER_CASE -->
   <rosparam param="rbt_ids">['RARM:rarm_U_chest,rarm','LARM:larm_U_chest,larm']</rosparam>   
-
+  
   <!-- for finding recorded task plans resulted by shop2 planner in advance -->
   <param name="task_planner_path" value="$(find task_planner)"/>
   

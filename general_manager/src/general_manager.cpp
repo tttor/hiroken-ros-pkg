@@ -118,7 +118,7 @@ sense(const std::string& path)
 
 //! sense with expected n_movable_object
 bool
-sense(const size_t& n_movable_object)
+sense(const size_t& n_movable_object,const bool& randomized_vase=false,const size_t& n_vase=1)
 {
 //  // At least 3 times, otherwise the planner_manager will miss collission object publications.
 //  for(size_t i=0; i<3; ++i)
@@ -134,10 +134,10 @@ sense(const size_t& n_movable_object)
     req.id = 1;// for sense::see
     
     req.bool_args.push_back(false);// rerun
-    req.bool_args.push_back(true);// randomized_vase_pose
+    req.bool_args.push_back(randomized_vase);
     
     req.uint_args.push_back(n_movable_object);
-    req.uint_args.push_back(1);// for n_vase
+    req.uint_args.push_back(n_vase);
     
     req.string_args.push_back(std::string());
     
@@ -243,8 +243,6 @@ bool online_;
 void
 set_instance_paths(const size_t n_obj,std::vector<std::string>* instance_paths)
 {
-  
-
   std::vector< std::list<std::string> > db;// 1st Dimension -> instance type; 2nd Dimension -> sources path
   
   std::list<std::string> a_srcpaths;
@@ -417,25 +415,37 @@ main(int argc, char **argv)
       gm.sense(std::string(base_data_path+messy_cfg_filename));
       break;
     }
-//    case 7:// SENSE-PLAN(UCS) with a test-bed messy config under the base_data_path one time only
-//    {
-//      std::string data_path;
-//      data_path = base_data_path + suffix_data_path;
-//      
-//      ros::param::set("/data_path",data_path);
-//      boost::filesystem::create_directories(data_path);
-//      
-//      // Sense
-//      gm.sense(std::string(base_data_path+messy_cfg_filename));
-//      
-//      // Plan, rerun=false
-//      ml_util::MLMode ml_mode;
-//      ml_mode = ml_util::NO_ML;
-//      
-//      gm.plan(ml_mode);// mode=1 -> UCS, no learning 
-//      
-//      break;
-//    }
+    case 7:
+    // SENSE-PLAN(UCS) with a test-bed messy config under the base_data_path one time only, aimed for debugging
+    // $ roslaunch hiro_common a.launch mode:=7 path:=? suffix:=?
+    {
+      messy_cfg_filename = "/messy.cfg";
+      tidy_cfg_filename = "/tidy.cfg";
+      
+      std::string data_path;
+      data_path = base_data_path + suffix_data_path;
+      
+      ros::param::set("/data_path",data_path);
+      boost::filesystem::create_directories(data_path);
+      boost::filesystem::copy_file( std::string(base_data_path+"/tidy.cfg"),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
+      
+      // Sense
+      gm.sense(std::string(base_data_path+messy_cfg_filename));
+      
+      // Plan, rerun=false
+      ml_util::MLMode mode = ml_util::NO_ML;
+      bool rerun = false;
+      std::string log_path;// not used in this mode
+      std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
+      std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
+      
+      if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+      {
+        ROS_ERROR("gm.plan(...): failed");
+      }
+      
+      break;
+    }
 //    case 8:// For testing (single run only) the heuristic machine::SVRegress that is trained offline and does not do incremental online learning.
 //    {
 //      std::string data_path;
@@ -596,7 +606,7 @@ main(int argc, char **argv)
     }
     case 11:
     // Run offline SVR in a batchmode, the model is updated in between search, interleave training and testing; Do runs on multiple instances.
-    // USAGE: $ roslaunch hiro_common a.launch  mode:=11 n_obj:=3 runth:=1
+    // USAGE: $ roslaunch hiro_common a.launch mode:=11 n_obj:=3 runth:=1
     {
       // Init 
       std::string run_id;
@@ -683,6 +693,46 @@ main(int argc, char **argv)
         }
       }
       
+      break;
+    }
+    case 12:
+    // For prj-6. Run pick-and-place with 1 movable object with one arm with one joint-space set
+    // USAGE: $ roslaunch hiro_common prj-6.launch n_run:=? suffix:=?
+    {
+      n_obj = 1;
+      
+      for(size_t j=0; j<(size_t)n_run; ++j)
+      {
+        std::string data_path;
+        data_path = base_data_path + suffix_data_path + "." +  boost::lexical_cast<std::string>(j);
+        ros::param::set("/data_path",data_path);
+        
+        boost::filesystem::create_directories(data_path);
+        
+        boost::filesystem::copy_file( std::string(base_data_path+tidy_cfg_filename),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
+        
+        // Sense!
+        bool randomized_vase = true;
+        size_t n_vase = 2;
+        gm.sense(n_obj,randomized_vase,n_vase);
+        
+        // Plan, rerun=false
+        ml_util::MLMode mode = ml_util::NO_ML;
+        bool rerun = false;
+        std::string log_path;// not used in this mode
+        std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
+        std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
+        
+        if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        {
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << j+1  );
+          break;
+        }
+        
+        if( ctamp_sol.empty() )
+         boost::filesystem::remove_all( boost::filesystem::path(data_path) );
+      }// for each run
+ 
       break;
     }
     default:
