@@ -2,6 +2,7 @@
 #define PLANNER_MANAGER_HPP_INCLUDED
 
 #include <ros/ros.h>
+#include <ros/package.h>
 
 #include <arm_navigation_msgs/CollisionObject.h>
 #include <arm_navigation_msgs/PlanningScene.h>
