@@ -27,8 +27,8 @@ template <typename GPMGraph,typename LearningMachine>
 class AstarVisitor: public boost::default_astar_visitor
 {
 public:
-AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode)
-: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode)
+AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode,std::string ml_hot_path)
+: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode), ml_hot_path_(ml_hot_path)
 { }
 
 template <typename Graph>
@@ -36,9 +36,16 @@ void
 examine_vertex(typename Graph::vertex_descriptor v, Graph& g) 
 {
   cerr << "Examine v= " << get(vertex_name,g,v) << endl;
+  gpm_->mark_vertex(v);// Set its color to black=examined
   
   if(v == goal_)
+  {
+    // Store the updated model for the next CTAMP attempt
+    if(  !learner_->writeBinary( std::string(ml_hot_path_+"lwpr.bin").c_str() )  )
+      std::cerr << "learner_->writeBinary()= NOT OK" << std::endl;
+      
     throw FoundGoalSignal();
+  }
 
   // Do geometric planning (grasp and motion planning) for each out-edge of this vertex v
   std::vector<typename Graph::edge_descriptor> ungraspable_edges;// invalid because no grasp/ungrasp pose as the goal pose for the motion planning
@@ -68,21 +75,15 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   if(ml_mode_==ml_util::NO_ML or ml_mode_==ml_util::SVR_OFFLINE)// Store samples for offline training
   {
     // Write samples to a libsvmdata format
-    std::string libsvmdata_path;
-    libsvmdata_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.libsvmdata";// _must_ be synch with the one in planner_manager.cpp
-    
-    std::string delta_libsvmdata_path;
-    delta_libsvmdata_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.libsvmdata";// _must_ be synch with the one in planner_manager.cpp
+    std::string libsvmdata_path = std::string(ml_hot_path_+"tr_data.libsvmdata");;
+    std::string delta_libsvmdata_path = std::string(ml_hot_path_+"delta_tr_data.libsvmdata");
     
     write_libsvm_data(samples,libsvmdata_path,std::ios::app);
     write_libsvm_data(samples,delta_libsvmdata_path,std::ios::app);
     
     // Write samples to a CSV format
-    std::string csv_path;
-    csv_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.csv";// _must_ be synch with the one in planner_manager.cpp
-
-    std::string delta_csv_path;
-    delta_csv_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.csv";// _must_ be synch with the one in planner_manager.cpp
+    std::string csv_path = std::string(ml_hot_path_+"tr_data.csv");
+    std::string delta_csv_path = std::string(ml_hot_path_+"delta_tr_data.csv");
     
     std::ofstream csv;
     csv.open( csv_path.c_str(),std::ios::app );
@@ -136,17 +137,7 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       
       ml_data_->push_back(ml_datum);
     }
-    
-    // Store the updated model
-    std::string lwpr_model_path;
-    lwpr_model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/lwpr.bin";
-    
-    if( !learner_->writeBinary(lwpr_model_path.c_str()) )
-     std::cerr << "learner_->writeBinary()= NOT OK" << std::endl;
   }
-  
-  // Set its color to black=examined
-  gpm_->mark_vertex(v);
 }
   
 template <typename Graph>
@@ -162,6 +153,7 @@ GeometricPlannerManager* gpm_;
 LearningMachine* learner_;  
 std::vector< std::vector<double> >* ml_data_;
 size_t ml_mode_;
+std::string ml_hot_path_;
 
 };
 
@@ -181,10 +173,14 @@ operator()(Vertex v)
   cerr << "Compute h(" << v << "): BEGIN" << endl;
   double h;
   
-  if( (ml_mode_==ml_util::NO_ML)or(v==goal_) )// or ml_mode=UCS, no learning
+  if(v == goal_)// or ml_mode=UCS, no learning
   {
-    cerr << "(ml_mode_==ml_util::NO_ML)or(v==goal_) -> h = 0." << endl;
+    cerr << "(v==goal_) -> h = 0." << endl;
     h = 0.;
+  }
+  else if(ml_mode_ == ml_util::NO_ML)
+  {
+    cerr << "(ml_mode_==ml_util::NO_ML) -> h = 0." << endl;
   }
   else// get the heuristic from a learning machine, so far either ml_mode= ml_util::SVR_OFFLINE or ml_mode=ml_util::LWPR_ONLINE
   {
@@ -207,6 +203,8 @@ operator()(Vertex v)
         h = yp[0] * scale_up;
       else
         h = 0.;
+        
+      cerr << "h(" << v << ")= " << h << endl;
     }
   }
 

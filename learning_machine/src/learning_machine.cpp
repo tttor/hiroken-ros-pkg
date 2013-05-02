@@ -52,14 +52,7 @@ test_srv_handle()
 bool
 create_metadata_srv_handle(learning_machine::CreateMetadata::Request& req,learning_machine::CreateMetadata::Response& res)
 {
-  // Labels are defined by the upper bound of planning horizon, here: 5obj. TODO make it not-hardcoded
-  std::string tmm_dot_path;
-  tmm_dot_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/vanilla_tmm.5obj.dot";
-  
-  size_t n_obj;
-  n_obj = 5;
-  
-  return create_metadata(tmm_dot_path,n_obj);
+  return create_metadata();
 }
 
 private:
@@ -68,13 +61,26 @@ private:
   Create metadata file that contains input-feature names a.k.a labels.
   Should be rarely used.
   
-  \param tmm_dot_path
+  Labels are defined by the upper bound of planning horizon, here: 5obj.
+  
+  \param tmm_dot_path used to extract edge labels
   \param &n number of movable objects
 */
 bool
-create_metadata(const std::string& tmm_dot_path, const size_t& n_obj)
+create_metadata()
 {
   ROS_DEBUG("Creating metadata...");
+  
+  // Init 
+  std::string tmm_dot_path;
+  tmm_dot_path = "/home/vektor/rss-2013/data/with_v.4.2/ref/vanilla_tmm.5obj.dot";// TODO make it not-hardcoded 
+  
+  std::string metadata_path;
+  metadata_path = "/home/vektor/rss-2013/data/with_v.4.2/ref/metadata.csv";
+  
+  size_t n_obj;
+  n_obj = 5;
+  
   std::set<std::string> labels;
   
   // Read the referenced tmm  
@@ -139,9 +145,7 @@ create_metadata(const std::string& tmm_dot_path, const size_t& n_obj)
   labels.insert("joint_lwrist_pitch");
   labels.insert("joint_lwrist_roll");
   
-  // Write the metadata TODO make it non-hardcoded
-  std::string metadata_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/metadata.csv";
-  
+  // Write the metadata 
   std::ofstream metadata_out;
   metadata_out.open(metadata_path.c_str());// overwrite
   

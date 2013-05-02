@@ -11,6 +11,11 @@
 #include <string>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
+
+#include <boost/random/mersenne_twister.hpp>
+#include <boost/random/uniform_int.hpp>
+#include <boost/random/variate_generator.hpp>
 
 namespace utils
 {
@@ -22,6 +27,8 @@ static const double B_RADIUS = 0.065/2.;
 static const double B_HEIGHT = 0.123;
 static const double C_RADIUS = 0.065/2.;
 static const double C_HEIGHT = 0.167;
+
+static boost::mt19937 g_rng( std::time(0) );
 
 typedef std::vector<arm_navigation_msgs::CollisionObject> ObjCfg;
 
@@ -205,6 +212,147 @@ print_robot_state(const trajectory_msgs::JointTrajectory& trj,const size_t& ith_
   {
     cout << trj.joint_names.at(i) << "= " << trj.points.at(ith_point).positions.at(i) << endl;
   }
+}
+
+//! Obtain selected instances as _TEST_ beds
+bool
+get_instance_paths(const boost::filesystem::path& path,const std::string& inst_type,std::vector<std::string>* inst_paths)
+{
+  using namespace std;
+  
+  if( !exists(path) or !is_directory(path) )
+  {
+    cerr << "!exists(path) or !is_directory(path)" << endl;
+    return false;
+  }
+
+  bool specific;
+  if( !strcmp(inst_type.c_str(),std::string("0obj").c_str()) )
+    specific = false;
+  else
+    specific = true;
+  
+  boost::filesystem::directory_iterator end_itr; // default construction yields past-the-end
+  for ( boost::filesystem::directory_iterator itr(path);itr != end_itr; ++itr )
+  {
+    if ( is_directory(itr->status()) )
+    {
+      std::string inst_path;
+      inst_path = itr->path().string();
+      
+      if(!specific)
+      {
+        inst_paths->push_back(inst_path);
+      }
+      else
+      {
+        std::vector<std::string> inst_path_parts;
+        boost::split( inst_path_parts,inst_path,boost::is_any_of("/") );// Split e.g. /home/vektor/rss-2013/data/with_v.4.2/baseline/run.1obj.20130430a.1
+        
+        std::vector<std::string> inst_path_subparts;
+        boost::split( inst_path_subparts,inst_path_parts.back(),boost::is_any_of(".") );
+        if(inst_path_subparts.at(0).size() == 0) return false;
+        
+        std::string local_inst_type;
+        local_inst_type = inst_path_subparts.at(1);
+        
+        if( !strcmp(local_inst_type.c_str(),inst_type.c_str()) )
+          inst_paths->push_back(inst_path);
+      }
+    }
+  }
+
+  return true;
+}
+
+//! Randomize instances, important because the data order matters as it influences how the model is updated; works like randperm() in matlab
+void
+randomize(std::vector<std::string>* inst_paths)
+{
+  if (inst_paths->empty() )
+    return;
+
+  boost::uniform_int<> dist( 0,inst_paths->size()-1 ) ;
+  boost::variate_generator< boost::mt19937&, boost::uniform_int<> > rnd(g_rng,dist);
+
+  std::vector<size_t> idxes;// Store indexes of the randomized instance order
+  for(size_t i=0; i<inst_paths->size(); ++i)
+  {
+    size_t idx;
+    bool already;
+    
+    do
+    {
+      already = false;
+      
+      idx = rnd();
+      
+      std::vector<size_t>::iterator it;
+      it = std::find(idxes.begin(),idxes.end(),idx);
+      
+      if(it != idxes.end())
+        already = true;
+    }
+    while(already);
+    
+    idxes.push_back(idx);
+  }
+  
+  std::vector<std::string> tmp_inst_paths;
+  tmp_inst_paths = *inst_paths;
+  for(size_t i=0; i<tmp_inst_paths.size(); ++i)
+    inst_paths->at(i) = tmp_inst_paths.at(idxes.at(i));
+}
+
+void
+create_makepngsh(const std::string& dir_path)
+{
+  std::ofstream sh;
+  sh.open(std::string(dir_path+"/make_png.sh").c_str());
+  
+  sh << "dot -Tpng tmm.dot -o tmm.png" << std::endl;
+  sh << "dot -Tpng vanilla_tmm.dot -o vanilla_tmm.png" << std::endl;  
+  sh << "dot -Tpng fancy_tmm.dot -o fancy_tmm.png" << std::endl;
+  sh << "dot -Tpng task_graph.dot -o task_graph.png" << std::endl;
+  sh << "dot -Tpng sol_tmm.dot -o sol_tmm.png" << std::endl;
+  
+  sh.close();
+}
+
+void
+create_makepngsh(const std::string& src_dir_path,const std::string& dir_path)
+{
+  boost::filesystem::copy_file( std::string(src_dir_path+"/make_png.sh"),std::string(dir_path+"/make_png.sh"),boost::filesystem::copy_option::overwrite_if_exists );  
+}
+
+void
+write_log(const std::vector< std::pair< std::string,std::vector<double> > >& log,const std::string& path)
+{
+  std::ofstream log_out;
+  log_out.open(path.c_str());
+  
+  for(size_t i=0; i<log.size(); ++i)
+  {
+    log_out << log.at(i).first;
+    if(i < (log.size()-1)) log_out << ",";
+  }
+  log_out << std::endl;
+              
+  for(size_t i=0; i<log.size(); ++i)
+  {
+    log_out << log.at(i).second.at(0);// write n_samples
+    if(i < (log.size()-1)) log_out << ",";
+  }
+  log_out << std::endl;
+    
+  for(size_t i=0; i<log.size(); ++i)
+  {
+    log_out << log.at(i).second.at(1);// write number of pairs of (cost-to-go vs. est. cost-to-go), also indicates the depth of solution
+    if(i < (log.size()-1)) log_out << ",";
+  }
+  log_out << std::endl;
+      
+  log_out.close();
 }
 
 }// namespace utils
