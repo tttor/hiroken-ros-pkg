@@ -208,11 +208,12 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
   std::string common_id = "unmovable.VASE";
 
   // Randomize the poses and the shape of each vase
-  for(size_t i=0; i<n; ++i)
+  for(size_t i=0; i<n; ++i) 
   {
     // Init
     std::string id = std::string( common_id+boost::lexical_cast<std::string>(i+1) );
     
+    // Randomize
     double r,h;
     double x,y,z;
     tf::Quaternion q = tf::createQuaternionFromRPY(0.,0.,0.);// The orientation is fixed at UPRIGHT    
@@ -225,7 +226,8 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
       x = VASE_X;
       y = VASE_Y;
       
-      break;// only one vase if not randomized
+      // Just to plot this vase in cc_img_
+      is_in_collision(x,y,0.,0.,r,h,&cc_img_);
     }
     else
     {
@@ -258,12 +260,10 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
         double r_here;
         r_here = sqrt( pow(x,2)+pow(y,2) );
         
-        // TODO 3D collision check between the vase and the robot
-        
         if( (r_here < (TABLE_RADIUS-utils::B_HEIGHT)) and !is_in_collision(x,y,0.,0.,r,h,&cc_img_) )
-        {
           break;
-        }
+        
+        // TODO 3D collision check between the vase and the robot
       }
     }
     
@@ -275,6 +275,8 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
                   x, y, z, 
                   q.x(), q.y(), q.z(), q.w(),
                   &obj_cfg_ );
+    
+    if(!randomized) break;// only one vase can be spawned if not randomized
   }// end of: FOR each ordered VASE
  
   return true;

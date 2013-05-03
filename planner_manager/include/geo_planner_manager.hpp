@@ -186,11 +186,10 @@ plan(TMMEdge e)
   // Reset the planning environment
   reset_planning_env();
   
-  // Sum up
-  double planning_time;
+  // Sum up + Put the best motion plan of this edge e and its geo. planning cost
+  double planning_time;// refers to motion_planning + grasp planning time
   planning_time = (ros::Time::now()-planning_begin).toSec();  
-    
-  // Put the best motion plan of this edge e and its geo. planning cost
+
   put( edge_plan,pm_->tmm_,e,plan );
   put( edge_planstr,pm_->tmm_,e,get_planstr(plan) );
   put( edge_weight,pm_->tmm_,e,cost.total()+iter_cost );
@@ -290,7 +289,7 @@ get_samples_online(TMMVertex v,Data* samples)
 //      ROS_DEBUG_STREAM("e(" << get(vertex_name,tmm,source(*i,tmm)) << "," << get(vertex_name,tmm,target(*i,tmm)) << "), ");
 
     std::string metadata_path;
-    metadata_path = "/home/vektor/rss-2013/data/ml_data/metadata.csv";
+    metadata_path = "/home/vektor/rss-2013/data/ref/metadata.csv";
     
     DataCollector<TaskMotionMultigraph> dc;
     dc.get_samples(hot_path,tmm,metadata_path,samples);
@@ -334,7 +333,7 @@ get_fval(TMMVertex v,Input* in)
     
   // Extract feature values from the estimated optimal-solution path, which is as the heuristic path
   std::string metadata_path;
-  metadata_path = "/home/vektor/rss-2013/data/ml_data/metadata.csv";
+  metadata_path = "/home/vektor/rss-2013/data/ref/metadata.csv";
 
   DataCollector<TaskMotionMultigraph> dc;
   bool success;
@@ -1255,6 +1254,7 @@ set_robot_state(const TMMVertex& v)
     ROS_WARN("Can not get /data_path, use the default value instead");
         
 //  ROS_DEBUG_STREAM("Try to publish vertex_jstates. On " << data_path);
+  std::cerr << "Publishing vertex_jstates .";
   bool passed = false;
   do
   {
@@ -1269,7 +1269,7 @@ set_robot_state(const TMMVertex& v)
     ros::service::waitForService("/environment_server/get_robot_state");
     ros::ServiceClient get_rbt_state_client = pm_->nh_.serviceClient<arm_navigation_msgs::GetRobotState>("/environment_server/get_robot_state");
     
-    ROS_DEBUG("get_rbt_state_client.call(): BEGIN");
+//    ROS_DEBUG("get_rbt_state_client.call(): BEGIN");
     if( !get_rbt_state_client.call(req, res) )
     { 
       ROS_WARN("Call to /environment_server/get_robot_state: FAILED");
@@ -1289,7 +1289,9 @@ set_robot_state(const TMMVertex& v)
         
         if( jstates.position.at(j-jstates.name.begin()) != res.robot_state.joint_state.position.at(ii-res.robot_state.joint_state.name.begin()) )
         {
-          ROS_DEBUG("joint_states_cmd_pub_.publish(): FAILED");
+//          ROS_DEBUG("joint_states_cmd_pub_.publish(): FAILED");
+          std::cerr << ".";
+          
           passed = false;
           break;
         }
@@ -1297,6 +1299,7 @@ set_robot_state(const TMMVertex& v)
     }
   }
   while(!passed);
+  std::cerr << std::endl;
   ROS_DEBUG("set_planning_env: robot_state published");
   
   return true;
