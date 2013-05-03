@@ -219,17 +219,21 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   }
   
   // Open up log files
+  // The "perf.log.csv" is a singe liner text file containing 
+  // (1)CTAMP_SearchTime,(2)total_mp_time,(3)#ExpandedVertices,(4)#Vertices,(5)SolPathCost,(6)#Vertices in solution path
   std::ofstream perf_log;
   perf_log.open(std::string(data_path+"/perf.log").c_str());
   
   std::ofstream csv_perf_log;
   csv_perf_log.open(std::string(data_path+"/perf.log.csv").c_str());
+  
+  
 
   // ml-related data keeper
   std::vector< std::vector<double> > ml_data;
 
-  std::string model_path;// Used only in ml_util::SVR_OFFLINE mode
-  model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/svm.libsvmmodel";
+  std::string ml_pkg_path = ros::package::getPath("learning_machine");
+  std::string ml_hot_path = std::string(ml_pkg_path+"/data/hot/");
   
   // Search 
   GeometricPlannerManager gpm(this);
@@ -258,12 +262,6 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
           search_ml_mode = ml_mode;
           
         // SVR from libsvm
-        std::string te_data_path;// for prediction using SVM
-        te_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/te_data.libsvmdata";
-
-        std::string fit_out_path;// for prediction using SVM
-        fit_out_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
-        
         svr_max_n_attr_ = 100;
         SVM_Object learner(svr_model_,svr_max_n_attr_);
 
@@ -271,7 +269,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         astar_search( tmm_
                     , tmm_root_
                     , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_ml_mode)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,search_ml_mode) )
+                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,search_ml_mode,ml_hot_path) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -281,17 +279,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       case ml_util::LWPR_ONLINE:
       {
         ROS_DEBUG("learner= LWPR");// LWPR from Edinburg Univ.
-        
-        std::string model_path;
-        model_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/lwpr.bin";
-                
-        LWPR_Object learner( model_path.c_str() );
+        LWPR_Object learner( std::string(ml_hot_path+"lwpr.bin").c_str() );
         
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
                     , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&learner,ml_mode)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode) )
+                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -309,19 +303,21 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   {
     ROS_INFO("GOAL_FOUND.");
     
-    // Get elapsed time for planning
+    // Get elapsed time for planning that is represented by the seach process
     double planning_time;
     planning_time = (ros::Time::now()-planning_begin).toSec();
     
     cout << "CTAMP_SearchTime= " << planning_time << endl;
-    perf_log << "CTAMP_SearchTime=" << planning_time << endl;
+    perf_log << "CTAMP_SearchTime=" << planning_time << endl;// idx=0
     csv_perf_log << planning_time << ",";
     
-    // Get #expanded vertices
+    // Get #expanded vertices + total_mp_time
+    // The total_mp_time is the sum of (so that TOTAL) motion planning time for each out-edges.
+    // All time used by other processes in a vertex expansion is included in the planning_time (which holds the overall time for search)
     size_t n_expvert = 0;
     boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
 
-    double expansion_time = 0.;
+    double total_mp_time = 0.;
       
     for(boost::tie(vi,vi_end) = vertices(tmm_); vi!=vi_end; ++vi)
     {
@@ -333,7 +329,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
         for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
         {
-          expansion_time += get(edge_mptime,tmm_,*oei);
+          total_mp_time += get(edge_mptime,tmm_,*oei);
         }
       }
       else
@@ -348,17 +344,17 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
     }
     
-    cout << "expansion_time= " << expansion_time << endl;
-    perf_log << "expansion_time=" << expansion_time << endl;
-    csv_perf_log << expansion_time << ",";
+    cout << "total_mp_time= " << total_mp_time << endl;
+    perf_log << "total_mp_time=" << total_mp_time << endl;
+    csv_perf_log << total_mp_time << ",";// idx=1
     
     cout << "#ExpandedVertices= " << n_expvert << endl;
     perf_log << "#ExpandedVertices=" << n_expvert << endl;
-    csv_perf_log << n_expvert << ",";
+    csv_perf_log << n_expvert << ",";// idx=2
     
     cout << "#Vertices= " << num_vertices(tmm_) << endl;
     perf_log << "#Vertices=" << num_vertices(tmm_) << endl;
-    csv_perf_log << num_vertices(tmm_) << ",";
+    csv_perf_log << num_vertices(tmm_) << ",";// idx=3
         
     // Convert from vector to list to enable push_front()
     std::list<TMMVertex> sol_path_vertex_list;
@@ -434,12 +430,15 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     cout << endl;
     perf_log << endl;
     
-    // TODO confirming step
+    // Confirming step
     if(recheck)
     {
       cout << "SolPathCost= " << distances[tmm_goal_] << endl;
       perf_log << "SolPathCost=" << distances[tmm_goal_] << endl;
-      csv_perf_log << distances[tmm_goal_];
+      csv_perf_log << distances[tmm_goal_] << ",";// idx=4
+      
+      // Write the number of vertices in the sol_path
+      csv_perf_log << sol_path.size() + 1 ;// idx=5
     }
     else
     {
@@ -455,52 +454,18 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
   }// End of: catch(FoundGoalSignal fgs) 
   
-  if(ml_mode==ml_util::SVR_OFFLINE)
+  if(ml_mode==ml_util::SVR_OFFLINE)// Do interleaved training
   {
     // Initialize
-    std::string tr_data_path;// is appended with samples obtained from one CTAMP instance to another
-    tr_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/tr_data.libsvmdata";// _must_ be synch with the one in astar_utils.hpp
+    std::string tr_data_path = std::string(ml_hot_path+"tr_data.libsvmdata");// is appended with samples obtained from one CTAMP instance to another
+    std::string delta_tr_data_path = std::string(ml_hot_path+"delta_tr_data.libsvmdata");// is appended with samples obtained from one CTAMP instance to another
+    std::string delta_csv_tr_data_path = std::string(ml_hot_path+"delta_tr_data.csv");
+    std::string tmp_data_path  = std::string(ml_hot_path+"fit.out");// _must_ be always overwritten
     
-    std::string delta_tr_data_path;// is appended with samples obtained from one CTAMP instance to another
-    delta_tr_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.libsvmdata";// _must_ be synch with the one in astar_utils.hpp
-
-    std::string delta_csv_tr_data_path;
-    delta_csv_tr_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/delta_tr_data.csv";// _must_ be synch with the one in astar_utils.hpp
-          
-    std::string tmp_data_path;// _must_ be always overwritten
-    tmp_data_path = "/home/vektor/hiroken-ros-pkg/learning_machine/data/hot/fit.out";
-    
-    // Benchmark:Obtain testing data error
-    // :the different between the fitting and the true value of testing data (which have _not_ been used to train the model)
-    std::vector<double> y_fit_te;
-    
-    if(n_ctamp_attempt_ > 0)
+    SVMModel old_svr_model;
+    if(n_ctamp_attempt_ > 0) // If not the first attemp (at least the model has been updated once)
     {
-      ROS_DEBUG("Obtaining te_err ...");
-
-      FILE *input;// for holding tr_data
-      input = fopen(delta_tr_data_path.c_str(),"r");
-      if(input == NULL)
-      {
-        std::cerr << "can't open input file= " << delta_tr_data_path << std::endl;
-        return false;
-      }
-
-      FILE *output;// for holding fitting outputs          
-      output = fopen(tmp_data_path.c_str(),"w");// overwrite
-      if(output == NULL)
-      {
-        std::cerr << "can't open output file= " << tmp_data_path << std::endl;
-        return false;
-      }
-
-      SVMNode* x;// for inputs 
-      x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));
-      
-      libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
-      free(x); fclose(input); fclose(output);
-
-      y_fit_te = ml_util::get_y_fit(tmp_data_path);// Retrieve y_fit from the tmp file
+      old_svr_model = *svr_model_;
     }
     
     // Interleave SVR training, building the model from scratch will all stored data
@@ -530,21 +495,25 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     // Benchmark: obtain prediction error with tr_data + put data into ml_data
     // Note that the svm model used to predict is trained/updated using a bunch of data (samples obtained from this CTAMP instance), 
     // instead of being trained one-by-one (which wil take long time)
-    std::vector<double> y_fit_tr;
-    
     if(n_ctamp_attempt_ > 0)
     {
-      ROS_DEBUG("Obtaining tr_err ...");
+      ROS_DEBUG_STREAM("Obtaining te_err anf tr_err for n_samples= " << utils::get_n_lines(delta_tr_data_path));
       
-      FILE *input;// for holding tr_data
-      input = fopen(delta_tr_data_path.c_str(),"r");
+      std::vector<double> y_true;
+      y_true = ml_util::get_y_true(delta_csv_tr_data_path);
+      
+      FILE *input;
+      FILE *output;
+      SVMNode* x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));// for inputs 
+      
+      // For te_err
+      input = fopen(delta_tr_data_path.c_str(),"r");// Use delta_tr_data
       if(input == NULL)
       {
         std::cerr << "can't open input file= " << delta_tr_data_path << std::endl;
         return false;
       }
-
-      FILE *output;// for holding fitting outputs          
+      
       output = fopen(tmp_data_path.c_str(),"w");// overwrite
       if(output == NULL)
       {
@@ -552,16 +521,32 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         return false;
       }
       
-      SVMNode* x;// for inputs 
-      x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));
+      libsvm_predict(&old_svr_model,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
+      fclose(input); fclose(output);
+      
+      std::vector<double> y_fit_te;
+      y_fit_te = ml_util::get_y_fit(tmp_data_path); 
+      
+      // For tr_err
+      input = fopen(delta_tr_data_path.c_str(),"r");// Use delta_tr_data
+      if(input == NULL)
+      {
+        std::cerr << "can't open input file= " << delta_tr_data_path << std::endl;
+        return false;
+      }
+      
+      output = fopen(tmp_data_path.c_str(),"w");// overwrite
+      if(output == NULL)
+      {
+        std::cerr << "can't open output file= " << tmp_data_path << std::endl;
+        return false;
+      }
       
       libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
-      free(x); fclose(input); fclose(output);      
+      fclose(input); fclose(output); free(x); 
       
-      y_fit_tr = ml_util::get_y_fit(tmp_data_path);// Retrieve y_fit from the tmp file
-
-      std::vector<double> y_true;
-      y_true = ml_util::get_y_true(delta_csv_tr_data_path);
+      std::vector<double> y_fit_tr;
+      y_fit_tr = ml_util::get_y_fit(tmp_data_path); 
 
       // Put the content to variables to make it consistent with the one in ml_util::LWPR_ONLINE
       if( (y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size()) )
@@ -570,22 +555,26 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
       else
       {
-        ROS_ERROR("(y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size())): FALSE");
+        ROS_ERROR_STREAM("y_true.size()= " << y_true.size());
+        ROS_ERROR_STREAM("y_fit_te.size()= " << y_fit_te.size());
+        ROS_ERROR_STREAM("y_fit_tr.size()= " << y_fit_tr.size());
+        
         return false;
       }
       
       for(size_t i=0; i < y_true.size(); ++i)
       {
         std::vector<double> ml_datum;
+        ml_datum.resize(4);// Elements: see below
         
-        ml_datum.push_back( y_fit_te.at(i) );// 0
-        ml_datum.push_back( y_fit_tr.at(i) );// 1
-        ml_datum.push_back( y_true.at(i) );// 2
-        ml_datum.push_back(n_data_);// 3: number of samples that are used to trained so far.
+        ml_datum.at(0) = y_fit_te.at(i);
+        ml_datum.at(1) = y_fit_tr.at(i);
+        ml_datum.at(2) = y_true.at(i);
+        ml_datum.at(3) = n_data_;// number of samples that are used to trained the SVR model so far.
         
         ml_data.push_back(ml_datum);
       }
-    }
+    }// if(n_ctamp_attempt_ > 0)
         
     // Remove deltas after every te_err and tr_err retrieval; clear after one ctamp attempt
     boost::filesystem::remove( boost::filesystem::path(delta_tr_data_path) );
@@ -604,9 +593,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
 //    ROS_DEBUG_STREAM("ml_data.size()= " << ml_data.size());
     for(std::vector< std::vector<double> >::const_iterator i=ml_data.begin(); i!=ml_data.end(); ++i)
     {
-      ml_log << i->at(0) << "," << i->at(1) << ","<< i->at(2) << "," << i->at(3) << std::endl;
+      ml_log << i->at(0) << "," 
+             << i->at(1) << "," 
+             << i->at(2) << "," 
+             << i->at(3) << std::endl;
     }
-
     ml_log.close();
     
     // Write log for heuristics vs true distance 
@@ -641,11 +632,16 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     h_log.close();
 
     // Store ctamp log for this ctamp instance
-    if( !ml_data.empty() )
-      ctamp_log->push_back( ml_data.back().at(3) );// at idx=0, note n_samples is casted from size_t to double
-
-    ctamp_log->push_back( n_hcomp ); // at idx=1, note n_samples is casted from size_t to double  
-  }
+    size_t n_samples;
+    if( !ml_data.empty() ) 
+      n_samples = ml_data.back().at(3);// at idx=0, note n_samples is casted from size_t to double
+    else
+      n_samples = 0;
+    
+    ctamp_log->resize(2);// Elements: n_samples and n_hcomp
+    ctamp_log->at(0) = n_samples;
+    ctamp_log->at(1) = n_hcomp;
+  }// if(ml_mode==ml_util::SVR_OFFLINE or ml_mode==ml_util::LWPR_ONLINE)
 
   // Write a fancy planned TMM
   std::string p_tmm_dot_path = data_path + "/fancy_tmm.dot";

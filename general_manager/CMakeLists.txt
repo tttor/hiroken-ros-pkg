@@ -15,6 +15,9 @@ rosbuild_find_ros_package(learning_machine)
 include_directories(${learning_machine_PACKAGE_PATH}/include)
 #include_directories(${learning_machine_PACKAGE_PATH}/libsvm-3.16)
 
+rosbuild_find_ros_package(hiro_common)
+include_directories(${hiro_common_PACKAGE_PATH}/include)
+
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
@@ -33,4 +36,4 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #rosbuild_add_boost_directories()
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 rosbuild_add_executable(general_mgr src/general_manager.cpp)
-target_link_libraries(general_mgr boost_filesystem boost_system lwpr)
+target_link_libraries(general_mgr boost_filesystem boost_system lwpr log4cxx)
