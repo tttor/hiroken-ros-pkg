@@ -520,7 +520,7 @@ main(int argc, char **argv)
     }
     case 11:
     // Run offline SVR in a batchmode, the model is updated in between search, interleave training and testing; Do runs on multiple instances.
-    // USAGE: $ roslaunch hiro_common a.launch mode:=11 n_obj:=3 runth:=1
+    // USAGE:$ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.2/baseline n_obj:=1 n_run:=100 runth:=1
     {
       // Init  
       std::string run_id;
@@ -579,14 +579,14 @@ main(int argc, char **argv)
           ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(idx) );
           return false;
         }
-        
+
         mode11run_log.push_back( std::make_pair(base_data_path,ctamp_log) );
         utils::create_makepngsh(base_data_path,data_path);
       }// for each instance
       
       // Write this mode11run logs
       utils::write_log(mode11run_log,std::string(log_path+".log"));
-
+      
       break;
     }
     case 12:
