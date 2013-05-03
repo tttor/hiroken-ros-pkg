@@ -454,7 +454,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
   }// End of: catch(FoundGoalSignal fgs) 
   
-  if(ml_mode==ml_util::SVR_OFFLINE)
+  if(ml_mode==ml_util::SVR_OFFLINE)// Do interleaved training
   {
     // Initialize
     std::string tr_data_path = std::string(ml_hot_path+"tr_data.libsvmdata");// is appended with samples obtained from one CTAMP instance to another
@@ -462,37 +462,10 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     std::string delta_csv_tr_data_path = std::string(ml_hot_path+"delta_tr_data.csv");
     std::string tmp_data_path  = std::string(ml_hot_path+"fit.out");// _must_ be always overwritten
     
-    // Benchmark:Obtain testing data error
-    // :the different between the fitting and the true value of testing data (which have _not_ been used to train the model)
-    std::vector<double> y_fit_te;
-    
-    if(n_ctamp_attempt_ > 0)
+    SVMModel old_svr_model;
+    if(n_ctamp_attempt_ > 0) // If not the first attemp (at least the model has been updated once)
     {
-      ROS_DEBUG("Obtaining te_err ...");
-
-      FILE *input;// for holding tr_data
-      input = fopen(delta_tr_data_path.c_str(),"r");
-      if(input == NULL)
-      {
-        std::cerr << "can't open input file= " << delta_tr_data_path << std::endl;
-        return false;
-      }
-
-      FILE *output;// for holding fitting outputs          
-      output = fopen(tmp_data_path.c_str(),"w");// overwrite
-      if(output == NULL)
-      {
-        std::cerr << "can't open output file= " << tmp_data_path << std::endl;
-        return false;
-      }
-
-      SVMNode* x;// for inputs 
-      x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));
-      
-      libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
-      free(x); fclose(input); fclose(output);
-
-      y_fit_te = ml_util::get_y_fit(tmp_data_path);// Retrieve y_fit from the tmp file
+      old_svr_model = *svr_model_;
     }
     
     // Interleave SVR training, building the model from scratch will all stored data
@@ -522,21 +495,25 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     // Benchmark: obtain prediction error with tr_data + put data into ml_data
     // Note that the svm model used to predict is trained/updated using a bunch of data (samples obtained from this CTAMP instance), 
     // instead of being trained one-by-one (which wil take long time)
-    std::vector<double> y_fit_tr;
-    
     if(n_ctamp_attempt_ > 0)
     {
-      ROS_DEBUG("Obtaining tr_err ...");
+      ROS_DEBUG_STREAM("Obtaining te_err anf tr_err for n_samples= " << utils::get_n_lines(delta_tr_data_path));
       
-      FILE *input;// for holding tr_data
-      input = fopen(delta_tr_data_path.c_str(),"r");
+      std::vector<double> y_true;
+      y_true = ml_util::get_y_true(delta_csv_tr_data_path);
+      
+      FILE *input;
+      FILE *output;
+      SVMNode* x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));// for inputs 
+      
+      // For te_err
+      input = fopen(delta_tr_data_path.c_str(),"r");// Use delta_tr_data
       if(input == NULL)
       {
         std::cerr << "can't open input file= " << delta_tr_data_path << std::endl;
         return false;
       }
-
-      FILE *output;// for holding fitting outputs          
+      
       output = fopen(tmp_data_path.c_str(),"w");// overwrite
       if(output == NULL)
       {
@@ -544,16 +521,32 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         return false;
       }
       
-      SVMNode* x;// for inputs 
-      x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));
+      libsvm_predict(&old_svr_model,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
+      fclose(input); fclose(output);
+      
+      std::vector<double> y_fit_te;
+      y_fit_te = ml_util::get_y_fit(tmp_data_path); 
+      
+      // For tr_err
+      input = fopen(delta_tr_data_path.c_str(),"r");// Use delta_tr_data
+      if(input == NULL)
+      {
+        std::cerr << "can't open input file= " << delta_tr_data_path << std::endl;
+        return false;
+      }
+      
+      output = fopen(tmp_data_path.c_str(),"w");// overwrite
+      if(output == NULL)
+      {
+        std::cerr << "can't open output file= " << tmp_data_path << std::endl;
+        return false;
+      }
       
       libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
-      free(x); fclose(input); fclose(output);      
+      fclose(input); fclose(output); free(x); 
       
-      y_fit_tr = ml_util::get_y_fit(tmp_data_path);// Retrieve y_fit from the tmp file
-
-      std::vector<double> y_true;
-      y_true = ml_util::get_y_true(delta_csv_tr_data_path);
+      std::vector<double> y_fit_tr;
+      y_fit_tr = ml_util::get_y_fit(tmp_data_path); 
 
       // Put the content to variables to make it consistent with the one in ml_util::LWPR_ONLINE
       if( (y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size()) )
@@ -562,22 +555,26 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
       else
       {
-        ROS_ERROR("(y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size())): FALSE");
+        ROS_ERROR_STREAM("y_true.size()= " << y_true.size());
+        ROS_ERROR_STREAM("y_fit_te.size()= " << y_fit_te.size());
+        ROS_ERROR_STREAM("y_fit_tr.size()= " << y_fit_tr.size());
+        
         return false;
       }
       
       for(size_t i=0; i < y_true.size(); ++i)
       {
         std::vector<double> ml_datum;
+        ml_datum.resize(4);// Elements: see below
         
-        ml_datum.push_back( y_fit_te.at(i) );// 0
-        ml_datum.push_back( y_fit_tr.at(i) );// 1
-        ml_datum.push_back( y_true.at(i) );// 2
-        ml_datum.push_back(n_data_);// 3: number of samples that are used to trained so far.
+        ml_datum.at(0) = y_fit_te.at(i);
+        ml_datum.at(1) = y_fit_tr.at(i);
+        ml_datum.at(2) = y_true.at(i);
+        ml_datum.at(3) = n_data_;// number of samples that are used to trained the SVR model so far.
         
         ml_data.push_back(ml_datum);
       }
-    }
+    }// if(n_ctamp_attempt_ > 0)
         
     // Remove deltas after every te_err and tr_err retrieval; clear after one ctamp attempt
     boost::filesystem::remove( boost::filesystem::path(delta_tr_data_path) );
@@ -596,9 +593,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
 //    ROS_DEBUG_STREAM("ml_data.size()= " << ml_data.size());
     for(std::vector< std::vector<double> >::const_iterator i=ml_data.begin(); i!=ml_data.end(); ++i)
     {
-      ml_log << i->at(0) << "," << i->at(1) << ","<< i->at(2) << "," << i->at(3) << std::endl;
+      ml_log << i->at(0) << "," 
+             << i->at(1) << "," 
+             << i->at(2) << "," 
+             << i->at(3) << std::endl;
     }
-
     ml_log.close();
     
     // Write log for heuristics vs true distance 
@@ -633,11 +632,16 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     h_log.close();
 
     // Store ctamp log for this ctamp instance
-    if( !ml_data.empty() )
-      ctamp_log->push_back( ml_data.back().at(3) );// at idx=0, note n_samples is casted from size_t to double
-
-    ctamp_log->push_back( n_hcomp ); // at idx=1, note n_samples is casted from size_t to double  
-  }
+    size_t n_samples;
+    if( !ml_data.empty() ) 
+      n_samples = ml_data.back().at(3);// at idx=0, note n_samples is casted from size_t to double
+    else
+      n_samples = 0;
+    
+    ctamp_log->resize(2);// Elements: n_samples and n_hcomp
+    ctamp_log->at(0) = n_samples;
+    ctamp_log->at(1) = n_hcomp;
+  }// if(ml_mode==ml_util::SVR_OFFLINE or ml_mode==ml_util::LWPR_ONLINE)
 
   // Write a fancy planned TMM
   std::string p_tmm_dot_path = data_path + "/fancy_tmm.dot";

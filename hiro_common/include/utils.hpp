@@ -328,31 +328,57 @@ create_makepngsh(const std::string& src_dir_path,const std::string& dir_path)
 void
 write_log(const std::vector< std::pair< std::string,std::vector<double> > >& log,const std::string& path)
 {
+  using namespace std;
+  
   std::ofstream log_out;
   log_out.open(path.c_str());
-  
+
   for(size_t i=0; i<log.size(); ++i)
   {
-    log_out << log.at(i).first;
+    log_out << log.at(i).first;// write the base path
     if(i < (log.size()-1)) log_out << ",";
   }
   log_out << std::endl;
-              
+
   for(size_t i=0; i<log.size(); ++i)
   {
     log_out << log.at(i).second.at(0);// write n_samples
     if(i < (log.size()-1)) log_out << ",";
   }
   log_out << std::endl;
-    
+      
   for(size_t i=0; i<log.size(); ++i)
   {
     log_out << log.at(i).second.at(1);// write number of pairs of (cost-to-go vs. est. cost-to-go), also indicates the depth of solution
     if(i < (log.size()-1)) log_out << ",";
   }
   log_out << std::endl;
-      
+        
   log_out.close();
+}
+
+//! Src: http://stackoverflow.com/questions/843154/fastest-way-to-find-the-number-of-lines-in-a-text-c
+size_t
+get_n_lines(const std::string& path)
+{
+  using namespace std;
+  
+  const int SZ = 1024 * 1024;
+  std::vector <char> buff( SZ );
+  
+  ifstream ifs(path.c_str());
+  size_t n = 0;
+  
+  ifs.read( &buff[0], buff.size() );
+  int sz = ifs.gcount();
+  
+  const char* p = &buff[0];
+  for(int i = 0; i < sz; i++ ) 
+  {
+    if ( p[i] == '\n' ) n++;
+  }
+  
+  return n;
 }
 
 }// namespace utils
