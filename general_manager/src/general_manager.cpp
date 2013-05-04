@@ -434,7 +434,7 @@ main(int argc, char **argv)
     {
       // Init
       std::string run_id;
-      run_id = "/h.onlwpr." + boost::lexical_cast<string>(n_obj) + "obj.mode10eps" + boost::lexical_cast<string>(epsth);
+      run_id = "/h.onlwpr." + boost::lexical_cast<string>(n_obj) + "M" + "." + boost::lexical_cast<string>(epsth);
       
       std::vector<std::string> instance_paths;
       if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
@@ -524,7 +524,7 @@ main(int argc, char **argv)
     {
       // Init  
       std::string run_id;
-      run_id = "/h.offepsvr." + boost::lexical_cast<string>(n_obj) + "obj.mode11eps" + boost::lexical_cast<string>(epsth);
+      run_id = "/h.offepsvr." + boost::lexical_cast<string>(n_obj) + "M"+ "." + boost::lexical_cast<string>(epsth);
       
       std::vector<std::string> instance_paths;
       if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
