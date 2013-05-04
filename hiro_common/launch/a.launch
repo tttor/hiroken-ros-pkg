@@ -28,8 +28,8 @@
   <arg name="n_run" default="1" />
     <param name="n_run" value="$(arg n_run)"/>    
     
-  <arg name="runth" default="1" />
-    <param name="runth" value="$(arg runth)"/>
+  <arg name="epsth" default="1" />
+    <param name="epsth" value="$(arg epsth)"/>
 
   <!-- rbt_id must be 4 characters AND UPPER_CASE -->
   <rosparam param="rbt_ids">['RARM:rarm_U_chest,rarm','LARM:larm_U_chest,larm']</rosparam>   

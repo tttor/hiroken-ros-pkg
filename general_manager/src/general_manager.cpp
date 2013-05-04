@@ -262,8 +262,8 @@ main(int argc, char **argv)
   if( !ros::param::get("/n_run", n_run) )
     ROS_WARN("Can not get /n_run, use the default value instead"); 
     
-  int runth = 1;
-  if( !ros::param::get("/runth", runth) )
+  int epsth = 1;
+  if( !ros::param::get("/epsth", epsth) )
     ROS_WARN("Can not get /n_run, use the default value instead");
     
   std::string base_data_path;// The base_data_path is a constant parameter-server
@@ -314,7 +314,7 @@ main(int argc, char **argv)
         
         if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << j+1  );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << j+1  );
           break;
         }
         
@@ -426,15 +426,15 @@ main(int argc, char **argv)
 //    }
     case 10:
     // Run online LWPR that updates its model during search; Do one CTAMP attempt (rerun) on multiple instances.
-    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.2/baseline n_obj:=1 n_run:=10 runth:=1
+    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.2/baseline n_obj:=1 n_run:=10 epsth:=1
     // \param path holds the parent directory under which CTAMP instances exist 
     // \param n_obj holds the instance type
-    // \param n_run is the desired number of mode10-runs, each mode10-run may contain n_instance CTAMP instances
-    // \param runth holds i-th run with this mode
+    // \param n_run is the desired number of CTAMP attempts in this mode10-episode
+    // \param epsth holds i-th episode with this mode
     {
       // Init
       std::string run_id;
-      run_id = "/h.onlwpr." + boost::lexical_cast<string>(n_obj) + "obj.mode10run" + boost::lexical_cast<string>(runth);
+      run_id = "/h.onlwpr." + boost::lexical_cast<string>(n_obj) + "M" + "." + boost::lexical_cast<string>(epsth);
       
       std::vector<std::string> instance_paths;
       if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
@@ -466,12 +466,12 @@ main(int argc, char **argv)
       }
            
       // Run mode10 for several CTAMP instances
-      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.2/run.mode10.log"+run_id);
+      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.2/mode10eps.log"+run_id);
       boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".log") );
         
-      std::vector< std::pair< std::string,std::vector<double> > > mode10run_log;
+      std::vector< std::pair< std::string,std::vector<double> > > mode10eps_log;
       
       for(int i=0; i<n_run; ++i)
       {
@@ -505,26 +505,26 @@ main(int argc, char **argv)
 
         if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(idx) );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << i+1 << "... " << instance_paths.at(idx) );
           return false;
         }
         
-        mode10run_log.push_back( std::make_pair(base_data_path,ctamp_log) );
+        mode10eps_log.push_back( std::make_pair(base_data_path,ctamp_log) );
         utils::create_makepngsh(base_data_path,data_path);
       }
       
-      // Write this mode10run logs
-      utils::write_log(mode10run_log,std::string(log_path+".log"));
+      // Write this mode10eps logs
+      utils::write_log(mode10eps_log,std::string(log_path+".log"));
 
       break;
     }
     case 11:
     // Run offline SVR in a batchmode, the model is updated in between search, interleave training and testing; Do runs on multiple instances.
-    // USAGE:$ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.2/baseline n_obj:=1 n_run:=100 runth:=1
+    // USAGE:$ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.2/baseline n_obj:=1 n_run:=100 epsth:=1
     {
       // Init  
       std::string run_id;
-      run_id = "/h.offepsvr." + boost::lexical_cast<string>(n_obj) + "obj.mode11run" + boost::lexical_cast<string>(runth);
+      run_id = "/h.offepsvr." + boost::lexical_cast<string>(n_obj) + "M"+ "." + boost::lexical_cast<string>(epsth);
       
       std::vector<std::string> instance_paths;
       if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
@@ -537,12 +537,12 @@ main(int argc, char **argv)
         remove(itr->path());// delete any file under ML-pkg's hot dir
 
       // Run mode11 for several instances
-      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.2/run.mode11.log"+run_id);
+      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.2/mode11eps.log"+run_id);
       boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".log") );
       
-      std::vector< std::pair< std::string,std::vector<double> > > mode11run_log;
+      std::vector< std::pair< std::string,std::vector<double> > > mode11eps_log;
       
       for(int i=0; i<n_run; ++i)
       {
@@ -576,16 +576,16 @@ main(int argc, char **argv)
         
         if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(idx) );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << i+1 << "... " << instance_paths.at(idx) );
           return false;
         }
 
-        mode11run_log.push_back( std::make_pair(base_data_path,ctamp_log) );
+        mode11eps_log.push_back( std::make_pair(base_data_path,ctamp_log) );
         utils::create_makepngsh(base_data_path,data_path);
       }// for each instance
       
-      // Write this mode11run logs
-      utils::write_log(mode11run_log,std::string(log_path+".log"));
+      // Write this mode11eps logs
+      utils::write_log(mode11eps_log,std::string(log_path+".log"));
       
       break;
     }
@@ -619,7 +619,7 @@ main(int argc, char **argv)
         
         if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << j+1  );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << j+1  );
           break;
         }
         
