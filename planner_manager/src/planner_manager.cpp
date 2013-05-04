@@ -238,6 +238,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::vector<TMMVertex> predecessors(num_vertices(tmm_));
   std::vector<double> distances(num_vertices(tmm_));
   
+  double total_gp_time = 0.;
   ros::Time search_begin = ros::Time::now();
   try 
   {
@@ -267,7 +268,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         astar_search( tmm_
                     , tmm_root_
                     , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_ml_mode)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,search_ml_mode,ml_hot_path) )
+                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,search_ml_mode,ml_hot_path,&total_gp_time) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -283,7 +284,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         astar_search( tmm_
                     , tmm_root_
                     , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&learner,ml_mode)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path) )
+                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -301,9 +302,10 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   {
     ROS_INFO("GOAL_FOUND.");
     
-    // Get elapsed time for planning that is represented by the seach process
+    // Get elapsed time for planning that is represented by the search process, but excluding grasp planning time (because we do not care it for now)
     double search_time;
     search_time = (ros::Time::now()-search_begin).toSec();
+    search_time -= total_gp_time;
     
     cout << "CTAMP_SearchTime= " << search_time << endl;
     perf_log << "CTAMP_SearchTime=" << search_time << endl;

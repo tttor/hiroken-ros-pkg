@@ -66,17 +66,17 @@ GeometricPlannerManager(PlannerManager* pm)
 }
 
 bool
-plan(TMMEdge e)
+plan(TMMEdge e,double* gp_time)
 {
-  // Check whether this edge is already geometrically planned, having a positive cost
+  // Check whether this edge is already geometrically planned: having a positive cost
   if(get(edge_weight,pm_->tmm_,e) > 0.)
   {
     ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= already DONE.");
+    
+    // This happens in rerun mode, where this edge was planned in the previous ctamp attempt, which serve as the baseline
     return true;
   }
-  
   ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
-  ros::Time planning_begin = ros::Time::now();
   
   // Get the start point /subseteq vertex_jstates (source of e) based on jspace of this edge e
   sensor_msgs::JointState start_state;
@@ -93,7 +93,12 @@ plan(TMMEdge e)
   if( !strcmp(main_state_str.c_str(),"Grasped") or !strcmp(main_state_str.c_str(),"Released") )
   {
     // Call grasp/ungrasp planner here!
+    ros::Time gp_begin = ros::Time::now();
+    
     goal_set = get_goal_set( source(e,pm_->tmm_),target(e,pm_->tmm_),get(edge_jspace,pm_->tmm_,e) ); 
+    
+    if(gp_time != NULL)
+      *gp_time = (ros::Time::now()-gp_begin).toSec();
   }
   else// must be either TidyHome or TmpHome_RBTID[xxx]
   {
@@ -112,6 +117,8 @@ plan(TMMEdge e)
   { }
   
   // MOTION PLANNING ================================================================================================================================
+  ros::Time mp_begin = ros::Time::now();
+  
   // Prepare the planning environment to do motion planning
   set_planning_env( source(e,pm_->tmm_) );
   
@@ -192,10 +199,10 @@ plan(TMMEdge e)
   put( edge_planstr,pm_->tmm_,e,get_planstr(plan) );
   put( edge_weight,pm_->tmm_,e,cost.total()+iter_cost );
   
-  double planning_time;// refers to motion_planning + grasp planning time
-  planning_time = (ros::Time::now()-planning_begin).toSec();
+  double mp_time;// refers to motion_planning + grasp planning time
+  mp_time = (ros::Time::now()-mp_begin).toSec();
 
-  put( edge_mptime,pm_->tmm_,e,planning_time );
+  put( edge_mptime,pm_->tmm_,e,mp_time );
 
   ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (true).");  
   return true;

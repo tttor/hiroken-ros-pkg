@@ -27,8 +27,8 @@ template <typename GPMGraph,typename LearningMachine>
 class AstarVisitor: public boost::default_astar_visitor
 {
 public:
-AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode,std::string ml_hot_path)
-: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode), ml_hot_path_(ml_hot_path)
+AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode,std::string ml_hot_path,double* total_gp_time)
+: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode), ml_hot_path_(ml_hot_path), total_gp_time_(total_gp_time)
 { }
 
 template <typename Graph>
@@ -56,8 +56,12 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   typename graph_traits<Graph>::out_edge_iterator oei, oei_end;
   for(tie(oei,oei_end) = out_edges(v, g); oei!=oei_end; ++oei)
   {
+    double gp_time = 0.;
     bool success = false;
-    success = gpm_->plan(*oei);
+    
+    success = gpm_->plan(*oei,&gp_time);
+    
+    *total_gp_time_ += gp_time;
     
     if(!success)
       ungraspable_edges.push_back(*oei);
@@ -157,6 +161,7 @@ LearningMachine* learner_;
 std::vector< std::vector<double> >* ml_data_;
 size_t ml_mode_;
 std::string ml_hot_path_;
+double* total_gp_time_;
 
 };
 
