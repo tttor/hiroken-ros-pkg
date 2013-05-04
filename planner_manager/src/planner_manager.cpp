@@ -226,8 +226,6 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   
   std::ofstream csv_perf_log;
   csv_perf_log.open(std::string(data_path+"/perf.log.csv").c_str());
-  
-  
 
   // ml-related data keeper
   std::vector< std::vector<double> > ml_data;
@@ -240,7 +238,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::vector<TMMVertex> predecessors(num_vertices(tmm_));
   std::vector<double> distances(num_vertices(tmm_));
   
-  ros::Time planning_begin = ros::Time::now();
+  ros::Time search_begin = ros::Time::now();
   try 
   {
     switch(ml_mode)
@@ -304,16 +302,16 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     ROS_INFO("GOAL_FOUND.");
     
     // Get elapsed time for planning that is represented by the seach process
-    double planning_time;
-    planning_time = (ros::Time::now()-planning_begin).toSec();
+    double search_time;
+    search_time = (ros::Time::now()-search_begin).toSec();
     
-    cout << "CTAMP_SearchTime= " << planning_time << endl;
-    perf_log << "CTAMP_SearchTime=" << planning_time << endl;// idx=0
-    csv_perf_log << planning_time << ",";
+    cout << "CTAMP_SearchTime= " << search_time << endl;
+    perf_log << "CTAMP_SearchTime=" << search_time << endl;
+    csv_perf_log << search_time << ",";// idx = 0
     
     // Get #expanded vertices + total_mp_time
     // The total_mp_time is the sum of (so that TOTAL) motion planning time for each out-edges.
-    // All time used by other processes in a vertex expansion is included in the planning_time (which holds the overall time for search)
+    // All time used by other processes in a vertex expansion is included in the search_time (which holds the overall time for search)
     size_t n_expvert = 0;
     boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
 
@@ -448,9 +446,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       
       cout << "SolPathCost= UNDEFINED" << endl;
       perf_log << "SolPathCost=UNDEFINED" << endl;
+      csv_perf_log << 0. << ",";// idx=4, invalid value
       
-      cout << "SolPathAbove= CANCELLED" << endl;
-      perf_log << "SolPathAbove=CANCELLED" << endl;
+      // Write the number of vertices in the sol_path
+      csv_perf_log << 0. ;// idx=5, invalid value
+
     }
   }// End of: catch(FoundGoalSignal fgs) 
   

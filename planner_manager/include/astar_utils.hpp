@@ -41,8 +41,11 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   if(v == goal_)
   {
     // Store the updated model for the next CTAMP attempt
-    if(  !learner_->writeBinary( std::string(ml_hot_path_+"lwpr.bin").c_str() )  )
-      std::cerr << "learner_->writeBinary()= NOT OK" << std::endl;
+    if(ml_mode_ == ml_util::LWPR_ONLINE)
+    {
+      if(  !learner_->writeBinary( std::string(ml_hot_path_+"lwpr.bin").c_str() )  )
+        std::cerr << "learner_->writeBinary()= NOT OK" << std::endl;
+    }
       
     throw FoundGoalSignal();
   }

@@ -27,6 +27,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/config.hpp>
 #include <boost/random.hpp>
+#include <boost/timer.hpp>
 
 // This uses Boost 1.46.1 Library
 #include <boost/random/mersenne_twister.hpp>

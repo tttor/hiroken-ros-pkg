@@ -10,6 +10,7 @@
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int.hpp>
 #include <boost/random/variate_generator.hpp>
+#include <boost/timer.hpp>
 
 #include "planner_manager.hpp"
 #include "tmm_utils.hpp"
@@ -187,12 +188,13 @@ plan(TMMEdge e)
   reset_planning_env();
   
   // Sum up + Put the best motion plan of this edge e and its geo. planning cost
-  double planning_time;// refers to motion_planning + grasp planning time
-  planning_time = (ros::Time::now()-planning_begin).toSec();  
-
   put( edge_plan,pm_->tmm_,e,plan );
   put( edge_planstr,pm_->tmm_,e,get_planstr(plan) );
   put( edge_weight,pm_->tmm_,e,cost.total()+iter_cost );
+  
+  double planning_time;// refers to motion_planning + grasp planning time
+  planning_time = (ros::Time::now()-planning_begin).toSec();
+
   put( edge_mptime,pm_->tmm_,e,planning_time );
 
   ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (true).");  
