@@ -526,6 +526,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       libsvm_predict(&old_svr_model,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
       fclose(input); fclose(output);
       
+      cerr << "utils::get_n_lines(tmp_data_path) fit_te = " << utils::get_n_lines(tmp_data_path) << endl;
       std::vector<double> y_fit_te;
       y_fit_te = ml_util::get_y_fit(tmp_data_path); 
       
@@ -547,6 +548,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
       fclose(input); fclose(output); free(x); 
       
+      cerr << "utils::get_n_lines(tmp_data_path) fit_tr = " << utils::get_n_lines(tmp_data_path) << endl;
       std::vector<double> y_fit_tr;
       y_fit_tr = ml_util::get_y_fit(tmp_data_path); 
 

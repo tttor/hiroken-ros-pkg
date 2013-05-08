@@ -426,6 +426,7 @@ main(int argc, char **argv)
 //    }
     case 10:
     // Run online LWPR that updates its model during search; Do one CTAMP attempt (rerun) on multiple instances.
+    // WARNING: DO NOT run multiple mode10 simultaneously, critical resources are at /learning_machine/data/hot
     // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.2/baseline n_obj:=1 n_run:=10 epsth:=1
     // \param path holds the parent directory under which CTAMP instances exist 
     // \param n_obj holds the instance type
@@ -466,7 +467,7 @@ main(int argc, char **argv)
       }
            
       // Run mode10 for several CTAMP instances
-      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.2/mode10eps.log"+run_id);
+      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode10eps.log"+run_id);
       boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".log") );
@@ -520,7 +521,8 @@ main(int argc, char **argv)
     }
     case 11:
     // Run offline SVR in a batchmode, the model is updated in between search, interleave training and testing; Do runs on multiple instances.
-    // USAGE:$ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.2/baseline n_obj:=1 n_run:=100 epsth:=1
+    // WARNING: DO NOT run multiple mode11 simultaneously, critical resources are at /learning_machine/data/hot
+    // USAGE:$ roslaunch hiro_common a.launch  mode:=11 path:=/home/vektor/rss-2013/data/with_v.4.2/baseline n_obj:=1 n_run:=100 epsth:=1
     {
       // Init  
       std::string run_id;
@@ -532,12 +534,13 @@ main(int argc, char **argv)
         ROS_ERROR("utils::get_instance_paths() -> failed");
         return false;
       }
-
-      for(boost::filesystem::directory_iterator itr( boost::filesystem::path("/home/vektor/hiroken-ros-pkg/learning_machine/data/hot") ),end_itr; itr != end_itr; ++itr)
+      
+      std::string ml_pkg_path = ros::package::getPath("learning_machine");
+      for(boost::filesystem::directory_iterator itr( boost::filesystem::path(std::string(ml_pkg_path+"/data/hot")) ),end_itr; itr != end_itr; ++itr)
         remove(itr->path());// delete any file under ML-pkg's hot dir
 
       // Run mode11 for several instances
-      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.2/mode11eps.log"+run_id);
+      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode11eps.log"+run_id);
       boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".log") );
@@ -576,7 +579,7 @@ main(int argc, char **argv)
         
         if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << i+1 << "... " << instance_paths.at(idx) );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(idx) );
           return false;
         }
 
