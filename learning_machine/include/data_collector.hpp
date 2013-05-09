@@ -165,20 +165,20 @@ template<typename LocalGraph>
 bool
 get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,Input* in)
 {
-//  cerr << "path: ";
-//  for(std::vector<typename boost::graph_traits<Graph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
+//  cerr << "in get_fval(), path: ";
+//  for(typename std::vector<typename boost::graph_traits<Graph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
 //    cerr << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
 //  cerr << endl;
   
   RawInput r_in;
-  
+
   // Geo. features extracted from the head vertex of this path: object pose+manipulability+jstates in the source vertex
   std::string srcstate;
   srcstate = get( edge_srcstate,g,path.at(0) );
-  
+
   if( !get_geo_fval(srcstate,&r_in) )
     return false;
-      
+  
   // Symbolic features: Whether more TRANSFER or TRANSIT from actions in this path
   // Symbolic features: Whether more LARM or RARM from actions in this path
   size_t n_transit = 0;
@@ -189,10 +189,10 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
   for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
   {
     std::string name = get(edge_name,g,*i);
-    
+
     std::vector<std::string> name_parts;
     boost::split( name_parts,name,boost::is_any_of("_") );// e.g from "TRANSIT_RARM_HOME_MESSY-SPOT" to ...
-     
+    
     std::string op = name_parts.at(0);
     
     if( !strcmp(op.c_str(),"TRANSIT") )
@@ -201,7 +201,7 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
       ++n_transfer;
       
     std::string rbt_id = name_parts.at(1);
-  
+
     if( !strcmp(rbt_id.c_str(),"RARM") )
       ++n_rarm;
     else if( !strcmp(rbt_id.c_str(),"LARM") )
@@ -213,7 +213,7 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
   
   r_in.insert( std::make_pair("RARM-centric",(n_rarm > n_larm)) );
   r_in.insert( std::make_pair("LARM-centric",(n_larm > n_rarm)) );
-  
+
   // Symbolic features: Position of certain action label in a path
   for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
   {
@@ -230,7 +230,7 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
 //    for(RawInput::iterator z=r_in.begin(); z!=r_in.end(); ++z)
 //      cerr << z->first << "= " << z->second << endl;
 //    cerr << "y= " << out << endl;
-  
+    
   // Convert then return
   return convert( r_in,in,labels_ );
 }
@@ -256,8 +256,7 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
   }
 
   std::map<std::string,double> jname_jpos_map;// for obtaining jstate later on
-  
-  //(1) object pose in the source vertex
+
   for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i )
   {
     std::vector<std::string> comps;
