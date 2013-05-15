@@ -6,16 +6,18 @@ import struct
 
 
 class PlanRequest(genpy.Message):
-  _md5sum = "dd4eecefbba533c08853534a8083b7c5"
+  _md5sum = "d7eb42861f39c22e7f61cb0692082789"
   _type = "planner_manager/PlanRequest"
   _has_header = False #flag to mark the presence of a Header object
   _full_text = """uint8 ml_mode
-string log_path
 bool rerun
+string ml_hot_path
+string log_path
+
 
 """
-  __slots__ = ['ml_mode','log_path','rerun']
-  _slot_types = ['uint8','string','bool']
+  __slots__ = ['ml_mode','rerun','ml_hot_path','log_path']
+  _slot_types = ['uint8','bool','string','string']
 
   def __init__(self, *args, **kwds):
     """
@@ -25,7 +27,7 @@ bool rerun
     changes.  You cannot mix in-order arguments and keyword arguments.
 
     The available fields are:
-       ml_mode,log_path,rerun
+       ml_mode,rerun,ml_hot_path,log_path
 
     :param args: complete set of field values, in .msg order
     :param kwds: use keyword arguments corresponding to message field names
@@ -36,14 +38,17 @@ bool rerun
       #message fields cannot be None, assign default values for those that are
       if self.ml_mode is None:
         self.ml_mode = 0
-      if self.log_path is None:
-        self.log_path = ''
       if self.rerun is None:
         self.rerun = False
+      if self.ml_hot_path is None:
+        self.ml_hot_path = ''
+      if self.log_path is None:
+        self.log_path = ''
     else:
       self.ml_mode = 0
-      self.log_path = ''
       self.rerun = False
+      self.ml_hot_path = ''
+      self.log_path = ''
 
   def _get_types(self):
     """
@@ -57,14 +62,20 @@ bool rerun
     :param buff: buffer, ``StringIO``
     """
     try:
-      buff.write(_struct_B.pack(self.ml_mode))
+      _x = self
+      buff.write(_struct_2B.pack(_x.ml_mode, _x.rerun))
+      _x = self.ml_hot_path
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
       _x = self.log_path
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
-      buff.write(_struct_B.pack(self.rerun))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -75,9 +86,20 @@ bool rerun
     """
     try:
       end = 0
+      _x = self
       start = end
-      end += 1
-      (self.ml_mode,) = _struct_B.unpack(str[start:end])
+      end += 2
+      (_x.ml_mode, _x.rerun,) = _struct_2B.unpack(str[start:end])
+      self.rerun = bool(self.rerun)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.ml_hot_path = str[start:end].decode('utf-8')
+      else:
+        self.ml_hot_path = str[start:end]
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -87,10 +109,6 @@ bool rerun
         self.log_path = str[start:end].decode('utf-8')
       else:
         self.log_path = str[start:end]
-      start = end
-      end += 1
-      (self.rerun,) = _struct_B.unpack(str[start:end])
-      self.rerun = bool(self.rerun)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
@@ -103,14 +121,20 @@ bool rerun
     :param numpy: numpy python module
     """
     try:
-      buff.write(_struct_B.pack(self.ml_mode))
+      _x = self
+      buff.write(_struct_2B.pack(_x.ml_mode, _x.rerun))
+      _x = self.ml_hot_path
+      length = len(_x)
+      if python3 or type(_x) == unicode:
+        _x = _x.encode('utf-8')
+        length = len(_x)
+      buff.write(struct.pack('<I%ss'%length, length, _x))
       _x = self.log_path
       length = len(_x)
       if python3 or type(_x) == unicode:
         _x = _x.encode('utf-8')
         length = len(_x)
       buff.write(struct.pack('<I%ss'%length, length, _x))
-      buff.write(_struct_B.pack(self.rerun))
     except struct.error as se: self._check_types(se)
     except TypeError as te: self._check_types(te)
 
@@ -122,9 +146,20 @@ bool rerun
     """
     try:
       end = 0
+      _x = self
       start = end
-      end += 1
-      (self.ml_mode,) = _struct_B.unpack(str[start:end])
+      end += 2
+      (_x.ml_mode, _x.rerun,) = _struct_2B.unpack(str[start:end])
+      self.rerun = bool(self.rerun)
+      start = end
+      end += 4
+      (length,) = _struct_I.unpack(str[start:end])
+      start = end
+      end += length
+      if python3:
+        self.ml_hot_path = str[start:end].decode('utf-8')
+      else:
+        self.ml_hot_path = str[start:end]
       start = end
       end += 4
       (length,) = _struct_I.unpack(str[start:end])
@@ -134,16 +169,12 @@ bool rerun
         self.log_path = str[start:end].decode('utf-8')
       else:
         self.log_path = str[start:end]
-      start = end
-      end += 1
-      (self.rerun,) = _struct_B.unpack(str[start:end])
-      self.rerun = bool(self.rerun)
       return self
     except struct.error as e:
       raise genpy.DeserializationError(e) #most likely buffer underfill
 
 _struct_I = genpy.struct_I
-_struct_B = struct.Struct("<B")
+_struct_2B = struct.Struct("<2B")
 """autogenerated by genpy from planner_manager/PlanResponse.msg. Do not edit."""
 import sys
 python3 = True if sys.hexversion > 0x03000000 else False
@@ -526,6 +557,6 @@ _struct_2I = struct.Struct("<2I")
 _struct_2i = struct.Struct("<2i")
 class Plan(object):
   _type          = 'planner_manager/Plan'
-  _md5sum = '88ec01b41a01a569deb9eb80adb4ff64'
+  _md5sum = '14ad8a405e4f6cb8b3952157abf57165'
   _request_class  = PlanRequest
   _response_class = PlanResponse

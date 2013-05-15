@@ -28,26 +28,31 @@ struct PlanRequest_ {
 
   PlanRequest_()
   : ml_mode(0)
-  , log_path()
   , rerun(false)
+  , ml_hot_path()
+  , log_path()
   {
   }
 
   PlanRequest_(const ContainerAllocator& _alloc)
   : ml_mode(0)
-  , log_path(_alloc)
   , rerun(false)
+  , ml_hot_path(_alloc)
+  , log_path(_alloc)
   {
   }
 
   typedef uint8_t _ml_mode_type;
   uint8_t ml_mode;
 
-  typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _log_path_type;
-  std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  log_path;
-
   typedef uint8_t _rerun_type;
   uint8_t rerun;
+
+  typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _ml_hot_path_type;
+  std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  ml_hot_path;
+
+  typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _log_path_type;
+  std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  log_path;
 
 
   typedef boost::shared_ptr< ::planner_manager::PlanRequest_<ContainerAllocator> > Ptr;
@@ -115,12 +120,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::planner_manager::PlanRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "dd4eecefbba533c08853534a8083b7c5";
+    return "d7eb42861f39c22e7f61cb0692082789";
   }
 
   static const char* value(const  ::planner_manager::PlanRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0xdd4eecefbba533c0ULL;
-  static const uint64_t static_value2 = 0x8853534a8083b7c5ULL;
+  static const uint64_t static_value1 = 0xd7eb42861f39c22eULL;
+  static const uint64_t static_value2 = 0x7f61cb0692082789ULL;
 };
 
 template<class ContainerAllocator>
@@ -138,8 +143,10 @@ struct Definition< ::planner_manager::PlanRequest_<ContainerAllocator> > {
   static const char* value() 
   {
     return "uint8 ml_mode\n\
-string log_path\n\
 bool rerun\n\
+string ml_hot_path\n\
+string log_path\n\
+\n\
 \n\
 ";
   }
@@ -235,8 +242,9 @@ template<class ContainerAllocator> struct Serializer< ::planner_manager::PlanReq
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
     stream.next(m.ml_mode);
-    stream.next(m.log_path);
     stream.next(m.rerun);
+    stream.next(m.ml_hot_path);
+    stream.next(m.log_path);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -271,7 +279,7 @@ template<>
 struct MD5Sum<planner_manager::Plan> {
   static const char* value() 
   {
-    return "88ec01b41a01a569deb9eb80adb4ff64";
+    return "14ad8a405e4f6cb8b3952157abf57165";
   }
 
   static const char* value(const planner_manager::Plan&) { return value(); } 
@@ -291,7 +299,7 @@ template<class ContainerAllocator>
 struct MD5Sum<planner_manager::PlanRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "88ec01b41a01a569deb9eb80adb4ff64";
+    return "14ad8a405e4f6cb8b3952157abf57165";
   }
 
   static const char* value(const planner_manager::PlanRequest_<ContainerAllocator> &) { return value(); } 
@@ -311,7 +319,7 @@ template<class ContainerAllocator>
 struct MD5Sum<planner_manager::PlanResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "88ec01b41a01a569deb9eb80adb4ff64";
+    return "14ad8a405e4f6cb8b3952157abf57165";
   }
 
   static const char* value(const planner_manager::PlanResponse_<ContainerAllocator> &) { return value(); } 
