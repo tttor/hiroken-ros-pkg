@@ -1,6 +1,8 @@
 uint8 ml_mode # determine which ML algorithm is used
-string log_path #
 bool rerun # whether plan from scratch or rerun previusly planned TMM, used for analysis to shorthen the time
+string ml_hot_path
+string log_path #
+
 ---
 trajectory_msgs/JointTrajectory[] ctamp_sol
 float64[] ctamp_log # Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) n of (cost-to-go vs. est. cost-to-go)
