@@ -59,7 +59,14 @@ PlannerManager::collision_object_cb(const arm_navigation_msgs::CollisionObject::
 bool
 PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_manager::Plan::Response& res)
 {
-  return plan( req.ml_mode,req.rerun,req.log_path,&(res.ctamp_sol),&(res.ctamp_log) );
+  return plan( req.ml_mode,req.rerun,req.ml_hot_path,req.log_path,&(res.ctamp_sol),&(res.ctamp_log) );
+}
+
+bool
+PlannerManager::clear_n_ctamp_attempt_srv_handle(planner_manager::Misc::Request& req, planner_manager::Misc::Response& res)
+{
+  n_ctamp_attempt_ = 0;
+  return true;
 }
 
 //! Plan manipulation plans.
@@ -74,7 +81,7 @@ PlannerManager::plan_srv_handle(planner_manager::Plan::Request& req, planner_man
   within which a geometric planner is called to validate each action whether it is symbollically feasible.
 */
 bool
-PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,std::vector<double>* ctamp_log)
+PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& ml_hot_path,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,std::vector<double>* ctamp_log)
 {
   std::string base_data_path;
   if( !ros::param::get("/base_data_path", base_data_path) )
@@ -227,11 +234,9 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::ofstream csv_perf_log;
   csv_perf_log.open(std::string(data_path+"/perf.log.csv").c_str());
 
-  // ml-related data keeper
+  // ml-related var
   std::vector< std::vector<double> > ml_data;
-
   std::string ml_pkg_path = ros::package::getPath("learning_machine");
-  std::string ml_hot_path = std::string(ml_pkg_path+"/data/hot/");
   
   // Search 
   GeometricPlannerManager gpm(this);
@@ -254,12 +259,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       {
         ROS_DEBUG("learner= SVR");
         
-        size_t search_ml_mode;
+        size_t search_heuristic_ml_mode;
         if(n_ctamp_attempt_==0)
-          search_ml_mode = ml_util::NO_ML;// for the first ctamp instance, use ml_util::NO_ML because there is no SVR is trained yet.
+          search_heuristic_ml_mode = ml_util::NO_ML;// for the first ctamp instance, use ml_util::NO_ML because there is no trained-SVR yet.
         else
-          search_ml_mode = ml_mode;
-          
+          search_heuristic_ml_mode = ml_mode;
+        
         // SVR from libsvm
         svr_max_n_attr_ = 100;
         SVM_Object learner(svr_model_,svr_max_n_attr_);
@@ -267,8 +272,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
-                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_ml_mode)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,search_ml_mode,ml_hot_path,&total_gp_time) )
+                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_heuristic_ml_mode)
+                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -278,7 +283,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       case ml_util::LWPR_ONLINE:
       {
         ROS_DEBUG("learner= LWPR");// LWPR from Edinburg Univ.
-        LWPR_Object learner( std::string(ml_hot_path+"lwpr.bin").c_str() );
+                
+        LWPR_Object learner( std::string(ml_hot_path+"/lwpr.bin").c_str() );
         
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
@@ -459,10 +465,10 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   if(ml_mode==ml_util::SVR_OFFLINE)// Do interleaved training
   {
     // Initialize
-    std::string tr_data_path = std::string(ml_hot_path+"tr_data.libsvmdata");// is appended with samples obtained from one CTAMP instance to another
-    std::string delta_tr_data_path = std::string(ml_hot_path+"delta_tr_data.libsvmdata");// is appended with samples obtained from one CTAMP instance to another
-    std::string delta_csv_tr_data_path = std::string(ml_hot_path+"delta_tr_data.csv");
-    std::string tmp_data_path  = std::string(ml_hot_path+"fit.out");// _must_ be always overwritten
+    std::string tr_data_path = std::string(ml_hot_path+"/tr_data.libsvmdata");// is appended with samples obtained from one CTAMP instance to another
+    std::string delta_tr_data_path = std::string(ml_hot_path+"/delta_tr_data.libsvmdata");// is appended with samples obtained from one CTAMP instance to another
+    std::string delta_csv_tr_data_path = std::string(ml_hot_path+"/delta_tr_data.csv");
+    std::string tmp_data_path  = std::string(ml_hot_path+"/fit.out");// _must_ be always overwritten
     
     SVMModel old_svr_model;
     if(n_ctamp_attempt_ > 0) // If not the first attemp (at least the model has been updated once)
@@ -525,8 +531,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       
       libsvm_predict(&old_svr_model,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
       fclose(input); fclose(output);
-      
       cerr << "utils::get_n_lines(tmp_data_path) fit_te = " << utils::get_n_lines(tmp_data_path) << endl;
+      
       std::vector<double> y_fit_te;
       y_fit_te = ml_util::get_y_fit(tmp_data_path); 
       
@@ -547,8 +553,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       
       libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
       fclose(input); fclose(output); free(x); 
-      
       cerr << "utils::get_n_lines(tmp_data_path) fit_tr = " << utils::get_n_lines(tmp_data_path) << endl;
+      
       std::vector<double> y_fit_tr;
       y_fit_tr = ml_util::get_y_fit(tmp_data_path); 
 
@@ -788,6 +794,9 @@ main(int argc, char **argv)
 
   ros::ServiceServer plan_srv;
   plan_srv = nh.advertiseService("/plan", &PlannerManager::plan_srv_handle, &pm);
+  
+  ros::ServiceServer clear_n_ctamp_attempt_srv;
+  clear_n_ctamp_attempt_srv = nh.advertiseService("/clear_n_ctamp_attempt", &PlannerManager::clear_n_ctamp_attempt_srv_handle, &pm);
   
   ROS_INFO("PlannerManager: Up and Running ...");
   ros::spin();

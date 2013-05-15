@@ -78,50 +78,6 @@ std::vector<  std::vector< typename boost::graph_traits<GlobalGraph>::edge_descr
 std::vector< typename boost::graph_traits<GlobalGraph>::edge_descriptor > hot_path_;
 };
 
-//template<typename Edge>
-//class PathExtractor_2: public boost::dfs_visitor<>
-//{
-//public:
-//PathExtractor_2(std::vector< std::vector<Edge> >* paths)
-//: paths_(paths)
-//{ }
-
-////template <class Graph>
-////void 
-////discover_vertex(typename boost::graph_traits<Graph>::vertex_descriptor v,Graph&)
-////{
-//////  std::cout << "discover " << v << std::endl;
-////}
-
-//template <class Graph>
-//void 
-////finish_vertex(typename boost::graph_traits<Graph>::vertex_descriptor v,Graph& g)
-//finish_vertex(typename Graph::vertex_descriptor v,Graph& g)
-//{
-////  std::cout << "finish " << v << std::endl;
-//  
-//  if(boost::out_degree(v,g) == 0)
-//    paths_->push_back(hot_path_);
-//    
-//  hot_path_.erase(hot_path_.end()-1);
-//}
-
-//template <class Graph>
-////void tree_edge(typename boost::graph_traits<Graph>::edge_descriptor e,Graph& g)
-//void tree_edge(typename Graph::edge_descriptor e,Graph& g)
-//{
-//  hot_path_.push_back(e);
-//  
-////  for(typename std::vector< typename boost::graph_traits<GlobalGraph>::edge_descriptor >::iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
-////    cout << "e(" << source(*i,g) << "," << target(*i,g) << "), ";
-////  cout << endl;
-//}
-
-//private:
-//std::vector<  std::vector<Edge>  >* paths_;
-//std::vector<Edge> hot_path_;
-//};
-
 struct GeoPlanningCost
 {
   GeoPlanningCost()
@@ -433,8 +389,12 @@ get_fval(TMMVertex v,Input* in)
 
 //! Obtain estimated optimal solution path 
 /*!
-  "estimated" because the edge cost is ignored in that it is left undefined.
-  We just traverse the graph from a given vertex to ideally the goal vertex; consider a situation where there is no path from the given vertex to the goal vertex because some edge is removed because there is no grasp pose for motion planning for that edge.
+  "estimated" because the edge cost is ignored in (left undefined).
+  We just traverse the graph from a given vertex to ideally the goal vertex; 
+  consider a situation where there is no path from the given vertex to the goal vertex because some edge is removed because there is no grasp pose for motion planning for that edge.
+  Criteria:
+    1. the shortest goal-reached paths 
+    2. the longest goal-unreached paths
 */
 std::vector<TMMEdge>
 predict_opt_sol_path(const TMMVertex& v)
@@ -448,38 +408,47 @@ predict_opt_sol_path(const TMMVertex& v)
   
   depth_first_visit( tmp_tmm,v,ext,get(vertex_color,tmp_tmm) );
   
-  // Filter only paths that lead to the goal vertex 
-  std::vector< std::vector<TMMEdge> > f_paths;
+  if(paths.empty())  
+    return std::vector<TMMEdge>();
+    
+  // Filter goal-reached paths those that lead to the goal vertex 
+  std::vector< std::vector<TMMEdge> > goal_reached_paths;
   for(std::vector< std::vector<TMMEdge> >::const_iterator i=paths.begin(); i!=paths.end(); ++i)
   {
     if(target(i->back(),pm_->tmm_) == pm_->tmm_goal_)
-      f_paths.push_back(*i);
+      goal_reached_paths.push_back(*i);
   }
   
-  if( !f_paths.empty() )
-    paths = f_paths;
-
-  // choose the longest path in paths
-  size_t len = 0;
+  // Choose one path satisfying the criteria above
   std::vector<TMMEdge> path;
-  for(std::vector< std::vector<TMMEdge> >::const_iterator i=paths.begin(); i!=paths.end(); ++i)
+  if( !goal_reached_paths.empty() )// chosee the shortest path in goal-reached paths
   {
-    if(i->size() > len)
+    path = goal_reached_paths.at(0);
+    for(size_t i=1; i<goal_reached_paths.size(); ++i)
     {
-      len = i->size();
-      path = *i;
+      if(goal_reached_paths.at(i).size() < path.size())
+        path = goal_reached_paths.at(i);
+    }
+  }
+  else// choose the longest path in paths
+  {
+    path = paths.at(0);
+    for(size_t i=1; i<paths.size(); ++i)
+    {
+      if(paths.at(i).size() > path.size())
+        path = paths.at(i);
     }
   }
   
   // Fact: returning "path" above directly results in unstable running time error, possibly because it contain edge of a copy of pm_->tmm_
-  // Note: "path" contains the smallest jspace
+  // (20130513): the returned path always contains the smallest jspace, although the optimal path is not alywas with the smallest jspace.
   std::vector<TMMEdge> final_path;
   for(typename std::vector<TMMEdge>::const_iterator i=path.begin(); i!=path.end(); ++i)
   {
-//    cerr << "e(" << get(vertex_name,pm_->tmm_,source(*i,pm_->tmm_)) << "," << get(vertex_name,pm_->tmm_,target(*i,pm_->tmm_)) << "), " << endl;
-//    cerr << "name= " << get(edge_name,pm_->tmm_,*i) << endl;
-//    cerr << "jspace= " << get(edge_jspace,pm_->tmm_,*i) << endl;
-//    cerr << endl;
+    cerr << "e(" << get(vertex_name,pm_->tmm_,source(*i,pm_->tmm_)) << "," << get(vertex_name,pm_->tmm_,target(*i,pm_->tmm_)) << "), " << endl;
+    cerr << "name= " << get(edge_name,pm_->tmm_,*i) << endl;
+    cerr << "jspace= " << get(edge_jspace,pm_->tmm_,*i) << endl;
+    cerr << endl;
     
     graph_traits<TaskMotionMultigraph>::edge_iterator ei, ei_end;
     for(tie(ei,ei_end) = edges(pm_->tmm_); ei!=ei_end; ++ei)

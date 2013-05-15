@@ -36,6 +36,7 @@ case 10:
 
 #include "sensor_manager/Sense.h"
 #include "planner_manager/Plan.h"
+#include "planner_manager/Misc.h"
 #include "action_manager/Commit.h"
 #include "action_manager/Go2Home.h"
 #include "learning_machine/Train.h"
@@ -156,7 +157,7 @@ sense(const size_t& n_movable_object,const bool& randomized_vase=false,const siz
   For ml_util::MLMode refer to ml_util.hpp
 */
 bool
-plan(const ml_util::MLMode& ml_mode,const bool rerun=false,const std::string& log_path=std::string(""),std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol=0,std::vector<double>* ctamp_log=0)
+plan(const ml_util::MLMode& ml_mode,const bool rerun=false,const std::string& ml_hot_path=std::string(""),const std::string& log_path=std::string(""),std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol=0,std::vector<double>* ctamp_log=0)
 {
   ros::service::waitForService("/plan");
     
@@ -167,12 +168,13 @@ plan(const ml_util::MLMode& ml_mode,const bool rerun=false,const std::string& lo
   planner_manager::Plan::Response res;
   
   req.ml_mode = ml_mode;
+  req.rerun = rerun;  
+  req.ml_hot_path = ml_hot_path;
   req.log_path = log_path;
-  req.rerun = rerun;
   
   if( !plan_client.call(req, res) ) 
   {
-    ROS_ERROR("Call to planner_manager/plan srv: FAILED");
+    ROS_ERROR("Call to /plan srv: FAILED");
     return false;
   }
 
@@ -198,7 +200,7 @@ act()
   
   if( !commit_client.call(req, res) ) 
   {
-    ROS_WARN("Call to action_manager/commit srv: FAILED");
+    ROS_WARN("Call to /commit srv: FAILED");
     return false;
   }
   
@@ -220,7 +222,7 @@ train(const std::vector<std::string>& tmm_paths)
   
   if( !train_client.call(req, res) ) 
   {
-    ROS_WARN("Call to learning_machine/train srv: FAILED");
+    ROS_WARN("Call to /train srv: FAILED");
     return false;
   }
   
@@ -282,6 +284,8 @@ main(int argc, char **argv)
   if( !ros::param::get("/messy_cfg_filename",messy_cfg_filename) )
     ROS_WARN("Can not get /messy_cfg_filename, use the default value instead"); 
 
+  std::vector<std::string> mode1011_instance_paths(n_run);// used in mode1011,mode10,mode11
+  
   switch(mode)
   {
     case 1:
@@ -309,10 +313,11 @@ main(int argc, char **argv)
         ml_util::MLMode mode = ml_util::NO_ML;
         bool rerun = false;
         std::string log_path;// not used in this mode
+        std::string ml_hot_path;// not used in this mode
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
         
-        if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
           ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << j+1  );
           break;
@@ -377,10 +382,11 @@ main(int argc, char **argv)
       ml_util::MLMode mode = ml_util::NO_ML;
       bool rerun = false;
       std::string log_path;// not used in this mode
+      std::string ml_hot_path;// not used in this mode
       std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
       std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
       
-      if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+      if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
       {
         ROS_ERROR("gm.plan(...): failed");
       }
@@ -424,6 +430,17 @@ main(int argc, char **argv)
 //      
 //      break;
 //    }
+    case 1011:
+      // Do mode10 and mode 11 subsequently with the same instance_paths order
+      // USAGE: $ roslaunch hiro_common a.launch  mode:=1011 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 n_run:=10 epsth:=1
+      if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&mode1011_instance_paths) )
+      {
+        ROS_ERROR("utils::get_instance_paths() -> failed");
+        return false;
+      }
+      
+      // No break is necessary!
+      
     case 10:
     // Run online LWPR that updates its model during search; Do one CTAMP attempt (rerun) on multiple instances.
     // WARNING: DO NOT run multiple mode10 simultaneously, critical resources are at /learning_machine/data/hot
@@ -437,15 +454,25 @@ main(int argc, char **argv)
       std::string run_id;
       run_id = "/h.onlwpr." + boost::lexical_cast<string>(n_obj) + "M" + "." + boost::lexical_cast<string>(epsth);
       
-      std::vector<std::string> instance_paths;
-      if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
+      std::vector<std::string> instance_paths(n_run);
+      if(mode == 1011)
       {
-        ROS_ERROR("utils::get_instance_paths() -> failed");
-        return false;
+        instance_paths = mode1011_instance_paths;
+      }
+      else
+      {
+        if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
+        {
+          ROS_ERROR("utils::get_instance_paths() -> failed");
+          return false;
+        }
       }
       
-      for(boost::filesystem::directory_iterator itr( boost::filesystem::path("/home/vektor/hiroken-ros-pkg/learning_machine/data/hot") ),end_itr; itr != end_itr; ++itr)
-        remove(itr->path());// delete any file under ML-pkg's hot dir
+      std::string ml_pkg_path = ros::package::getPath("learning_machine");
+      std::string ml_hot_path = std::string(ml_pkg_path+"/data/hot"+run_id);
+
+      boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
+      boost::filesystem::create_directories(ml_hot_path);
       
       // Initialize the vanilla LWPR model
       size_t input_dim = 68;
@@ -457,9 +484,7 @@ main(int argc, char **argv)
       lwpr.setInitAlpha(0.1);/* Set init_alpha to _alpha_ in all elements */
       lwpr.useMeta(true);// Determines whether 2nd order distance matrix updates are to be performed
       
-      std::string ml_pkg_path = ros::package::getPath("learning_machine");
-      std::string lwpr_model_path = std::string(ml_pkg_path+"/data/hot/lwpr.bin");
-      
+      std::string lwpr_model_path = std::string(ml_hot_path+"/lwpr.bin");
       if( !lwpr.writeBinary(lwpr_model_path.c_str()) )
       {
         ROS_ERROR("lwpr.writeBinary()= FAILED");
@@ -477,11 +502,7 @@ main(int argc, char **argv)
       for(int i=0; i<n_run; ++i)
       {
         // Prepare dir + tidy.cfg file
-        size_t idx = i % instance_paths.size();
-        if(idx==0)
-          utils::randomize(&instance_paths);
-        
-        base_data_path = instance_paths.at(idx);
+        base_data_path = instance_paths.at(i);
         ros::param::set("/base_data_path",base_data_path);
         
         suffix_data_path = std::string(run_id+"."+boost::lexical_cast<std::string>(i+1));
@@ -499,14 +520,14 @@ main(int argc, char **argv)
         gm.sense( std::string(base_data_path+messy_cfg_filename) );
         
         // Plan 
-        ml_util::MLMode mode = ml_util::LWPR_ONLINE;
+        ml_util::MLMode ml_mode = ml_util::LWPR_ONLINE;
         bool rerun = true;
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
 
-        if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        if( !gm.plan(ml_mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << i+1 << "... " << instance_paths.at(idx) );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << i+1 << "... " << instance_paths.at(i) << "on mode= " << mode );
           return false;
         }
         
@@ -514,30 +535,60 @@ main(int argc, char **argv)
         utils::create_makepngsh(base_data_path,data_path);
       }
       
-      // Write this mode10eps logs
+      // Closure
       utils::write_log(mode10eps_log,std::string(log_path+".log"));
-
-      break;
+      
+      boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
+      
+      if(mode != 1011) 
+      {
+        break;
+      }
+      else// If mode==1011,  clear n_ctamp_attempt_ of planner_manager node then jump to mode11
+      {
+        ros::service::waitForService("/clear_n_ctamp_attempt");
+    
+        ros::ServiceClient clearing_client;
+        clearing_client = nh.serviceClient<planner_manager::Misc> ("/clear_n_ctamp_attempt");
+        
+        planner_manager::Misc::Request req;
+        planner_manager::Misc::Response res;
+        
+        if( !clearing_client.call(req,res) ) 
+        {
+          ROS_ERROR("Call to /clear_n_ctamp_attempt srv: FAILED");
+          return false;
+        }
+      }
     }
     case 11:
     // Run offline SVR in a batchmode, the model is updated in between search, interleave training and testing; Do runs on multiple instances.
     // WARNING: DO NOT run multiple mode11 simultaneously, critical resources are at /learning_machine/data/hot
-    // USAGE:$ roslaunch hiro_common a.launch  mode:=11 path:=/home/vektor/rss-2013/data/with_v.4.2/baseline n_obj:=1 n_run:=100 epsth:=1
+    // USAGE:$ roslaunch hiro_common a.launch  mode:=11 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 n_run:=100 epsth:=1
     {
       // Init  
       std::string run_id;
       run_id = "/h.offepsvr." + boost::lexical_cast<string>(n_obj) + "M"+ "." + boost::lexical_cast<string>(epsth);
       
-      std::vector<std::string> instance_paths;
-      if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
+      std::vector<std::string> instance_paths(n_run);
+      if(mode == 1011)
       {
-        ROS_ERROR("utils::get_instance_paths() -> failed");
-        return false;
+        instance_paths = mode1011_instance_paths;
+      }
+      else
+      {
+        if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
+        {
+          ROS_ERROR("utils::get_instance_paths() -> failed");
+          return false;
+        }
       }
       
       std::string ml_pkg_path = ros::package::getPath("learning_machine");
-      for(boost::filesystem::directory_iterator itr( boost::filesystem::path(std::string(ml_pkg_path+"/data/hot")) ),end_itr; itr != end_itr; ++itr)
-        remove(itr->path());// delete any file under ML-pkg's hot dir
+      std::string ml_hot_path = std::string(ml_pkg_path+"/data/hot"+run_id);
+
+      boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
+      boost::filesystem::create_directories(ml_hot_path);
 
       // Run mode11 for several instances
       std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode11eps.log"+run_id);
@@ -550,11 +601,7 @@ main(int argc, char **argv)
       for(int i=0; i<n_run; ++i)
       {
         // Prepare dir + tidy.cfg file
-        size_t idx = i % instance_paths.size();
-        if(idx==0)
-          utils::randomize(&instance_paths);
-        
-        base_data_path = instance_paths.at(idx);
+        base_data_path = instance_paths.at(i);
         ros::param::set("/base_data_path",base_data_path);
         
         suffix_data_path = std::string(run_id+"."+boost::lexical_cast<std::string>(i+1));
@@ -573,13 +620,13 @@ main(int argc, char **argv)
         
         // Plan 
         bool rerun = true;
-        ml_util::MLMode mode = ml_util::SVR_OFFLINE;
+        ml_util::MLMode ml_mode = ml_util::SVR_OFFLINE;
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples, (1) number of (cost-to-go vs. est. cost-to-go)
         
-        if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        if( !gm.plan(ml_mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(idx) );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << "on mode= " << mode );
           return false;
         }
 
@@ -587,8 +634,10 @@ main(int argc, char **argv)
         utils::create_makepngsh(base_data_path,data_path);
       }// for each instance
       
-      // Write this mode11eps logs
+      // Closure
       utils::write_log(mode11eps_log,std::string(log_path+".log"));
+      
+      boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       
       break;
     }
@@ -617,10 +666,11 @@ main(int argc, char **argv)
         ml_util::MLMode mode = ml_util::NO_ML;
         bool rerun = false;
         std::string log_path;// not used in this mode
+        std::string ml_hot_path;// not used in this mode
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
         
-        if( !gm.plan(mode,rerun,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
           ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << j+1  );
           break;

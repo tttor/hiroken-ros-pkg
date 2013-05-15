@@ -214,57 +214,6 @@ print_robot_state(const trajectory_msgs::JointTrajectory& trj,const size_t& ith_
   }
 }
 
-//! Obtain selected instances as _TEST_ beds
-bool
-get_instance_paths(const boost::filesystem::path& path,const std::string& inst_type,std::vector<std::string>* inst_paths)
-{
-  using namespace std;
-  
-  if( !exists(path) or !is_directory(path) )
-  {
-    cerr << "!exists(path) or !is_directory(path)" << endl;
-    return false;
-  }
-
-  bool specific;
-  if( !strcmp(inst_type.c_str(),std::string("0obj").c_str()) )
-    specific = false;
-  else
-    specific = true;
-  
-  boost::filesystem::directory_iterator end_itr; // default construction yields past-the-end
-  for ( boost::filesystem::directory_iterator itr(path);itr != end_itr; ++itr )
-  {
-    if ( is_directory(itr->status()) )
-    {
-      std::string inst_path;
-      inst_path = itr->path().string();
-      
-      if(!specific)
-      {
-        inst_paths->push_back(inst_path);
-      }
-      else
-      {
-        std::vector<std::string> inst_path_parts;
-        boost::split( inst_path_parts,inst_path,boost::is_any_of("/") );// Split e.g. /home/vektor/rss-2013/data/with_v.4.2/baseline/run.1obj.20130430a.1
-        
-        std::vector<std::string> inst_path_subparts;
-        boost::split( inst_path_subparts,inst_path_parts.back(),boost::is_any_of(".") );
-        if(inst_path_subparts.at(0).size() == 0) return false;
-        
-        std::string local_inst_type;
-        local_inst_type = inst_path_subparts.at(1);
-        
-        if( !strcmp(local_inst_type.c_str(),inst_type.c_str()) )
-          inst_paths->push_back(inst_path);
-      }
-    }
-  }
-
-  return true;
-}
-
 //! Randomize instances, important because the data order matters as it influences how the model is updated; works like randperm() in matlab
 void
 randomize(std::vector<std::string>* inst_paths)
@@ -302,6 +251,68 @@ randomize(std::vector<std::string>* inst_paths)
   tmp_inst_paths = *inst_paths;
   for(size_t i=0; i<tmp_inst_paths.size(); ++i)
     inst_paths->at(i) = tmp_inst_paths.at(idxes.at(i));
+}
+
+//! Obtain selected instances as _TEST_ beds
+bool
+get_instance_paths(const boost::filesystem::path& path,const std::string& inst_type,std::vector<std::string>* inst_paths_ptr)
+{
+  using namespace std;
+  
+  // Obtain unique instance paths
+  if( !exists(path) or !is_directory(path) )
+  {
+    cerr << "!exists(path) or !is_directory(path)" << endl;
+    return false;
+  }
+
+  bool specific;
+  if( !strcmp(inst_type.c_str(),std::string("0obj").c_str()) )
+    specific = false;
+  else
+    specific = true;
+  
+  std::vector<std::string> inst_paths;
+  boost::filesystem::directory_iterator end_itr; // default construction yields past-the-end
+  for ( boost::filesystem::directory_iterator itr(path);itr != end_itr; ++itr )
+  {
+    if ( is_directory(itr->status()) )
+    {
+      std::string inst_path;
+      inst_path = itr->path().string();
+      
+      if(!specific)
+      {
+        inst_paths.push_back(inst_path);
+      }
+      else
+      {
+        std::vector<std::string> inst_path_parts;
+        boost::split( inst_path_parts,inst_path,boost::is_any_of("/") );// Split e.g. /home/vektor/rss-2013/data/with_v.4.2/baseline/run.1obj.20130430a.1
+        
+        std::vector<std::string> inst_path_subparts;
+        boost::split( inst_path_subparts,inst_path_parts.back(),boost::is_any_of(".") );
+        if(inst_path_subparts.at(0).size() == 0) return false;
+        
+        std::string local_inst_type;
+        local_inst_type = inst_path_subparts.at(1);
+        
+        if( !strcmp(local_inst_type.c_str(),inst_type.c_str()) )
+          inst_paths.push_back(inst_path);
+      }
+    }
+  }
+
+  // Duplicate instance paths as required
+  for(size_t i=0; i<inst_paths_ptr->size(); ++i)
+  {
+    size_t idx = i % inst_paths.size();
+    if(idx == 0) randomize(&inst_paths);
+    
+    inst_paths_ptr->at(i) = inst_paths.at(idx);
+  }
+  
+  return true;
 }
 
 void

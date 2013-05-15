@@ -43,7 +43,7 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
     // Store the updated model for the next CTAMP attempt
     if(ml_mode_ == ml_util::LWPR_ONLINE)
     {
-      if(  !learner_->writeBinary( std::string(ml_hot_path_+"lwpr.bin").c_str() )  )
+      if(  !learner_->writeBinary( std::string(ml_hot_path_+"/lwpr.bin").c_str() )  )
         std::cerr << "learner_->writeBinary()= NOT OK" << std::endl;
     }
       
@@ -79,18 +79,18 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
 //    cerr << "online training: samples.size()= " << samples.size() << endl;
 
   // Utilize samples
-  if(ml_mode_==ml_util::NO_ML or ml_mode_==ml_util::SVR_OFFLINE)// Store samples for offline training
+  if(ml_mode_==ml_util::SVR_OFFLINE)// Store samples for offline training
   {
     // Write samples to a libsvmdata format
-    std::string libsvmdata_path = std::string(ml_hot_path_+"tr_data.libsvmdata");;
-    std::string delta_libsvmdata_path = std::string(ml_hot_path_+"delta_tr_data.libsvmdata");
+    std::string libsvmdata_path = std::string(ml_hot_path_+"/tr_data.libsvmdata");;
+    std::string delta_libsvmdata_path = std::string(ml_hot_path_+"/delta_tr_data.libsvmdata");
     
     write_libsvm_data(samples,libsvmdata_path,std::ios::app);
     write_libsvm_data(samples,delta_libsvmdata_path,std::ios::app);
     
     // Write samples to a CSV format
-    std::string csv_path = std::string(ml_hot_path_+"tr_data.csv");
-    std::string delta_csv_path = std::string(ml_hot_path_+"delta_tr_data.csv");
+    std::string csv_path = std::string(ml_hot_path_+"/tr_data.csv");
+    std::string delta_csv_path = std::string(ml_hot_path_+"/delta_tr_data.csv");
     
     std::ofstream csv;
     csv.open( csv_path.c_str(),std::ios::app );
@@ -145,6 +145,10 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       ml_data_->push_back(ml_datum);
     }
   }
+  else// ml_mode_==ml_util::NO_ML
+  {
+    // do nothing
+  }
 }
   
 template <typename Graph>
@@ -190,7 +194,7 @@ operator()(Vertex v)
   {
     cerr << "(ml_mode_==ml_util::NO_ML) -> h = 0." << endl;
   }
-  else// get the heuristic from a learning machine, so far either ml_mode= ml_util::SVR_OFFLINE or ml_mode=ml_util::LWPR_ONLINE
+  else if( (ml_mode_ == ml_util::SVR_OFFLINE) or (ml_mode_ == ml_util::LWPR_ONLINE) )
   {
     // Extract feature x
     Input x;
@@ -201,7 +205,7 @@ operator()(Vertex v)
     }
     else
     {
-      // Predict yp
+      // Predict yp with the learning machine
       std::vector<double> yp;
       yp = learner_->predict(x);
       
