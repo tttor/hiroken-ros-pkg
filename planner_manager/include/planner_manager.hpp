@@ -37,6 +37,7 @@
 #include "grasp_planner/PlanGrasp.h"
 #include "hiro_common/BenchmarkPath.h"
 #include "planner_manager/Plan.h"
+#include "planner_manager/Misc.h"
 
 #include "tmm_utils.hpp"
 #include "planner_manager.hpp"
@@ -70,6 +71,9 @@ collision_object_cb(const arm_navigation_msgs::CollisionObject::ConstPtr& msg);
 bool
 plan_srv_handle(planner_manager::Plan::Request& req, planner_manager::Plan::Response& res);
 
+bool
+clear_n_ctamp_attempt_srv_handle(planner_manager::Misc::Request& req, planner_manager::Misc::Response& res);
+
 private:
 //! Plan manipulation plans.
 /*!
@@ -83,7 +87,7 @@ private:
   because it receive ml_mode from a service request, which does not have MLMode
 */
 bool
-plan(const size_t& ml_mode,const bool& rerun,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,std::vector<double>* ctamp_log);
+plan(const size_t& ml_mode,const bool& rerun,const std::string& ml_hot_path,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,std::vector<double>* ctamp_log);
 
 bool
 set_tidy_config();

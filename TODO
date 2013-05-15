@@ -10,7 +10,7 @@
 >> re-do motion planning for the cheapest almost-solution path, at the confirming step
 >> grasp planner can use uniform/biased sampling strategy for discretization.
 >> migrate to MoveIt! on Groovy
->> typedef typename graph_traits<GPMGraph>::vertex_descriptor Vertex; V.S. typedef typename GPMGraph::vertex_descriptor Vertex;
+>> typedef typename graph_traits<GPMGraph>::vertex_descriptor Vertex; V.S. typedef typename GPMGraph::vertex_descriptor Vertex; likewise for edges
 ===
 Done...
 >> grasp_planner should receive information about jspace used. 

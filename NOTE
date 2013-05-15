@@ -10,6 +10,33 @@ on v.2.12
 :: (CLOSED) larm--->home--->larm(again)... useless to go home, is this because there is some error in set_planning_env() still, so that the cost to go directly is more expensive that to go home first then to go to messy-spot?
 
 ===TO BE RECOVERED ERRORs==========================================================================================================================================
+on v.4.3
+[DEBUG] [1368440658.625068215]: Obtaining te_err anf tr_err for n_samples= 64
+Mean squared error = 0.0529626 (regression)
+Squared correlation coefficient = 0.901902 (regression)
+utils::get_n_lines(tmp_data_path) fit_te = 65
+Mean squared error = 0.022063 (regression)
+Squared correlation coefficient = 0.948789 (regression)
+utils::get_n_lines(tmp_data_path) fit_tr = 65
+[ERROR] [1368440658.729473612]: y_true.size()= 64
+[ERROR] [1368440658.729511392]: y_fit_te.size()= 65
+[ERROR] [1368440658.729537095]: y_fit_tr.size()= 65
+[ERROR] [1368440658.737300620]: Call to planner_manager/plan srv: FAILED
+[ERROR] [1368440658.737374899]: gm.plan(...): failed on runth=36... /home/vektor/rss-2013/data/with_v.4.3/baseline/run.4obj.20130504c.9
+
+[DEBUG] [1368448219.275009916]: Obtaining te_err anf tr_err for n_samples= 105
+Mean squared error = 0.0887053 (regression)
+Squared correlation coefficient = 0.950138 (regression)
+utils::get_n_lines(tmp_data_path) fit_te = 105
+Mean squared error = 0.0662299 (regression)
+Squared correlation coefficient = 0.96206 (regression)
+utils::get_n_lines(tmp_data_path) fit_tr = 111
+[ERROR] [1368448219.701291405]: y_true.size()= 105
+[ERROR] [1368448219.701338305]: y_fit_te.size()= 105
+[ERROR] [1368448219.701375561]: y_fit_tr.size()= 111
+[ERROR] [1368448219.705690934]: Call to planner_manager/plan srv: FAILED
+[ERROR] [1368448219.717747754]: gm.plan(...): failed on runth=42... /home/vektor/rss-2013/data/with_v.4.3/baseline/run.5obj.20130504b.3
+
 ===
 on v.3.4
 [DEBUG] [1362836604.515706149]: set_planning_env: robot_state published
@@ -74,7 +101,7 @@ Published Topics: /rosout, /hiro_rarm_kinematics/sync_planning_scene/goal, /hiro
 
 Sanity check failing - no entry in acm for collision space object CAN1
 
-===RECOVERED ERRORs===============================================================================================================================================  
+===FIXED ERRORs===============================================================================================================================================  
 ===
 Node: /ompl_planning
 Time: 1359186520.700143520
