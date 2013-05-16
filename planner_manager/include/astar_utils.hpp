@@ -193,6 +193,7 @@ operator()(Vertex v)
   else if(ml_mode_ == ml_util::NO_ML)
   {
     cerr << "(ml_mode_==ml_util::NO_ML) -> h = 0." << endl;
+    h = 0.;
   }
   else if( (ml_mode_ == ml_util::SVR_OFFLINE) or (ml_mode_ == ml_util::LWPR_ONLINE) )
   {

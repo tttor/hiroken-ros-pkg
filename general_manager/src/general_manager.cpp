@@ -290,6 +290,7 @@ main(int argc, char **argv)
   {
     case 1:
     // SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
+    // The result is stored under "path" whose default value is set in the launch file
     // USAGE: $ roslaunch hiro_common a.launch mode:=1 n_obj:=1 n_run:=2 tidy_cfg:=/tidy_baseline.1.cfg suffix:=20130430a
     {
       for(size_t j=0; j<(size_t)n_run; ++j)
@@ -432,7 +433,7 @@ main(int argc, char **argv)
 //    }
     case 1011:
       // Do mode10 and mode 11 subsequently with the same instance_paths order
-      // USAGE: $ roslaunch hiro_common a.launch  mode:=1011 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 n_run:=10 epsth:=1
+      // USAGE: $ roslaunch hiro_common a.launch  mode:=1011 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 n_run:=10 epsth:=1 
       if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&mode1011_instance_paths) )
       {
         ROS_ERROR("utils::get_instance_paths() -> failed");
