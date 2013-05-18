@@ -201,8 +201,10 @@ operator()(Vertex v)
     Input x;
     if ( !gpm_->get_fval(v,&x) )
     {
-      cerr << "!gpm_->get_fval(v,&x) -> h = 0." << endl;
-      h = 0.;
+      // This happens when there is no goal-reached path from v, which means that definitely this vertex v does not belong to solution path.
+      // Therefore, we impose a very high value on h, which causes that this path will never expanded!
+      cerr << "!gpm_->get_fval(v,&x) -> h = (a very high value)" << endl;
+      h = std::numeric_limits<double>::max();
     }
     else
     {
@@ -220,7 +222,8 @@ operator()(Vertex v)
       cerr << "h(" << v << ")= " << h << endl;
     }
   }
-
+  
+  // Put in the main tmm!
   gpm_->put_heu(v,h);
   
   cerr << "Compute h(" << v << "): END" << endl;

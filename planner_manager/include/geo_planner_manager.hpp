@@ -12,6 +12,10 @@
 #include <boost/random/variate_generator.hpp>
 #include <boost/timer.hpp>
 
+#include <boost/graph/breadth_first_search.hpp>
+
+#include <algorithm>
+
 #include "planner_manager.hpp"
 #include "tmm_utils.hpp"
 #include "utils.hpp"
@@ -35,48 +39,6 @@ static const double EST_HIGHEST_RESULT_COST = 5.0;
 static const double MOTION_PLANNING_FAILURE_PENALTY = ALLOWED_SMOOTHING_TIME + EST_HIGHEST_RESULT_COST;
 
 static boost::mt19937 gen( std::time(0) );
-
-template<typename GlobalGraph>
-class PathExtractor: public boost::dfs_visitor<>
-{
-public:
-PathExtractor(std::vector<  std::vector< typename boost::graph_traits<GlobalGraph>::edge_descriptor >  >* paths)
-: paths_(paths)
-{ }
-
-//template <class Graph>
-//void 
-//discover_vertex(typename boost::graph_traits<Graph>::vertex_descriptor v,Graph&)
-//{
-////  std::cout << "discover " << v << std::endl;
-//}
-
-template <class Graph>
-void 
-finish_vertex(typename boost::graph_traits<Graph>::vertex_descriptor v,Graph& g)
-{
-//  std::cout << "finish " << v << std::endl;
-  
-  if( (boost::out_degree(v,g) == 0) and (!hot_path_.empty()) )
-    paths_->push_back(hot_path_);
-    
-  hot_path_.erase(hot_path_.end()-1);
-}
-
-template <class Graph>
-void tree_edge(typename boost::graph_traits<Graph>::edge_descriptor e,Graph& g)
-{
-  hot_path_.push_back(e);
-  
-//  for(typename std::vector< typename boost::graph_traits<GlobalGraph>::edge_descriptor >::iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
-//    cout << "e(" << source(*i,g) << "," << target(*i,g) << "), ";
-//  cout << endl;
-}
-
-private:
-std::vector<  std::vector< typename boost::graph_traits<GlobalGraph>::edge_descriptor >  >* paths_;
-std::vector< typename boost::graph_traits<GlobalGraph>::edge_descriptor > hot_path_;
-};
 
 struct GeoPlanningCost
 {
@@ -369,9 +331,16 @@ get_fval(TMMVertex v,Input* in)
   std::vector<TMMEdge> est_opt_sol_path;
   est_opt_sol_path = predict_opt_sol_path(v);
   
-//  ROS_DEBUG("predict_opt_sol_path= ");
-//  for(std::vector<TMMEdge>::const_iterator i=est_opt_sol_path.begin(); i!=est_opt_sol_path.end(); ++i)
-//    ROS_DEBUG_STREAM("e(" << get(vertex_name,pm_->tmm_,source(*i,pm_->tmm_)) << "," << get(vertex_name,pm_->tmm_,target(*i,pm_->tmm_)) << "), ");
+  cerr << "predict_opt_sol_path= "<< endl;
+  for(std::vector<TMMEdge>::const_iterator i=est_opt_sol_path.begin(); i!=est_opt_sol_path.end(); ++i)
+  {
+    cerr << "e(" << get(vertex_name,pm_->tmm_,source(*i,pm_->tmm_)) << "," << get(vertex_name,pm_->tmm_,target(*i,pm_->tmm_)) << ")"
+         << "[" << get(edge_jspace,pm_->tmm_,*i) << "]";
+    
+    if(i < est_opt_sol_path.end()-1) 
+      cerr << ", ";
+  }
+  cerr << endl;
     
   if( est_opt_sol_path.empty() )
   {
@@ -390,86 +359,45 @@ get_fval(TMMVertex v,Input* in)
 //! Obtain estimated optimal solution path 
 /*!
   "estimated" because the edge cost is ignored in (left undefined).
-  We just traverse the graph from a given vertex to ideally the goal vertex; 
-  consider a situation where there is no path from the given vertex to the goal vertex because some edge is removed because there is no grasp pose for motion planning for that edge.
-  Criteria:
-    1. the shortest goal-reached paths 
-    2. the longest goal-unreached paths
+  Criteria: the shortest path to the goal vertex
 */
 std::vector<TMMEdge>
-predict_opt_sol_path(const TMMVertex& v)
+predict_opt_sol_path(const TMMVertex& src)
 {
-  // Obtain all paths from this vertex v to any leaf
-  std::vector< std::vector<TMMEdge> > paths;
-  PathExtractor<TaskMotionMultigraph> ext(&paths);
+  // Init parent_map
+  std::vector<TMMVertex> parent_map( num_vertices(pm_->tmm_) );
+  for(boost::graph_traits<TaskMotionMultigraph>::vertices_size_type p=0; p < num_vertices(pm_->tmm_); ++p )
+    parent_map[p] = p;
   
-  TaskMotionMultigraph tmp_tmm;
-  tmp_tmm = pm_->tmm_;// because depth_first_visit below alters the graph vertex colors
+  // Do BFS, not using Djikstra because path weights are equal (=1)
+  boost::breadth_first_search( pm_->tmm_,src,boost::visitor(boost::make_bfs_visitor(boost::record_predecessors(&parent_map[0],boost::on_tree_edge()))) );
   
-  depth_first_visit( tmp_tmm,v,ext,get(vertex_color,tmp_tmm) );
-  
-  if(paths.empty())  
-    return std::vector<TMMEdge>();
-    
-  // Filter goal-reached paths those that lead to the goal vertex 
-  std::vector< std::vector<TMMEdge> > goal_reached_paths;
-  for(std::vector< std::vector<TMMEdge> >::const_iterator i=paths.begin(); i!=paths.end(); ++i)
-  {
-    if(target(i->back(),pm_->tmm_) == pm_->tmm_goal_)
-      goal_reached_paths.push_back(*i);
-  }
-  
-  // Choose one path satisfying the criteria above
+  // Backtrack the shortest  path from goal vertex to the src vertex
   std::vector<TMMEdge> path;
-  if( !goal_reached_paths.empty() )// chosee the shortest path in goal-reached paths
-  {
-    path = goal_reached_paths.at(0);
-    for(size_t i=1; i<goal_reached_paths.size(); ++i)
-    {
-      if(goal_reached_paths.at(i).size() < path.size())
-        path = goal_reached_paths.at(i);
-    }
-  }
-  else// choose the longest path in paths
-  {
-    path = paths.at(0);
-    for(size_t i=1; i<paths.size(); ++i)
-    {
-      if(paths.at(i).size() > path.size())
-        path = paths.at(i);
-    }
-  }
   
-  // Fact: returning "path" above directly results in unstable running time error, possibly because it contain edge of a copy of pm_->tmm_
-  // (20130513): the returned path always contains the smallest jspace, although the optimal path is not alywas with the smallest jspace.
-  std::vector<TMMEdge> final_path;
-  for(typename std::vector<TMMEdge>::const_iterator i=path.begin(); i!=path.end(); ++i)
+  TMMVertex parent = pm_->tmm_goal_;
+  TMMVertex child;
+  
+  do
   {
-    cerr << "e(" << get(vertex_name,pm_->tmm_,source(*i,pm_->tmm_)) << "," << get(vertex_name,pm_->tmm_,target(*i,pm_->tmm_)) << "), " << endl;
-    cerr << "name= " << get(edge_name,pm_->tmm_,*i) << endl;
-    cerr << "jspace= " << get(edge_jspace,pm_->tmm_,*i) << endl;
-    cerr << endl;
-    
-    graph_traits<TaskMotionMultigraph>::edge_iterator ei, ei_end;
-    for(tie(ei,ei_end) = edges(pm_->tmm_); ei!=ei_end; ++ei)
+    typename graph_traits<TaskMotionMultigraph>::out_edge_iterator ei,ei_end;
+    for(tie(ei,ei_end)=out_edges(parent_map[parent],pm_->tmm_);ei != ei_end; ++ei)
     {
-      if(
-          !strcmp( get(vertex_name,pm_->tmm_,source(*i,pm_->tmm_)).c_str(),get(vertex_name,pm_->tmm_,source(*ei,pm_->tmm_)).c_str() )
-          and
-          !strcmp( get(vertex_name,pm_->tmm_,target(*i,pm_->tmm_)).c_str(),get(vertex_name,pm_->tmm_,target(*ei,pm_->tmm_)).c_str() )
-          and
-          !strcmp( get(edge_name,pm_->tmm_,*i).c_str(),get(edge_name,pm_->tmm_,*ei).c_str() )
-          and
-          !strcmp( get(edge_jspace,pm_->tmm_,*i).c_str(),get(edge_jspace,pm_->tmm_,*ei).c_str() )
-        )
+      if(target(*ei,pm_->tmm_) == parent)
       {
-        final_path.push_back(*ei);
+        path.push_back(*ei);
         break;
       }
     }
+    
+    child = parent;
+    parent = parent_map[parent];
   }
-
-  return final_path;
+  while(parent != parent_map[parent]);
+  
+  std::reverse(path.begin(),path.end());
+  
+  return path;
 }
 
 //void
