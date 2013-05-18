@@ -201,8 +201,8 @@ operator()(Vertex v)
     Input x;
     if ( !gpm_->get_fval(v,&x) )
     {
-      cerr << "!gpm_->get_fval(v,&x) -> h = 0." << endl;
-      h = 0.;
+      cerr << "!gpm_->get_fval(v,&x) -> h = (a very high value)" << endl;
+      h = std::numeric_limits<double>::max();
     }
     else
     {
@@ -220,7 +220,8 @@ operator()(Vertex v)
       cerr << "h(" << v << ")= " << h << endl;
     }
   }
-
+  
+  // Put in the main tmm!
   gpm_->put_heu(v,h);
   
   cerr << "Compute h(" << v << "): END" << endl;
