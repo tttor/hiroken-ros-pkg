@@ -481,11 +481,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     SVMParameter param;
     init_svmparam(&param);
+    // TODO set the tuned param here!
     
     SVMNode* x_space;
     x_space = 0;
   
     SVMProblem problem;
+    // TODO pre-process the data: scaling, normalizing, etc 
     if( !read_problem(tr_data_path.c_str(),x_space,&problem,&param) )
     {
       ROS_ERROR("libsvr read_problem(): failed");
