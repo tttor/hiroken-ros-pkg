@@ -5,6 +5,15 @@
 
 namespace ml_util
 {
+static const bool TUNED_LWPR_UPDATE_D = true;
+static const double TUNED_LWPR_D = 0.9;
+static const double TUNED_LWPR_ALPHA = 1.5;
+static const double TUNED_LWPR_PEN = 2.0;
+
+static const double TUNED_SVR_C = 3.000;
+static const double TUNED_SVR_P = 0.010;
+static const int TUNED_SVR_KERNEL_TYPE = 2;// RBF
+static const double TUNED_SVR_GAMMA = 0.015;
 
 typedef 
 enum 

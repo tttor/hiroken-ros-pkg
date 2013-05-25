@@ -481,8 +481,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     SVMParameter param;
     init_svmparam(&param);
-    // TODO set the tuned param here!
-    
+    param.C = ml_util::TUNED_SVR_C;
+    param.p = ml_util::TUNED_SVR_P;
+    param.kernel_type = ml_util::TUNED_SVR_KERNEL_TYPE;
+    param.gamma = ml_util::TUNED_SVR_GAMMA;
+
     SVMNode* x_space;
     x_space = 0;
   
