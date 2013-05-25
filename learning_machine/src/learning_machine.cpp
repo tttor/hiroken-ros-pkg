@@ -43,45 +43,48 @@ train_srv_handle(learning_machine::Train::Request& req, learning_machine::Train:
 }
 
 bool
-test_srv_handle()
-{
-  // TODO
-  return true;
-}
-
-bool
 create_metadata_srv_handle(learning_machine::CreateMetadata::Request& req,learning_machine::CreateMetadata::Response& res)
 {
-  return create_metadata();
+  if(create_metadata(req.n_obj))
+  {
+    res.msg = "metadata: created.";
+    return true;
+  }
+  else
+  {
+    return false;
+  }
 }
 
 private:
 //! A helper function
 /*!
-  Create metadata file that contains input-feature names a.k.a labels.
+  Create metadata file that contains input-feature names a.k.a labels
   Should be rarely used.
   
   Labels are defined by the upper bound of planning horizon, here: 5obj.
   
-  \param tmm_dot_path used to extract edge labels
-  \param &n number of movable objects
+  Labels are in this order:
+  1. Geo label: object's pose at the head vertex
+  2. Geo label: jstates at the head vertex
+  3. Sym label: action label of edges on the path
+  4. Sym label: X-centric of edges on the path
+  
+  \param &n_obj number of movable objects
 */
 bool
-create_metadata()
+create_metadata(const size_t& n_obj)
 {
   ROS_DEBUG("Creating metadata...");
   
   // Init 
   std::string tmm_dot_path;
-  tmm_dot_path = "/home/vektor/rss-2013/data/with_v.4.2/ref/vanilla_tmm.5obj.dot";// TODO make it not-hardcoded 
+  tmm_dot_path = std::string("/home/vektor/rss-2013/data/ref/vanilla_tmm."+boost::lexical_cast<std::string>(n_obj)+"M.dot");
   
   std::string metadata_path;
-  metadata_path = "/home/vektor/rss-2013/data/with_v.4.2/ref/metadata.csv";
-  
-  size_t n_obj;
-  n_obj = 5;
-  
-  std::set<std::string> labels;
+  metadata_path = std::string("/home/vektor/rss-2013/data/ref/metadata."+boost::lexical_cast<std::string>(n_obj)+".csv");
+
+  std::vector<std::string> labels;
   
   // Read the referenced tmm  
   TaskMotionMultigraph tmm;
@@ -100,59 +103,62 @@ create_metadata()
     return false;
   }
   
-  // Sym label: action labels of edges on the path
-  boost::graph_traits<TaskMotionMultigraph>::edge_iterator ei, ei_end;
-  for(boost::tie(ei, ei_end) = edges(tmm); ei != ei_end; ++ei)
-  {
-    labels.insert( get(edge_name,tmm,*ei) );
-  }
-  
-  // Sym label: X-centric of edges on the path
-  labels.insert("TRANSIT-centric");
-  labels.insert("TRANSFER-centric");  
-  labels.insert("LARM-centric");
-  labels.insert("RARM-centric");
-  
   // Geo label: object's pose at the head vertex
   std::vector<std::string> geo_feature_names;
   std::string obj_id = "CAN";
   
   for(size_t i=1; i<=n_obj; ++i)
   {
-    labels.insert(obj_id + boost::lexical_cast<std::string>(i) + ".x");
-    labels.insert(obj_id + boost::lexical_cast<std::string>(i) + ".y");
-    labels.insert(obj_id + boost::lexical_cast<std::string>(i) + ".z");
-    labels.insert(obj_id + boost::lexical_cast<std::string>(i) + ".qx");
-    labels.insert(obj_id + boost::lexical_cast<std::string>(i) + ".qy");
-    labels.insert(obj_id + boost::lexical_cast<std::string>(i) + ".qz");
-    labels.insert(obj_id + boost::lexical_cast<std::string>(i) + ".qw");
+    labels.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".x");
+    labels.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".y");
+    labels.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".z");
+    labels.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".qx");
+    labels.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".qy");
+    labels.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".qz");
+    labels.push_back(obj_id + boost::lexical_cast<std::string>(i) + ".qw");
   }
   
   // Geo label: jstates at the head vertex
-  labels.insert("joint_chest_yaw");
+  labels.push_back("joint_chest_yaw");
     
-  labels.insert("joint_rshoulder_yaw");
-  labels.insert("joint_rshoulder_pitch");
-  labels.insert("joint_relbow_pitch");
-  labels.insert("joint_rwrist_yaw");
-  labels.insert("joint_rwrist_pitch");
-  labels.insert("joint_rwrist_roll");
+  labels.push_back("joint_rshoulder_yaw");
+  labels.push_back("joint_rshoulder_pitch");
+  labels.push_back("joint_relbow_pitch");
+  labels.push_back("joint_rwrist_yaw");
+  labels.push_back("joint_rwrist_pitch");
+  labels.push_back("joint_rwrist_roll");
     
-  labels.insert("joint_lshoulder_yaw");
-  labels.insert("joint_lshoulder_pitch");
-  labels.insert("joint_lelbow_pitch");
-  labels.insert("joint_lwrist_yaw");
-  labels.insert("joint_lwrist_pitch");
-  labels.insert("joint_lwrist_roll");
+  labels.push_back("joint_lshoulder_yaw");
+  labels.push_back("joint_lshoulder_pitch");
+  labels.push_back("joint_lelbow_pitch");
+  labels.push_back("joint_lwrist_yaw");
+  labels.push_back("joint_lwrist_pitch");
+  labels.push_back("joint_lwrist_roll");
+  
+  // Sym label: action label of edges on the path
+  std::set<std::string> sym_label_set;
+  
+  boost::graph_traits<TaskMotionMultigraph>::edge_iterator ei, ei_end;
+  for(boost::tie(ei, ei_end) = edges(tmm); ei != ei_end; ++ei)
+  {
+    std::string label = get(edge_name,tmm,*ei);
+    
+    if( sym_label_set.insert(label).second )
+      labels.push_back(label);
+  }
+  
+  // Sym label: X-centric of edges on the path
+  labels.push_back("TRANSIT-centric");
+  labels.push_back("TRANSFER-centric");  
+  labels.push_back("LARM-centric");
+  labels.push_back("RARM-centric");
   
   // Write the metadata 
   std::ofstream metadata_out;
   metadata_out.open(metadata_path.c_str());// overwrite
   
-  for(std::set<std::string>::const_iterator i=labels.begin(); i!=labels.end(); ++i)
-  {
+  for(std::vector<std::string>::const_iterator i=labels.begin(); i!=labels.end(); ++i)
     metadata_out << *i << ",";
-  }
   metadata_out << "OUT";
   
   metadata_out.close();
@@ -334,9 +340,6 @@ main(int argc, char **argv)
   ros::ServiceServer train_srv;
   train_srv = nh.advertiseService("/train", &LearningMachine::train_srv_handle, &learner);
   
-//  ros::ServiceServer test_srv;
-//  test_srv = nh.advertiseService("/test", &LearningMachine::test_srv_handle, &learner);
-
   ROS_INFO("learner: spinning...");
   ros::spin();
   

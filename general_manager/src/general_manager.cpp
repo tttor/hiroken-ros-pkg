@@ -479,11 +479,12 @@ main(int argc, char **argv)
       size_t input_dim = 68;
       size_t output_dim = 1;
       LWPR_Object lwpr(input_dim,output_dim);
-      
-      lwpr.setInitD(0.05);/* Set initial distance metric to D*(identity matrix) */
-      lwpr.updateD(true);// Determines whether distance matrix updates are to be performed
-      lwpr.setInitAlpha(0.1);/* Set init_alpha to _alpha_ in all elements */
       lwpr.useMeta(true);// Determines whether 2nd order distance matrix updates are to be performed
+
+      lwpr.updateD(ml_util::TUNED_LWPR_UPDATE_D);// Determines whether distance matrix updates are to be performed            
+      lwpr.setInitD(ml_util::TUNED_LWPR_D);/* Set initial distance metric to D*(identity matrix) */
+      lwpr.setInitAlpha(ml_util::TUNED_LWPR_ALPHA);/* Set init_alpha to _alpha_ in all elements */
+      lwpr.penalty(ml_util::TUNED_LWPR_PEN);
       
       std::string lwpr_model_path = std::string(ml_hot_path+"/lwpr.bin");
       if( !lwpr.writeBinary(lwpr_model_path.c_str()) )
@@ -493,7 +494,11 @@ main(int argc, char **argv)
       }
            
       // Run mode10 for several CTAMP instances
-      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode10eps.log"+run_id);
+      std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode10eps.log");
+      if( !boost::filesystem::exists(boost::filesystem::path(log_dir_path)) )
+        boost::filesystem::create_directories(log_dir_path);
+        
+      std::string log_path = std::string(log_dir_path+run_id);
       boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".log") );
@@ -592,7 +597,11 @@ main(int argc, char **argv)
       boost::filesystem::create_directories(ml_hot_path);
 
       // Run mode11 for several instances
-      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode11eps.log"+run_id);
+      std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode11eps.log");
+      if( !boost::filesystem::exists(boost::filesystem::path(log_dir_path)) )
+        boost::filesystem::create_directories(log_dir_path);
+      
+      std::string log_path = std::string(log_dir_path+run_id);
       boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".log") );
@@ -637,7 +646,8 @@ main(int argc, char **argv)
       
       // Closure
       utils::write_log(mode11eps_log,std::string(log_path+".log"));
-      
+      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.libsvmdata"),std::string("/home/vektor/rss-2013/data/with_v.4.3/ml_data/tr_data." + boost::lexical_cast<string>(n_obj) + "M" + ".libsvmdata"),boost::filesystem::copy_option::overwrite_if_exists );// for tuning ml
+      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv"),std::string("/home/vektor/rss-2013/data/with_v.4.3/ml_data/tr_data." + boost::lexical_cast<string>(n_obj) + "M" +".csv"),boost::filesystem::copy_option::overwrite_if_exists );// for tuning ml
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       
       break;
