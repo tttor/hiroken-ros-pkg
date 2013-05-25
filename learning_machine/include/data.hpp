@@ -2,6 +2,7 @@
 #define DATA_HPP_INCLUDED
 
 #include "data.hpp"
+#include "utils.hpp"
 
 #include <boost/algorithm/string.hpp>
 #include <fstream>
@@ -91,7 +92,7 @@ write_libsvm_data(const Data& data,const std::string& data_out_path,std::ios_bas
 {
   std::ofstream data_out;
   data_out.open(data_out_path.c_str(),mode);
-  
+
   for(Data::const_iterator i=data.begin(); i!=data.end(); ++i)
   {
     data_out << i->second << " ";
@@ -106,7 +107,7 @@ write_libsvm_data(const Data& data,const std::string& data_out_path,std::ios_bas
     
     data_out << std::endl;
   }
-
+  
   data_out.close();
   return true; 
 }
@@ -153,20 +154,24 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
   using namespace std; 
   
   Data data;
-
+  size_t n_line = utils::get_n_lines(csv_path);
+  
   ifstream csv(csv_path.c_str());
   if (csv.is_open())
   {
-
-    while ( csv.good() )
+    for(size_t i=0; i<n_line; ++i)
     {
       string line;
       getline (csv,line);
-      
+
       // Parse
       vector<string> str_vals;
       boost::split( str_vals,line, boost::is_any_of(",") );
-      if(str_vals.at(0).size() == 0) return false;
+      if(str_vals.at(0).size() == 0)
+      {
+        cerr << "str_vals.at(0).size() == 0 [csv is CORRUPTED]" << endl;
+        return false;
+      }
       
       // Obtain the input vector and the output
       Input in;
@@ -177,7 +182,7 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
       out = boost::lexical_cast<double>(str_vals.back());
       
       // Wrap up
-      data.insert( make_pair(in,out) );
+      data.insert( make_pair(in,out) );    
     }
     csv.close();
   }

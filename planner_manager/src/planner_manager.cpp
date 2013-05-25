@@ -482,10 +482,16 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
 //    // Pre-process the data: PCA
 //    if( !ml_util::pca(raw_tr_data_path,pca_tr_data_path) )
+//    {
+//      ROS_ERROR("ml_util::pca() FAILED");
 //      return false;
+//    }
 
 //    if( !data_util::convert_csv2libsvmdata(pca_tr_data_path,tr_data_path) )//overwritten here!
+//    {
+//      ROS_ERROR("data_util::convert_csv2libsvmdata() FAILED");
 //      return false;
+//    }
     
     // Interleave SVR training, building the model from scratch will all stored data
     ROS_DEBUG("SVR training ...");
