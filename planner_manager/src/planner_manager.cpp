@@ -465,9 +465,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   if(ml_mode==ml_util::SVR_OFFLINE)// Do interleaved training
   {
     // Initialize
-    std::string tr_data_path = std::string(ml_hot_path+"/tr_data.libsvmdata");// is appended with samples obtained from one CTAMP instance to another
+    std::string raw_tr_data_path = std::string(ml_hot_path+"/tr_data.csv");// raw means un-preprocessed
+    std::string pca_tr_data_path = std::string(ml_hot_path+"/pca_tr_data.csv");
+    std::string tr_data_path = std::string(ml_hot_path+"/tr_data.libsvmdata");// is appended with samples obtained from one CTAMP instance to another    
+        
     std::string delta_tr_data_path = std::string(ml_hot_path+"/delta_tr_data.libsvmdata");// is appended with samples obtained from one CTAMP instance to another
     std::string delta_csv_tr_data_path = std::string(ml_hot_path+"/delta_tr_data.csv");
+    
     std::string tmp_data_path  = std::string(ml_hot_path+"/fit.out");// _must_ be always overwritten
     
     SVMModel old_svr_model;
@@ -475,6 +479,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     {
       old_svr_model = *svr_model_;
     }
+    
+//    // Pre-process the data: PCA
+//    if( !ml_util::pca(raw_tr_data_path,pca_tr_data_path) )
+//      return false;
+
+//    if( !data_util::convert_csv2libsvmdata(pca_tr_data_path,tr_data_path) )//overwritten here!
+//      return false;
     
     // Interleave SVR training, building the model from scratch will all stored data
     ROS_DEBUG("SVR training ...");
@@ -490,7 +501,6 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     x_space = 0;
   
     SVMProblem problem;
-    // TODO pre-process the data: scaling, normalizing, etc 
     if( !read_problem(tr_data_path.c_str(),x_space,&problem,&param) )
     {
       ROS_ERROR("libsvr read_problem(): failed");
