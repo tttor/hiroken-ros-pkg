@@ -248,7 +248,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
           search_heuristic_ml_mode = ml_mode;// 3 possible values of ml_mode: NO_ML and SVR_OFFLINE and NO_ML_BUT_COLLECTING_SAMPLES
         
         // SVR from libsvm
-        svr_max_n_attr_ = 100;
+        svr_max_n_attr_ = 68;// with planning horizon M= 5
         SVM_Object learner(svr_model_,svr_max_n_attr_);
 
         ROS_DEBUG("Searching over TMM ...");
