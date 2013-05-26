@@ -658,7 +658,7 @@ main(int argc, char **argv)
     {
       // Init  
       std::string run_id;
-      run_id = "/h.zeroed";
+      run_id = "/h.zeroed." + boost::lexical_cast<string>(n_obj) + "M";
       
       std::vector<std::string> instance_paths(n_run);
       if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
