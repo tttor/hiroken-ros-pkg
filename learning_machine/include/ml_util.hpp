@@ -20,6 +20,7 @@ typedef
 enum 
 {
   NO_ML=0, 
+  NO_ML_BUT_COLLECTING_SAMPLES,
   SVR_OFFLINE,// in a batch mode, training is interleaved in between search 
   LWPR_ONLINE// in an online mode, the model is updated during search
 } MLMode;
@@ -98,6 +99,9 @@ pca(const std::string& in_data_path,const std::string& out_data_path)
     return false;
   }
   cout << "In matlab ;)" << endl;
+  
+  cmd = "format long;";
+  engEvalString(ep,cmd.c_str());
   
   // Filter the data: input vector only
   cmd = std::string("data = csvread('" + in_data_path + "');");

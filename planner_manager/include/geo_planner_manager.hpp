@@ -376,7 +376,7 @@ predict_opt_sol_path(const TMMVertex& src)
   std::vector<TMMEdge> path;
   
   TMMVertex parent = pm_->tmm_goal_;
-  TMMVertex child;
+  TMMVertex child = parent;
   
   do
   {

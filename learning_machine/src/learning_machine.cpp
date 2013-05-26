@@ -307,7 +307,7 @@ get_samples(const std::vector<std::string>& tmm_paths)
   std::string tr_data_path_2;
   tr_data_path_2 = data_path_ + "/ml_data/data.libsvmdata";
   
-  write_libsvm_data(tr_data_,tr_data_path_2);
+  data_util::write_libsvm_data(tr_data_,tr_data_path_2);
   
   return true;
 }

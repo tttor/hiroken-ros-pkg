@@ -10,9 +10,11 @@
 typedef double Output;// which is the true geometric cost
 typedef std::vector<double> Input;// which contains feature-values, whose names are specified in the metadata
 typedef std::map<std::string, double> RawInput;// which consists of features-name--feature-value pairs, for sparse data
-typedef std::map<Input, Output> Data;
-typedef std::list<Input> InputOnlyData;
+typedef std::map<Input, Output> Data;// inforce unique data only, in particular unique key(=Input)
+typedef std::set<Input> InputOnlyData;// inforce unique data only, in particular unique key(=Input)
 
+namespace data_util
+{
 //! This gets the upper bound of input-feature size
 /*!
   feature name = feature label
@@ -93,6 +95,7 @@ write_libsvm_data(const Data& data,const std::string& data_out_path,std::ios_bas
   std::ofstream data_out;
   data_out.open(data_out_path.c_str(),mode);
 
+//  std::cerr << "data.size()= " << data.size() << std::endl;
   for(Data::const_iterator i=data.begin(); i!=data.end(); ++i)
   {
     data_out << i->second << " ";
@@ -122,32 +125,28 @@ write_libsvm_data(const Input& in,const std::string& data_out_path,std::ios_base
   return write_libsvm_data(data,data_out_path,mode);
 }
 
-namespace data_util
-{
-
 //! Write to a csv file
 /*!
-Accept Input datatype only
+  Accept only datatype= Data 
 */
 void
-write_csv(const InputOnlyData& data,const std::string& data_path)
+write_csv_data(const Data& data,const std::string& csv_path,std::ios_base::openmode mode = std::ios_base::out)
 {
-  std::ofstream data_out;
-  data_out.open( data_path.c_str() );// overwrite
-  
-  for(InputOnlyData::const_iterator i=data.begin(); i!=data.end(); ++i)
+  std::ofstream csv;
+  csv.open( csv_path.c_str(),mode );
+
+  for(Data::const_iterator i=data.begin(); i!=data.end(); ++i)
   {
-    for(Input::const_iterator j=i->begin(); j!=i->end(); ++j)
+    for(Input::const_iterator j=i->first.begin(); j!=i->first.end(); ++j)
     {
-      if(j != i->end()-1)
-        data_out << *j << ",";
-      else
-        data_out << *j << std::endl;
+      csv << *j << ",";// Write input=feature values
     }
+    csv << i->second << std::endl;
   }
+  csv.close();
 }
 
-//! http://www.csie.ntu.edu.tw/~cjlin/libsvm/faqfiles/convert.c
+//! Note that this conversion also remove any duplicates
 bool
 convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata_path)
 {
@@ -155,15 +154,18 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
   
   Data data;
   size_t n_line = utils::get_n_lines(csv_path);
+  cerr << "n_line= " << n_line << endl;
   
   ifstream csv(csv_path.c_str());
   if (csv.is_open())
   {
+    size_t n_duplicate = 0;
     for(size_t i=0; i<n_line; ++i)
     {
       string line;
       getline (csv,line);
-
+//      cerr << "line= " << line << endl;
+      
       // Parse
       vector<string> str_vals;
       boost::split( str_vals,line, boost::is_any_of(",") );
@@ -182,8 +184,12 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
       out = boost::lexical_cast<double>(str_vals.back());
       
       // Wrap up
-      data.insert( make_pair(in,out) );    
+      bool unique;
+      unique = data.insert( make_pair(in,out) ).second;
+      
+      if(!unique) ++n_duplicate;
     }
+//    cerr << "n_duplicate= " << n_duplicate << endl;
     csv.close();
   }
   else

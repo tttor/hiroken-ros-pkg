@@ -186,31 +186,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       ROS_ERROR("read_graphviz(ucs_sol_tmm_dot,...): Failed.");
       return false;
     }
-    
-//    // Copy the weight from tmm_ to ucs_sol_tmm because currently ucs_sol_tmm does not contain these values
-//    for(tie(ei,ei_end) = edges(ucs_sol_tmm); ei!=ei_end; ++ei )
-//    {
-//      graph_traits<TaskMotionMultigraph>::edge_iterator ej,ej_end;
-//      for(tie(ej,ej_end) = edges(tmm_); ej!=ej_end; ++ej)
-//      {
-//        TMMVertex ei_source = source(*ei,ucs_sol_tmm);
-//        TMMVertex ei_target = target(*ei,ucs_sol_tmm);
-//        
-//        TMMVertex ej_source = source(*ej,tmm_);
-//        TMMVertex ej_target = target(*ej,tmm_);
-//        
-//        if( (ei_source==ej_source) and (ei_target==ej_target) )
-//        {
-//          double w;
-//          w = get(edge_weight,tmm_,*ej);
-//          
-//          put(edge_weight,ucs_sol_tmm,*ei,w);
-//          
-//          break;
-//        }
-//      }
-//    }
-  }
+  }// if rerun
   
   // Mark the root and the goal vertex in the TMM
   boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
@@ -226,7 +202,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   }
   
   // Open up log files
-  // The "perf.log.csv" is a singe liner text file containing 
+  // The "perf.log.csv" is a single liner text file containing 
   // (1)CTAMP_SearchTime,(2)total_mp_time,(3)#ExpandedVertices,(4)#Vertices,(5)SolPathCost,(6)#Vertices in solution path
   std::ofstream perf_log;
   perf_log.open(std::string(data_path+"/perf.log").c_str());
@@ -255,15 +231,21 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         //the learner is useless though, see astar_utils.hpp where the heuristic for this mode is always set to h=0
         ROS_DEBUG("learner= ml_util::NO_ML but via learner= SVR");
       }
+      case ml_util::NO_ML_BUT_COLLECTING_SAMPLES:
+      {
+        // use "as is" mode=ml_util::SVR_OFFLINE, 
+        //the learner is useless though, see astar_utils.hpp where the heuristic for this mode is always set to h=0
+        ROS_DEBUG("learner= ml_util::NO_ML_BUT_COLLECTING_SAMPLES but via learner= SVR");
+      }
       case ml_util::SVR_OFFLINE:
       {
         ROS_DEBUG("learner= SVR");
         
         size_t search_heuristic_ml_mode;
-        if(n_ctamp_attempt_==0)
+        if((ml_mode == ml_util::SVR_OFFLINE) and (n_ctamp_attempt_==0) )
           search_heuristic_ml_mode = ml_util::NO_ML;// for the first ctamp instance, use ml_util::NO_ML because there is no trained-SVR yet.
         else
-          search_heuristic_ml_mode = ml_mode;
+          search_heuristic_ml_mode = ml_mode;// 3 possible values of ml_mode: NO_ML and SVR_OFFLINE and NO_ML_BUT_COLLECTING_SAMPLES
         
         // SVR from libsvm
         svr_max_n_attr_ = 100;
@@ -480,18 +462,18 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       old_svr_model = *svr_model_;
     }
     
-//    // Pre-process the data: PCA
-//    if( !ml_util::pca(raw_tr_data_path,pca_tr_data_path) )
-//    {
-//      ROS_ERROR("ml_util::pca() FAILED");
-//      return false;
-//    }
+    // Pre-process the training data: PCA
+    if( !ml_util::pca(raw_tr_data_path,pca_tr_data_path) )
+    {
+      ROS_ERROR("ml_util::pca() FAILED");
+      return false;
+    }
 
-//    if( !data_util::convert_csv2libsvmdata(pca_tr_data_path,tr_data_path) )//overwritten here!
-//    {
-//      ROS_ERROR("data_util::convert_csv2libsvmdata() FAILED");
-//      return false;
-//    }
+    if( !data_util::convert_csv2libsvmdata(pca_tr_data_path,tr_data_path) )//overwritten here!
+    {
+      ROS_ERROR("data_util::convert_csv2libsvmdata() FAILED");
+      return false;
+    }
     
     // Interleave SVR training, building the model from scratch will all stored data
     ROS_DEBUG("SVR training ...");

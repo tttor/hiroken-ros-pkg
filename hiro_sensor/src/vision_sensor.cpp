@@ -90,7 +90,8 @@ see_srv_handle(hiro_sensor::See::Request& req, hiro_sensor::See::Response& res)
   
   // Note that the object poses are mirrored because coordinate frame transformation is ignored: 
   // the robot is facing to the right of the img, the left side becomes the right side
-  cv::imwrite( data_path+"/messy.cfg.jpg",cc_img_ );
+  if( !req.rerun )
+    cv::imwrite( data_path+"/messy.cfg.jpg",cc_img_ );
    
   // Although this remains questionable, without it, published collision objects can not be seen in rviz
   arm_navigation_msgs::SetPlanningSceneDiff::Request planning_scene_req;
