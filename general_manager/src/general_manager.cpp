@@ -476,7 +476,7 @@ main(int argc, char **argv)
       boost::filesystem::create_directories(ml_hot_path);
       
       // Initialize the vanilla LWPR model
-      size_t input_dim = 68;
+      size_t input_dim = 68;// with planning horizon M= 5
       size_t output_dim = 1;
       LWPR_Object lwpr(input_dim,output_dim);
       lwpr.useMeta(true);// Determines whether 2nd order distance matrix updates are to be performed
@@ -507,6 +507,8 @@ main(int argc, char **argv)
       
       for(int i=0; i<n_run; ++i)
       {
+        ROS_DEBUG_STREAM( "On runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
+  
         // Prepare dir + tidy.cfg file
         base_data_path = instance_paths.at(i);
         ros::param::set("/base_data_path",base_data_path);
@@ -534,7 +536,7 @@ main(int argc, char **argv)
 
         if( !gm.plan(ml_mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << i+1 << "... " << instance_paths.at(i) << "on mode= " << mode );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
           return false;
         }
         
@@ -611,6 +613,8 @@ main(int argc, char **argv)
       
       for(int i=0; i<n_run; ++i)
       {
+        ROS_DEBUG_STREAM( "On runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
+        
         // Prepare dir + tidy.cfg file
         base_data_path = instance_paths.at(i);
         ros::param::set("/base_data_path",base_data_path);
@@ -638,7 +642,7 @@ main(int argc, char **argv)
         
         if( !gm.plan(ml_mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << "on mode= " << mode );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
           return false;
         }
 
