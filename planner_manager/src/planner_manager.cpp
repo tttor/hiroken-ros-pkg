@@ -248,7 +248,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
           search_heuristic_ml_mode = ml_mode;// 3 possible values of ml_mode: NO_ML and SVR_OFFLINE and NO_ML_BUT_COLLECTING_SAMPLES
         
         // SVR from libsvm
-        svr_max_n_attr_ = 68;// with planning horizon M= 5
+        svr_max_n_attr_ = 68 + 100;// with planning horizon M= 5, plus tolerance= 100
         SVM_Object learner(svr_model_,svr_max_n_attr_);
 
         ROS_DEBUG("Searching over TMM ...");
@@ -554,6 +554,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         return false;
       }
       
+      cerr << "libsvm_predict() ... " << endl;
       libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
       fclose(input); fclose(output); free(x); 
       cerr << "utils::get_n_lines(tmp_data_path) fit_tr = " << utils::get_n_lines(tmp_data_path) << endl;
