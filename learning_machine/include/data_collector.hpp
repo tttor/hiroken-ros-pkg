@@ -16,7 +16,7 @@ public:
 DataCollector(Data* data,std::string metadata_path)
 : data_(data), in_(0)
 { 
-  labels_ = get_labels(metadata_path);
+  labels_ = data_util::get_labels(metadata_path);
 }
 
 //! This contructor is used to get features only as inputs during search, used to supply the learning machine in order to output the heuristic
@@ -67,7 +67,7 @@ finish_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGra
 bool
 get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Input* in)
 {
-  labels_ = get_labels(metadata_path);
+  labels_ = data_util::get_labels(metadata_path);
   
   return get_fval<Graph>(path,g,in);
 }
@@ -76,7 +76,7 @@ get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>
 bool
 get_samples(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Data* samples)
 {
-  labels_ = get_labels(metadata_path);
+  labels_ = data_util::get_labels(metadata_path);
   
   return get_samples<Graph>(path,g,samples);
 }
@@ -232,7 +232,7 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
 //    cerr << "y= " << out << endl;
     
   // Convert then return
-  return convert( r_in,in,labels_ );
+  return data_util::convert( r_in,in,labels_ );
 }
 
 //! Obtain geometric-feature values

@@ -290,6 +290,7 @@ main(int argc, char **argv)
   {
     case 1:
     // SENSE-PLAN with zeroed-H, solve CTAMP by seaching over TMM using UCS, with randomized messy_cfg, n times
+    // The result is stored under "path" whose default value is set in the launch file
     // USAGE: $ roslaunch hiro_common a.launch mode:=1 n_obj:=1 n_run:=2 tidy_cfg:=/tidy_baseline.1.cfg suffix:=20130430a
     {
       for(size_t j=0; j<(size_t)n_run; ++j)
@@ -432,7 +433,7 @@ main(int argc, char **argv)
 //    }
     case 1011:
       // Do mode10 and mode 11 subsequently with the same instance_paths order
-      // USAGE: $ roslaunch hiro_common a.launch  mode:=1011 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 n_run:=10 epsth:=1
+      // USAGE: $ roslaunch hiro_common a.launch  mode:=1011 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 n_run:=10 epsth:=1 
       if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&mode1011_instance_paths) )
       {
         ROS_ERROR("utils::get_instance_paths() -> failed");
@@ -475,14 +476,15 @@ main(int argc, char **argv)
       boost::filesystem::create_directories(ml_hot_path);
       
       // Initialize the vanilla LWPR model
-      size_t input_dim = 68;
+      size_t input_dim = 68;// with planning horizon M= 5
       size_t output_dim = 1;
       LWPR_Object lwpr(input_dim,output_dim);
-      
-      lwpr.setInitD(0.05);/* Set initial distance metric to D*(identity matrix) */
-      lwpr.updateD(true);// Determines whether distance matrix updates are to be performed
-      lwpr.setInitAlpha(0.1);/* Set init_alpha to _alpha_ in all elements */
       lwpr.useMeta(true);// Determines whether 2nd order distance matrix updates are to be performed
+
+      lwpr.updateD(ml_util::TUNED_LWPR_UPDATE_D);// Determines whether distance matrix updates are to be performed            
+      lwpr.setInitD(ml_util::TUNED_LWPR_D);/* Set initial distance metric to D*(identity matrix) */
+      lwpr.setInitAlpha(ml_util::TUNED_LWPR_ALPHA);/* Set init_alpha to _alpha_ in all elements */
+      lwpr.penalty(ml_util::TUNED_LWPR_PEN);
       
       std::string lwpr_model_path = std::string(ml_hot_path+"/lwpr.bin");
       if( !lwpr.writeBinary(lwpr_model_path.c_str()) )
@@ -492,7 +494,11 @@ main(int argc, char **argv)
       }
            
       // Run mode10 for several CTAMP instances
-      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode10eps.log"+run_id);
+      std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode10eps.log");
+      if( !boost::filesystem::exists(boost::filesystem::path(log_dir_path)) )
+        boost::filesystem::create_directories(log_dir_path);
+        
+      std::string log_path = std::string(log_dir_path+run_id);
       boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".log") );
@@ -501,6 +507,8 @@ main(int argc, char **argv)
       
       for(int i=0; i<n_run; ++i)
       {
+        ROS_DEBUG_STREAM( "On runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
+  
         // Prepare dir + tidy.cfg file
         base_data_path = instance_paths.at(i);
         ros::param::set("/base_data_path",base_data_path);
@@ -512,6 +520,7 @@ main(int argc, char **argv)
         data_path = base_data_path + suffix_data_path;
         ros::param::set("/data_path",data_path);
         
+        boost::filesystem::remove_all( boost::filesystem::path(data_path) );
         boost::filesystem::create_directories(data_path);
         
         boost::filesystem::copy_file( std::string(base_data_path+"/tidy.cfg"),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
@@ -527,7 +536,7 @@ main(int argc, char **argv)
 
         if( !gm.plan(ml_mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << i+1 << "... " << instance_paths.at(i) << "on mode= " << mode );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
           return false;
         }
         
@@ -591,7 +600,11 @@ main(int argc, char **argv)
       boost::filesystem::create_directories(ml_hot_path);
 
       // Run mode11 for several instances
-      std::string log_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode11eps.log"+run_id);
+      std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode11eps.log");
+      if( !boost::filesystem::exists(boost::filesystem::path(log_dir_path)) )
+        boost::filesystem::create_directories(log_dir_path);
+      
+      std::string log_path = std::string(log_dir_path+run_id);
       boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".log") );
@@ -600,6 +613,8 @@ main(int argc, char **argv)
       
       for(int i=0; i<n_run; ++i)
       {
+        ROS_DEBUG_STREAM( "On runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
+        
         // Prepare dir + tidy.cfg file
         base_data_path = instance_paths.at(i);
         ros::param::set("/base_data_path",base_data_path);
@@ -611,6 +626,7 @@ main(int argc, char **argv)
         data_path = base_data_path + suffix_data_path;
         ros::param::set("/data_path",data_path);
         
+        boost::filesystem::remove_all( boost::filesystem::path(data_path) );
         boost::filesystem::create_directories(data_path);
         
         boost::filesystem::copy_file( std::string(base_data_path+"/tidy.cfg"),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
@@ -626,7 +642,7 @@ main(int argc, char **argv)
         
         if( !gm.plan(ml_mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << "on mode= " << mode );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
           return false;
         }
 
@@ -636,6 +652,71 @@ main(int argc, char **argv)
       
       // Closure
       utils::write_log(mode11eps_log,std::string(log_path+".log"));
+      boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
+      
+      break;
+    }
+    case 13:
+    // For collecting path samples offline from UCS-planned TMM
+    // Usage: $ roslaunch hiro_common a.launch  mode:=13 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline.tr n_obj:=1 n_run:=10
+    {
+      // Init  
+      std::string run_id;
+      run_id = "/h.zeroed." + boost::lexical_cast<string>(n_obj) + "M";
+      
+      std::vector<std::string> instance_paths(n_run);
+      if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
+      {
+        ROS_ERROR("utils::get_instance_paths() -> failed");
+        return false;
+      }
+      
+      std::string ml_pkg_path = ros::package::getPath("learning_machine");
+      std::string ml_hot_path = std::string(ml_pkg_path+"/data/hot"+run_id);
+
+      boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
+      boost::filesystem::create_directories(ml_hot_path);
+      
+      // Run mode13 for several instances
+      for(int i=0; i<n_run; ++i)
+      {
+        // Prepare dir + tidy.cfg file
+        base_data_path = instance_paths.at(i);
+        ros::param::set("/base_data_path",base_data_path);
+        
+        suffix_data_path = std::string(run_id);
+        ros::param::set("/suffix_data_path",suffix_data_path);
+        
+        std::string data_path;
+        data_path = base_data_path + suffix_data_path;
+        ros::param::set("/data_path",data_path);
+        
+        boost::filesystem::remove_all( boost::filesystem::path(data_path) );
+        boost::filesystem::create_directories(data_path);
+        
+        boost::filesystem::copy_file( std::string(base_data_path+"/tidy.cfg"),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
+                
+        // Sense
+        gm.sense( std::string(base_data_path+messy_cfg_filename) );
+        
+        // Plan 
+        bool rerun = true;
+        ml_util::MLMode ml_mode = ml_util::NO_ML_BUT_COLLECTING_SAMPLES;
+        
+        if( !gm.plan(ml_mode,rerun,ml_hot_path) )
+        {
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << "on mode= " << mode );
+          return false;
+        }
+
+        utils::create_makepngsh(base_data_path,data_path);
+      }// for each instance
+      
+      // Copy data from data from ml hot path to ml offline path then remove the hot ones
+      std::string ml_offline_data_dir = "/home/vektor/rss-2013/data/with_v.4.3/ml_offline_data/";
+      
+      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.libsvmdata"),std::string(ml_offline_data_dir + "tr_data." + boost::lexical_cast<string>(n_obj) + "M" + ".libsvmdata"),boost::filesystem::copy_option::overwrite_if_exists );// for tuning ml
+      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv"),std::string(ml_offline_data_dir + "tr_data." + boost::lexical_cast<string>(n_obj) + "M" +".csv"),boost::filesystem::copy_option::overwrite_if_exists );// for tuning ml
       
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       
