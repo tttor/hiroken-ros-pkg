@@ -79,38 +79,21 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
 //    cerr << "online training: samples.size()= " << samples.size() << endl;
 
   // Utilize samples
-  if(ml_mode_==ml_util::SVR_OFFLINE)// Store samples for offline training
+  if((ml_mode_ == ml_util::SVR_OFFLINE)or(ml_mode_ == ml_util::NO_ML_BUT_COLLECTING_SAMPLES))// Store samples for offline (interleaved) training and for offline tuning
   {
-    // Write samples to a libsvmdata format
+    // Write samples + the delta to a libsvmdata format: APPENDING
     std::string libsvmdata_path = std::string(ml_hot_path_+"/tr_data.libsvmdata");;
     std::string delta_libsvmdata_path = std::string(ml_hot_path_+"/delta_tr_data.libsvmdata");
     
-    write_libsvm_data(samples,libsvmdata_path,std::ios::app);
-    write_libsvm_data(samples,delta_libsvmdata_path,std::ios::app);
+    data_util::write_libsvm_data(samples,libsvmdata_path,std::ios::app);
+    data_util::write_libsvm_data(samples,delta_libsvmdata_path,std::ios::app);
     
-    // Write samples to a CSV format
+    // Write samples + the delta to a CSV format: APPENDING
     std::string csv_path = std::string(ml_hot_path_+"/tr_data.csv");
     std::string delta_csv_path = std::string(ml_hot_path_+"/delta_tr_data.csv");
     
-    std::ofstream csv;
-    csv.open( csv_path.c_str(),std::ios::app );
-    
-    std::ofstream delta_csv;
-    delta_csv.open( delta_csv_path.c_str(),std::ios::app );
-    
-    for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
-    {
-      for(Input::const_iterator j=i->first.begin(); j!=i->first.end(); ++j)
-      {
-        csv << *j << ",";// Write input=feature values
-        delta_csv << *j << ",";
-      }
-        
-      csv << i->second << std::endl;
-      delta_csv << i->second << std::endl;
-    }
-    csv.close();
-    delta_csv.close();
+    data_util::write_csv_data(samples,csv_path,std::ios::app);
+    data_util::write_csv_data(samples,delta_csv_path,std::ios::app);
   }
   else if(ml_mode_==ml_util::LWPR_ONLINE)// Train online during search (the online LWPR)
   {
@@ -185,14 +168,15 @@ operator()(Vertex v)
   cerr << "Compute h(" << v << "): BEGIN" << endl;
   double h;
   
-  if(v == goal_)// or ml_mode=UCS, no learning
+  if(v == goal_)
   {
     cerr << "(v==goal_) -> h = 0." << endl;
     h = 0.;
   }
-  else if(ml_mode_ == ml_util::NO_ML)
+  else if((ml_mode_ == ml_util::NO_ML)or(ml_mode_ == ml_util::NO_ML_BUT_COLLECTING_SAMPLES))
   {
-    cerr << "(ml_mode_==ml_util::NO_ML) -> h = 0." << endl;
+    cerr << "(ml_mode_==NO_ML or NO_ML_BUT_COLLECTING_SAMPLES) -> h = 0." << endl;
+    h = 0.;
   }
   else if( (ml_mode_ == ml_util::SVR_OFFLINE) or (ml_mode_ == ml_util::LWPR_ONLINE) )
   {
@@ -200,8 +184,10 @@ operator()(Vertex v)
     Input x;
     if ( !gpm_->get_fval(v,&x) )
     {
-      cerr << "!gpm_->get_fval(v,&x) -> h = 0." << endl;
-      h = 0.;
+      // This happens when there is no goal-reached path from v, which means that definitely this vertex v does not belong to solution path.
+      // Therefore, we impose a very high value on h, which causes that this path will never expanded!
+      cerr << "!gpm_->get_fval(v,&x) -> h = (a very high value)" << endl;
+      h = std::numeric_limits<double>::max();
     }
     else
     {
@@ -219,7 +205,8 @@ operator()(Vertex v)
       cerr << "h(" << v << ")= " << h << endl;
     }
   }
-
+  
+  // Put in the main tmm!
   gpm_->put_heu(v,h);
   
   cerr << "Compute h(" << v << "): END" << endl;

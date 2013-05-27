@@ -2,14 +2,25 @@
 #define ML_UTIL_HPP_INCLUDED
 
 #include <boost/algorithm/string.hpp>
+#include "engine.h"
 
 namespace ml_util
 {
+static const bool TUNED_LWPR_UPDATE_D = false;
+static const double TUNED_LWPR_D = 0.9;
+static const double TUNED_LWPR_ALPHA = 0.010;
+static const double TUNED_LWPR_PEN = 0.010;
+
+static const double TUNED_SVR_C = 3.000;
+static const double TUNED_SVR_P = 0.010;
+static const int TUNED_SVR_KERNEL_TYPE = 2;// RBF
+static const double TUNED_SVR_GAMMA = 0.015;
 
 typedef 
 enum 
 {
   NO_ML=0, 
+  NO_ML_BUT_COLLECTING_SAMPLES,
   SVR_OFFLINE,// in a batch mode, training is interleaved in between search 
   LWPR_ONLINE// in an online mode, the model is updated during search
 } MLMode;
@@ -73,6 +84,55 @@ get_y_true(const std::string& data_path)
   
   return y_true;
 }
+
+bool
+pca(const std::string& in_data_path,const std::string& out_data_path)
+{
+  using namespace std;
+  string cmd;// for any matlab commands
+  
+  // Fire up a matlab
+  Engine *ep;
+  if( !(ep = engOpen("")) ) 
+  {
+    cerr << "\nCan't start MATLAB engine\n";
+    return false;
+  }
+  cout << "In matlab ;)" << endl;
+  
+  cmd = "format long;";
+  engEvalString(ep,cmd.c_str());
+  
+  // Filter the data: input vector only
+  cmd = std::string("data = csvread('" + in_data_path + "');");
+  engEvalString(ep,cmd.c_str());
+
+  cmd = "X = data(:,1:end-1);";
+  engEvalString(ep,cmd.c_str());
+  
+  cmd = "y = data(:,end);";
+  engEvalString(ep,cmd.c_str());
+  
+  // Do pca on X
+  cmd = "[~,newX] = princomp(X);";
+  engEvalString(ep,cmd.c_str());
+  
+  // Write the new data
+  cmd = "new_data = [newX y]";
+  engEvalString(ep,cmd.c_str());
+  
+  cmd = std::string("csvwrite('" + out_data_path + "',new_data);");
+  engEvalString(ep,cmd.c_str());
+  
+  // Turn of the matlab eng.
+  cmd = "close";
+  engEvalString(ep,cmd.c_str());
+  engClose(ep);
+  
+  cout << "Out of matlab ;)" << endl;
+  return true;
+}
+
 
 }// namespace ml_util
 #endif // #ifndef ML_UTIL_HPP_INCLUDED

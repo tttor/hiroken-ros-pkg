@@ -21,6 +21,9 @@ rosbuild_find_ros_package(learning_machine)
 include_directories(${learning_machine_PACKAGE_PATH}/include)
 include_directories(${learning_machine_PACKAGE_PATH}/libsvm-3.16)
 
+# For matlab engine
+include_directories(/usr/local/matlab/R2009b/extern/include)
+
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory
@@ -38,7 +41,7 @@ rosbuild_add_library(${PROJECT_NAME} ${learning_machine_PACKAGE_PATH}/libsvm-3.1
 #rosbuild_link_boost(${PROJECT_NAME} thread)
 
 # set the path to the library folder
-#link_directories(/home/vektor/hiroken-ros-pkg/learning_machine/lib/)
+link_directories(/usr/local/matlab/R2009b/bin/glnxa64)
 
 rosbuild_add_executable(planner src/planner_manager.cpp)
-target_link_libraries(planner log4cxx boost_graph lwpr ${PROJECT_NAME})
+target_link_libraries(planner ${PROJECT_NAME} log4cxx boost_graph lwpr eng mat mx ut mwfl boost_date_time icudata icuuc icui18n icuio boost_filesystem boost_regex hdf5_hl hdf5 boost_thread-gcc42-mt-1_36 boost_signals-gcc42-mt-1_36 boost_system-gcc42-mt-1_36)

@@ -18,6 +18,9 @@ rosbuild_find_ros_package(learning_machine)
 include_directories(${learning_machine_PACKAGE_PATH}/include)
 include_directories(${learning_machine_PACKAGE_PATH}/libsvm-3.16)
 
+# For matlab engine
+include_directories(/usr/local/matlab/R2009b/extern/include)
+
 #set the default path for built executables to the "bin" directory
 set(EXECUTABLE_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/bin)
 #set the default path for built libraries to the "lib" directory

@@ -31,7 +31,7 @@ init_svmparam(SVMParameter* param)
   param->svm_type = EPSILON_SVR;//EPSILON_SVR, NU_SVR
   param->kernel_type = RBF;
   param->degree = 3;
-  param->gamma = 0;	// 1/num_features
+  param->gamma = 0;	// default: 1/num_features
   param->coef0 = 0;
   param->nu = 0.5;
   param->cache_size = 100;

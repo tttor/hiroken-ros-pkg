@@ -26,12 +26,17 @@ struct CreateMetadataRequest_ {
   typedef CreateMetadataRequest_<ContainerAllocator> Type;
 
   CreateMetadataRequest_()
+  : n_obj(0)
   {
   }
 
   CreateMetadataRequest_(const ContainerAllocator& _alloc)
+  : n_obj(0)
   {
   }
+
+  typedef uint16_t _n_obj_type;
+  uint16_t n_obj;
 
 
   typedef boost::shared_ptr< ::learning_machine::CreateMetadataRequest_<ContainerAllocator> > Ptr;
@@ -49,12 +54,17 @@ struct CreateMetadataResponse_ {
   typedef CreateMetadataResponse_<ContainerAllocator> Type;
 
   CreateMetadataResponse_()
+  : msg()
   {
   }
 
   CreateMetadataResponse_(const ContainerAllocator& _alloc)
+  : msg(_alloc)
   {
   }
+
+  typedef std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  _msg_type;
+  std::basic_string<char, std::char_traits<char>, typename ContainerAllocator::template rebind<char>::other >  msg;
 
 
   typedef boost::shared_ptr< ::learning_machine::CreateMetadataResponse_<ContainerAllocator> > Ptr;
@@ -89,12 +99,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::learning_machine::CreateMetadataRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "0330c91bad4c26770e53bb95e8789559";
   }
 
   static const char* value(const  ::learning_machine::CreateMetadataRequest_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0xd41d8cd98f00b204ULL;
-  static const uint64_t static_value2 = 0xe9800998ecf8427eULL;
+  static const uint64_t static_value1 = 0x0330c91bad4c2677ULL;
+  static const uint64_t static_value2 = 0x0e53bb95e8789559ULL;
 };
 
 template<class ContainerAllocator>
@@ -111,7 +121,8 @@ template<class ContainerAllocator>
 struct Definition< ::learning_machine::CreateMetadataRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "\n\
+    return "uint16 n_obj\n\
+\n\
 ";
   }
 
@@ -133,12 +144,12 @@ template<class ContainerAllocator>
 struct MD5Sum< ::learning_machine::CreateMetadataResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "7d96ed730776804754140b85e64c862e";
   }
 
   static const char* value(const  ::learning_machine::CreateMetadataResponse_<ContainerAllocator> &) { return value(); } 
-  static const uint64_t static_value1 = 0xd41d8cd98f00b204ULL;
-  static const uint64_t static_value2 = 0xe9800998ecf8427eULL;
+  static const uint64_t static_value1 = 0x7d96ed7307768047ULL;
+  static const uint64_t static_value2 = 0x54140b85e64c862eULL;
 };
 
 template<class ContainerAllocator>
@@ -155,7 +166,8 @@ template<class ContainerAllocator>
 struct Definition< ::learning_machine::CreateMetadataResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "\n\
+    return "string msg\n\
+\n\
 \n\
 ";
   }
@@ -163,7 +175,6 @@ struct Definition< ::learning_machine::CreateMetadataResponse_<ContainerAllocato
   static const char* value(const  ::learning_machine::CreateMetadataResponse_<ContainerAllocator> &) { return value(); } 
 };
 
-template<class ContainerAllocator> struct IsFixedSize< ::learning_machine::CreateMetadataResponse_<ContainerAllocator> > : public TrueType {};
 } // namespace message_traits
 } // namespace ros
 
@@ -176,6 +187,7 @@ template<class ContainerAllocator> struct Serializer< ::learning_machine::Create
 {
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
+    stream.next(m.n_obj);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -193,6 +205,7 @@ template<class ContainerAllocator> struct Serializer< ::learning_machine::Create
 {
   template<typename Stream, typename T> inline static void allInOne(Stream& stream, T m)
   {
+    stream.next(m.msg);
   }
 
   ROS_DECLARE_ALLINONE_SERIALIZER;
@@ -208,7 +221,7 @@ template<>
 struct MD5Sum<learning_machine::CreateMetadata> {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "220592dc9786e0034a883b2dab270692";
   }
 
   static const char* value(const learning_machine::CreateMetadata&) { return value(); } 
@@ -228,7 +241,7 @@ template<class ContainerAllocator>
 struct MD5Sum<learning_machine::CreateMetadataRequest_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "220592dc9786e0034a883b2dab270692";
   }
 
   static const char* value(const learning_machine::CreateMetadataRequest_<ContainerAllocator> &) { return value(); } 
@@ -248,7 +261,7 @@ template<class ContainerAllocator>
 struct MD5Sum<learning_machine::CreateMetadataResponse_<ContainerAllocator> > {
   static const char* value() 
   {
-    return "d41d8cd98f00b204e9800998ecf8427e";
+    return "220592dc9786e0034a883b2dab270692";
   }
 
   static const char* value(const learning_machine::CreateMetadataResponse_<ContainerAllocator> &) { return value(); } 

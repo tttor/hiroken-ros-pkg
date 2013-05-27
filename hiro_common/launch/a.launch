@@ -6,7 +6,7 @@
 
   <arg name="joint_gui" default="False" />
 
-  <arg name="path" default="/home/vektor/rss-2013/data/with_v.4.2/baseline" />
+  <arg name="path" default="/home/vektor/rss-2013/data/with_v.4.3/baseline.hot" />
     <param name="base_data_path" value="$(arg path)"/>
     <param name="data_path" value="$(arg path)"/>
 
@@ -68,7 +68,7 @@
   <!-- node name="joint_action_server" pkg="hiro_control" type="hjas" output="screen" /-->
   <node name="joint_controller" pkg="hiro_control" type="hjc" output="screen" />
   
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find hiro_arm_navigation)/config/common_disp.vcg" />
+  <!-- node name="rviz" pkg="rviz" type="rviz" args="-d $(find hiro_arm_navigation)/config/common_disp.vcg" /-->
   <node pkg="tf" type="static_transform_publisher" name="table_tf_bc" args="0 0 0.835 0 0 0 /link_base /table 100" />
 
   <node name="grasper" pkg="grasp_planner" type="grasper" output="screen" />
