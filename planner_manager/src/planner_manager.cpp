@@ -322,7 +322,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
       else
       {
-        // Reset and Make-sure that for out-edges of unexpanded vertices these values prevail
+        // Reset and Make-sure that for out-edges of unexpanded vertices, these values prevail
         typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
         for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
         {
@@ -602,9 +602,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     ml_log_path = std::string(log_path+".ml.log");
     
     std::ofstream ml_log;
-    ml_log.open(ml_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
+    ml_log.open(ml_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a episode
     
-//    ROS_DEBUG_STREAM("ml_data.size()= " << ml_data.size());
     for(std::vector< std::vector<double> >::const_iterator i=ml_data.begin(); i!=ml_data.end(); ++i)
     {
       ml_log << i->at(0) << "," 
@@ -620,11 +619,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     h_log_path = std::string(log_path+".h.log");
     
     std::ofstream h_log;
-    h_log.open(h_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a single run
+    h_log.open(h_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a episode
     
     TMMVertex curr_vertex;
     curr_vertex = tmm_root_;
-    size_t n_hcomp = 0;
+    size_t n_hcmp = 0;// the number of est-cost2go vs. true-cost2go in this attempt
     do// Loop for obtaining all paths from any vertex in a solution path to the goal vertex
     {
       double h;// = estimated cost-to-go
@@ -634,7 +633,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       cost2go = get_cost2go(curr_vertex,tmm_goal_,ucs_sol_tmm);
       
       h_log << h << "," << cost2go << std::endl;
-      n_hcomp++;
+      n_hcmp++;
       
       typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
       tie(oei,oei_end)=out_edges(curr_vertex,ucs_sol_tmm);// no need to iterate over oei because there is only one outedge in the ucs_sol_tmm (it is actually a graph)
@@ -645,6 +644,60 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     h_log.close();
 
+    // Write log for checking consistency: h(v) <= c(v,v') + h (v')
+    std::string h2_log_path;
+    h2_log_path = std::string(log_path+".h2.log");
+    
+    std::ofstream h2_log;
+    h2_log.open(h2_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a episode
+    
+    size_t n_hcmp2 = 0;// the number of (h_v, h_av, c_v_av)
+        
+    boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
+    for(boost::tie(vi,vi_end) = vertices(tmm_); vi!=vi_end; ++vi)
+    {
+      if( (get(vertex_color,tmm_,*vi)==color_traits<boost::default_color_type>::black())// expanded
+          or
+          (get(vertex_color,tmm_,*vi)==color_traits<boost::default_color_type>::gray())// in the solution path, which must be expanded
+        )
+      {
+        double h_v;
+        h_v = get(vertex_heu,tmm_,*vi);
+  
+        std::map<TMMVertex,double> av_cost_map;// Use this instead of iterating over adjacent_vertices because this is _multigraph_
+        typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei,oei_end;
+        for(tie(oei,oei_end)=out_edges(*vi,tmm_);oei != oei_end; ++oei)
+        {
+          TMMVertex av;
+          av = target(*oei,tmm_);
+          
+          double c;
+          c = get(edge_weight,tmm_,*oei);
+          
+          std::map<TMMVertex,double>::iterator it;
+          bool inserted;
+          boost::tie(it,inserted) = av_cost_map.insert( std::make_pair(av,c) );
+          
+          // Put the lowest cost
+          if( (!inserted)and(c < it->second) )
+            it->second = c;
+        }
+        
+        for(std::map<TMMVertex,double>::iterator i = av_cost_map.begin(); i != av_cost_map.end(); ++i)
+        {
+          double h_av;
+          h_av = get(vertex_heu,tmm_,i->first);
+          
+          double c_v_av;
+          c_v_av = i->second;
+          
+          h2_log << h_v << "," << h_av << "," << c_v_av /*<< "," << get(vertex_name,tmm_,*vi) << "," << get(vertex_name,tmm_,i->first) */ << std::endl;
+          ++n_hcmp2;
+        }
+      }
+    }
+    h2_log.close();
+    
     // Store ctamp log for this ctamp instance
     size_t n_samples;
     if( !ml_data.empty() ) 
@@ -652,9 +705,10 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     else
       n_samples = 0;
     
-    ctamp_log->resize(2);// Elements: n_samples and n_hcomp
+    ctamp_log->resize(3);// Elements: n_samples and n_hcmp and n_hcmp2
     ctamp_log->at(0) = n_samples;
-    ctamp_log->at(1) = n_hcomp;
+    ctamp_log->at(1) = n_hcmp;
+    ctamp_log->at(2) = n_hcmp2;
   }// if(ml_mode==ml_util::SVR_OFFLINE or ml_mode==ml_util::LWPR_ONLINE)
 
   // Write a fancy planned TMM

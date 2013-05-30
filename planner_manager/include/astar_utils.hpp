@@ -194,19 +194,24 @@ operator()(Vertex v)
       // Predict yp with the learning machine
       std::vector<double> yp;
       yp = learner_->predict(x);
-      
+
       // Assign
       const double scale_up = 10.;
       if( !yp.empty() )
+      {
         h = yp[0] * scale_up;
+      }
       else
+      {
+        cerr << "yp.empty() -> learner_->predict(x) FAILED -> h = 0." << endl;
         h = 0.;
-        
-      cerr << "h(" << v << ")= " << h << endl;
+      }
     }
   }
   
   // Put in the main tmm!
+  if(h < 0.) h = 0.;
+  cerr << "h(" << v << ")= " << h << endl;
   gpm_->put_heu(v,h);
   
   cerr << "Compute h(" << v << "): END" << endl;

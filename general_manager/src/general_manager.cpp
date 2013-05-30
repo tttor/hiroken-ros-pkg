@@ -501,6 +501,7 @@ main(int argc, char **argv)
       std::string log_path = std::string(log_dir_path+run_id);
       boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );
+      boost::filesystem::remove( boost::filesystem::path(log_path+".h2.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".log") );
         
       std::vector< std::pair< std::string,std::vector<double> > > mode10eps_log;
@@ -532,7 +533,7 @@ main(int argc, char **argv)
         ml_util::MLMode ml_mode = ml_util::LWPR_ONLINE;
         bool rerun = true;
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
-        std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
+        std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go (2) # h_v,h_av,c
 
         if( !gm.plan(ml_mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {
@@ -607,6 +608,7 @@ main(int argc, char **argv)
       std::string log_path = std::string(log_dir_path+run_id);
       boost::filesystem::remove( boost::filesystem::path(log_path+".ml.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".h.log") );
+      boost::filesystem::remove( boost::filesystem::path(log_path+".h2.log") );
       boost::filesystem::remove( boost::filesystem::path(log_path+".log") );
       
       std::vector< std::pair< std::string,std::vector<double> > > mode11eps_log;
@@ -638,7 +640,7 @@ main(int argc, char **argv)
         bool rerun = true;
         ml_util::MLMode ml_mode = ml_util::SVR_OFFLINE;
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
-        std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples, (1) number of (cost-to-go vs. est. cost-to-go)
+        std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples, (1) number of (cost-to-go vs. est. cost-to-go) (2) # h_v,h_av,c
         
         if( !gm.plan(ml_mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
         {

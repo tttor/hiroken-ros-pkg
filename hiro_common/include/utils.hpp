@@ -262,7 +262,7 @@ get_instance_paths(const boost::filesystem::path& path,const std::string& inst_t
   // Obtain unique instance paths
   if( !exists(path) or !is_directory(path) )
   {
-    cerr << "!exists(path) or !is_directory(path)" << endl;
+    cerr << path << " -> !exists(.) or !is_directory(.)" << endl;
     return false;
   }
 
@@ -343,28 +343,39 @@ write_log(const std::vector< std::pair< std::string,std::vector<double> > >& log
   
   std::ofstream log_out;
   log_out.open(path.c_str());
-
+  
+  // line = 1: write the base path
   for(size_t i=0; i<log.size(); ++i)
   {
-    log_out << log.at(i).first;// write the base path
+    log_out << log.at(i).first;
     if(i < (log.size()-1)) log_out << ",";
   }
   log_out << std::endl;
 
+  // line = 2: write n_samples used to train the ML
   for(size_t i=0; i<log.size(); ++i)
   {
-    log_out << log.at(i).second.at(0);// write n_samples
+    log_out << log.at(i).second.at(0);
     if(i < (log.size()-1)) log_out << ",";
   }
   log_out << std::endl;
-      
+  
+  // line = 3: write number of pairs of (cost-to-go vs. est. cost-to-go)
   for(size_t i=0; i<log.size(); ++i)
   {
-    log_out << log.at(i).second.at(1);// write number of pairs of (cost-to-go vs. est. cost-to-go), also indicates the depth of solution
+    log_out << log.at(i).second.at(1);
     if(i < (log.size()-1)) log_out << ",";
   }
   log_out << std::endl;
-        
+
+  // line = 4: write number of pairs of (h_v, h_av, c_v_av)
+  for(size_t i=0; i<log.size(); ++i)
+  {
+    log_out << log.at(i).second.at(2);
+    if(i < (log.size()-1)) log_out << ",";
+  }
+  log_out << std::endl;
+          
   log_out.close();
 }
 
