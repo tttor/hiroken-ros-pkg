@@ -101,7 +101,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   }
       
   // Initialize
-  TaskMotionMultigraph ucs_sol_tmm;// only used in rerun modes
+  TaskMotionMultigraph ori_ucs_tmm;// only used in rerun modes
   
   if(!rerun)
   {
@@ -166,24 +166,24 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       put(edge_plan,tmm_,*ei, utils::get_plan(planstr) );
     }
     
-    // Retrieve the sol path resulted using UCS for making comparison: true_cost-to-go vs predicted_cost-to-go 
-    // Assume that the base for rerun is using UCS
-    boost::dynamic_properties ucs_sol_tmm_dp;
+    // Retrieve the UCS-planned TMM 
+    // Assume that the base for rerun contains UCS-planned TMM having a CTAMP solution 
+    boost::dynamic_properties ori_ucs_tmm_dp;
     
-    ucs_sol_tmm_dp.property("vertex_id", get(vertex_name, ucs_sol_tmm));
+    ori_ucs_tmm_dp.property("vertex_id", get(vertex_name, ori_ucs_tmm));
     
-    ucs_sol_tmm_dp.property( "label",get(edge_name, ucs_sol_tmm) );
-    ucs_sol_tmm_dp.property( "weight",get(edge_weight, ucs_sol_tmm) );  
-    ucs_sol_tmm_dp.property( "jspace",get(edge_jspace, ucs_sol_tmm) );
-    ucs_sol_tmm_dp.property( "color",get(edge_color, ucs_sol_tmm) );
-    ucs_sol_tmm_dp.property( "srcstate",get(edge_srcstate, ucs_sol_tmm) );  
-    ucs_sol_tmm_dp.property( "mptime",get(edge_mptime, ucs_sol_tmm) );  
-    ucs_sol_tmm_dp.property( "planstr",get(edge_planstr, ucs_sol_tmm) );
+    ori_ucs_tmm_dp.property( "label",get(edge_name, ori_ucs_tmm) );
+    ori_ucs_tmm_dp.property( "weight",get(edge_weight, ori_ucs_tmm) );  
+    ori_ucs_tmm_dp.property( "jspace",get(edge_jspace, ori_ucs_tmm) );
+    ori_ucs_tmm_dp.property( "color",get(edge_color, ori_ucs_tmm) );
+    ori_ucs_tmm_dp.property( "srcstate",get(edge_srcstate, ori_ucs_tmm) );  
+    ori_ucs_tmm_dp.property( "mptime",get(edge_mptime, ori_ucs_tmm) );  
+    ori_ucs_tmm_dp.property( "planstr",get(edge_planstr, ori_ucs_tmm) );
 
-    std::ifstream ucs_sol_tmm_dot(  std::string(base_data_path+"/sol_tmm.dot").c_str()  );
-    if( !read_graphviz(ucs_sol_tmm_dot, ucs_sol_tmm, ucs_sol_tmm_dp, "vertex_id") )
+    std::ifstream ori_ucs_tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
+    if( !read_graphviz(ori_ucs_tmm_dot, ori_ucs_tmm, ori_ucs_tmm_dp, "vertex_id") )
     {
-      ROS_ERROR("read_graphviz(ucs_sol_tmm_dot,...): Failed.");
+      ROS_ERROR("read_graphviz(ori_ucs_tmm_dot,...): Failed.");
       return false;
     }
   }// if rerun
@@ -595,6 +595,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     boost::filesystem::remove( boost::filesystem::path(delta_csv_tr_data_path) );
   }
   
+  // Logging of ML-related data
   if(ml_mode==ml_util::SVR_OFFLINE or ml_mode==ml_util::LWPR_ONLINE)
   {
     // Write ml_data
@@ -614,33 +615,93 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     ml_log.close();
     
     // Write log for heuristics vs true distance 
-    // The reference is UCS-sol-path on the rerun base 
+    // The true_cost-to-go is obtained from UCS-planned TMM using Djikstra for every est-cost-to-go in the current Astar-planned tmm
     std::string h_log_path;
     h_log_path = std::string(log_path+".h.log");
     
     std::ofstream h_log;
     h_log.open(h_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a episode
-    
-    TMMVertex curr_vertex;
-    curr_vertex = tmm_root_;
-    size_t n_hcmp = 0;// the number of est-cost2go vs. true-cost2go in this attempt
-    do// Loop for obtaining all paths from any vertex in a solution path to the goal vertex
-    {
-      double h;// = estimated cost-to-go
-      h = get(vertex_heu,tmm_,curr_vertex);
-      
-      double cost2go = 0.;// valid when cost2go > 0.0
-      cost2go = get_cost2go(curr_vertex,tmm_goal_,ucs_sol_tmm);
-      
-      h_log << h << "," << cost2go << std::endl;
-      n_hcmp++;
-      
-      typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
-      tie(oei,oei_end)=out_edges(curr_vertex,ucs_sol_tmm);// no need to iterate over oei because there is only one outedge in the ucs_sol_tmm (it is actually a graph)
+
+    std::set<TMMVertex> expvert_plus_set;// expanded vertices plus vertices in the open-list/frontier
      
-      curr_vertex = target(*oei,ucs_sol_tmm);
+    boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
+    for(boost::tie(vi,vi_end) = vertices(tmm_); vi!=vi_end; ++vi)
+    {
+      if( (get(vertex_color,tmm_,*vi)==color_traits<boost::default_color_type>::black())// expanded
+          or
+          (get(vertex_color,tmm_,*vi)==color_traits<boost::default_color_type>::gray())// in the solution path, which must be expanded
+        )
+      {
+        expvert_plus_set.insert(*vi);
+        
+        // Do this because we do have any flag for vertex that is ever in the open-list/frontier
+        graph_traits<TaskMotionMultigraph>::adjacency_iterator avi, avi_end;
+        for(tie(avi,avi_end)=adjacent_vertices(*vi,tmm_); avi!=avi_end; ++avi )  
+        {
+          expvert_plus_set.insert(*avi);
+        }
+      }
     }
-    while(curr_vertex != tmm_goal_);
+    
+    PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, tmm_) );
+    typedef filtered_graph< TaskMotionMultigraph, PlannedEdgeFilter<TMMEdgeColorMap> > UCSPlannedEdgeOnlyTMM;
+    UCSPlannedEdgeOnlyTMM ucs_tmm(ori_ucs_tmm,planned_edge_filter);
+    
+    size_t n_hcmp = 0;// the number of (est-cost2go vs. true-cost2go) obtained from this attempt
+    for(std::set<TMMVertex>::iterator i=expvert_plus_set.begin(); i!=expvert_plus_set.end(); ++i)
+    {
+      if(*i == tmm_goal_)
+        continue;// we do not consider h(v=goal)
+      
+      double h;// = estimated cost-to-go
+      h = get(vertex_heu,tmm_,*i);
+      
+      // Obtain true_cost-to-go using the Djikstra
+      double cost2go = 0.;// initialize with an invalid cost 
+            
+      std::vector< graph_traits<UCSPlannedEdgeOnlyTMM>::vertex_descriptor > parents(num_vertices(ucs_tmm));
+      typedef graph_traits<UCSPlannedEdgeOnlyTMM>::vertices_size_type size_type;
+      for(size_type p=0; p < num_vertices(ucs_tmm); ++p)
+        parents.at(p) = p;
+      
+      graph_traits<UCSPlannedEdgeOnlyTMM>::vertex_descriptor dijkstra_src;
+      dijkstra_src = *i;
+      
+      dijkstra_shortest_paths( ucs_tmm,dijkstra_src,predecessor_map(&parents[0]) );
+      
+      if(parents.at(tmm_goal_) != tmm_goal_)// then, there is a path in ucs-planned TMM from src to the goal
+      {
+        // Backtrack to get the path cost2go from src to the goal vertex
+        graph_traits<UCSPlannedEdgeOnlyTMM>::vertex_descriptor hot_v = tmm_goal_;
+        graph_traits<UCSPlannedEdgeOnlyTMM>::vertex_descriptor child = hot_v;
+        
+        do
+        {
+          double cheapest_cost = std::numeric_limits<double>::max();// of the several edges of (parent of hot_v)-->(hot_v), can not use boost::edge() due to multigraph
+          graph_traits<UCSPlannedEdgeOnlyTMM>::out_edge_iterator oei,oei_end;
+          for(boost::tie(oei,oei_end) = out_edges(parents.at(hot_v),ucs_tmm); oei!=oei_end; ++oei)
+          {
+            if(target(*oei,ucs_tmm) == hot_v)
+            {
+              double cost;
+              cost = get(edge_weight,ucs_tmm,*oei);
+              
+              if(cost < cheapest_cost) 
+                cheapest_cost = cost;
+            }
+          }
+          cost2go += cheapest_cost;
+
+          child = hot_v;
+          hot_v = parents.at(hot_v);
+        }
+        while(hot_v != parents.at(hot_v));
+        
+        // Write
+        h_log << h << "," << cost2go /* << "," << get(vertex_name,ucs_tmm,*i) */ << std::endl;
+        ++n_hcmp;
+      }
+    }// for each vertex in expvert_plus_set
     
     h_log.close();
 
@@ -653,7 +714,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     size_t n_hcmp2 = 0;// the number of (h_v, h_av, c_v_av)
         
-    boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
+//    boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
     for(boost::tie(vi,vi_end) = vertices(tmm_); vi!=vi_end; ++vi)
     {
       if( (get(vertex_color,tmm_,*vi)==color_traits<boost::default_color_type>::black())// expanded
@@ -696,6 +757,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         }
       }
     }
+    
     h2_log.close();
     
     // Store ctamp log for this ctamp instance
@@ -804,37 +866,37 @@ PlannerManager::set_tidy_config()
   return true;
 }
 
-//! cost2go()
-/*!
-  Because we use a solution path from UCS, there must be a path from the start vertex to the goal vertex.
-  It is a graph _not_ a multigraph
-  All node but the goal node have exactly one out edge
-*/
-double
-PlannerManager::get_cost2go(const TMMVertex& start,const TMMVertex& goal,const TaskMotionMultigraph& tmm)
-{
-  double cost2go = 0.;
-  
-  TMMVertex v;
-  v = start;
-  do
-  {
-    typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
-    tie(oei,oei_end) = out_edges(v,tmm);
-    
-    double cost;
-    cost = get(edge_weight,tmm,*oei);
-//    ROS_DEBUG_STREAM("get(edge_weight,tmm,*oei)= " << get(edge_weight,tmm,*oei));
-    
-    cost2go += cost;
-    
-    v = target(*oei,tmm);
-//    ROS_DEBUG_STREAM("get(vertex_name,tmm_,v)=" << get(vertex_name,tmm_,v));
-  }
-  while(v != goal);
-    
-  return cost2go;
-}
+////! cost2go()
+///*!
+//  The cost2go is defined if there is a path from the start vertex to the tmm_goal_
+//*/
+//double
+//PlannerManager::get_cost2go(const TMMVertex& start,const TaskMotionMultigraph& tmm)
+//{
+//  std::vector<TMMVertex> parents(num_vertices)
+
+//  double cost2go = 0.;
+//  
+//  TMMVertex v;
+//  v = start;
+//  do
+//  {
+//    typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+//    tie(oei,oei_end) = out_edges(v,tmm);
+//    
+//    double cost;
+//    cost = get(edge_weight,tmm,*oei);
+////    ROS_DEBUG_STREAM("get(edge_weight,tmm,*oei)= " << get(edge_weight,tmm,*oei));
+//    
+//    cost2go += cost;
+//    
+//    v = target(*oei,tmm);
+////    ROS_DEBUG_STREAM("get(vertex_name,tmm_,v)=" << get(vertex_name,tmm_,v));
+//  }
+//  while(v != goal);
+//    
+//  return cost2go;
+//}
 
 int 
 main(int argc, char **argv)
