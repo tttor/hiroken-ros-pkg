@@ -28,6 +28,7 @@
 #include <boost/config.hpp>
 #include <boost/random.hpp>
 #include <boost/timer.hpp>
+#include <boost/graph/dijkstra_shortest_paths.hpp>
 
 // This uses Boost 1.46.1 Library
 #include <boost/random/mersenne_twister.hpp>
