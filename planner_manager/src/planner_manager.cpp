@@ -254,7 +254,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
-                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_heuristic_ml_mode)
+                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_heuristic_ml_mode,prep_data_)
                     , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
@@ -271,7 +271,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
-                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&learner,ml_mode)
+                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&learner,ml_mode,prep_data_)
                     , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
@@ -463,9 +463,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
     
     // Pre-process the training data: PCA
-    if( !ml_util::pca(raw_tr_data_path,pca_tr_data_path) )
+    prep_data_.dim_red = ml_util::TUNED_SVR_DIM_RED;
+    prep_data_.lo_dim = ml_util::TUNED_SVR_LO_DIM;
+    if( !ml_util::preprocess_data(raw_tr_data_path,pca_tr_data_path,&prep_data_) )
     {
-      ROS_ERROR("ml_util::pca() FAILED");
+      ROS_ERROR("ml_util::preprocess_data() FAILED");
       return false;
     }
 

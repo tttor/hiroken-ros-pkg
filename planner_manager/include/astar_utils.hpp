@@ -158,8 +158,8 @@ class AstarHeuristics: public astar_heuristic<GPMGraph, CostType>
 public:
 typedef typename graph_traits<GPMGraph>::vertex_descriptor Vertex;
 
-AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,size_t ml_mode)
-: goal_(goal), gpm_(gpm), learner_(learner), ml_mode_(ml_mode)
+AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,size_t ml_mode,ml_util::PrepData prep_data)
+: goal_(goal), gpm_(gpm), learner_(learner), ml_mode_(ml_mode), prep_data_(prep_data)
 { }
 
 CostType 
@@ -191,15 +191,57 @@ operator()(Vertex v)
     }
     else
     {
+      // Preprocess data if necessary
+      bool has_to_prep_data = false;
+      bool has_to_postp_data = false;
+      
+      if(ml_mode_ == ml_util::SVR_OFFLINE)
+      {
+        has_to_prep_data = true;
+        has_to_postp_data = true;
+      }
+        
+      if(has_to_prep_data)
+      {
+        // All below should mimic the proprocess_data() routine implemented in matlab
+        double* x_ptr = &x[0];
+        Eigen::Map<Eigen::VectorXd> tmp_x(x_ptr,x.size());
+        
+        // Centering; PCA needs centered_x
+        Eigen::VectorXd centered_x;
+        centered_x = tmp_x - prep_data_.mu_X;
+        
+        // Project to new space
+        Eigen::VectorXd new_x;
+        new_x = centered_x * prep_data_.T;
+        
+        // Reduce dim
+        Eigen::VectorXd lodim_x;
+        lodim_x = new_x.head(prep_data_.lo_dim);
+        
+        // Convert back to std::vector
+        x.clear();
+        x.resize(lodim_x.size());
+        for(size_t i=0; i<lodim_x.size(); ++i)
+          x.at(i) = lodim_x(i);
+      }
+        
       // Predict yp with the learning machine
       std::vector<double> yp;
       yp = learner_->predict(x);
 
       // Assign
-      const double scale_up = 10.;
       if( !yp.empty() )
       {
-        h = yp[0] * scale_up;
+        if(has_to_postp_data)
+        {
+          yp.at(0) += prep_data_.mu_y(0);
+        }
+        
+        // Scaling, its dual (scale-down) is in get_out() at file:data_collector.hpp
+        // TODO better if done together in postp_data()
+        const double scale_up = 10.;
+        h = yp.at(0) * scale_up;
       }
       else
       {
@@ -223,6 +265,7 @@ Vertex goal_;
 GeometricPlannerManager* gpm_;
 LearningMachine* learner_;
 size_t ml_mode_;
+ml_util::PrepData prep_data_;
 };
 
 #endif // #ifndef ASTAR_UTILS_HPP_INCLUDED
