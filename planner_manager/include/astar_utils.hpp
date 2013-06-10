@@ -213,7 +213,7 @@ operator()(Vertex v)
         
         // Project to new space
         Eigen::VectorXd new_x;
-        new_x = centered_x * prep_data_.T;
+        new_x = centered_x.transpose() * prep_data_.T;
         
         // Reduce dim
         Eigen::VectorXd lodim_x;
