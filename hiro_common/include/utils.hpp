@@ -315,6 +315,52 @@ get_instance_paths(const boost::filesystem::path& path,const std::string& inst_t
   return true;
 }
 
+bool
+get_instance_paths(const std::string& file_name,std::vector<std::string>* inst_paths)
+{
+  using namespace std;
+  
+  inst_paths->clear();
+  
+  ifstream myfile(file_name.c_str());
+  if (myfile.is_open())
+  {
+    while ( myfile.good() )
+    {
+      string line;
+      getline(myfile,line);
+      
+      if(line.size()>0)
+        inst_paths->push_back(line);
+    }
+    myfile.close();
+  }
+  else
+  {
+    cout << "Unable to open " << file_name << endl;
+    return false;
+  }
+  
+  return true;
+}
+
+void
+write_instance_path(const std::vector<std::string> inst_paths,const std::string& dir_path,const size_t& inst_type,const size_t& ith_eps)
+{
+  std::string out_name;
+  out_name = std::string("inst_paths."+boost::lexical_cast<std::string>(inst_type)+"M."+boost::lexical_cast<std::string>(ith_eps));
+  
+  std::ofstream out;
+  out.open(std::string(dir_path+"/"+out_name).c_str());
+  
+  for(size_t i=0; i<inst_paths.size(); ++i)
+  {
+    out << inst_paths.at(i) << std::endl;
+  }
+  
+  out.close();
+}
+
 void
 create_makepngsh(const std::string& dir_path)
 {
