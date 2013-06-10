@@ -148,7 +148,8 @@ get_out(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descrip
     *out += get(edge_weight, g, *j);
   }
   
-  // Scaling
+  // Scaling down, the dual (scale-up) is in class AstarHeuristics at file:astar_utils.hpp
+  // TODO better to do this in prep_data()
   double scale = 0.1;
   *out *= scale;
   

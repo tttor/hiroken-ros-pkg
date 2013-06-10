@@ -35,6 +35,8 @@
 #include <boost/random/uniform_real.hpp>
 #include <boost/random/uniform_int.hpp>
 
+#include <Eigen/Dense>
+
 #include "grasp_planner/PlanGrasp.h"
 #include "hiro_common/BenchmarkPath.h"
 #include "planner_manager/Plan.h"
@@ -126,6 +128,8 @@ size_t n_data_;
 SVMModel* svr_model_;
 int svr_max_n_attr_;
 size_t n_ctamp_attempt_;
+
+ml_util::PrepData prep_data_;
 };// end of: class PlannerManager
 
 #endif // #ifndef PLANNER_MANAGER_HPP_INCLUDED
