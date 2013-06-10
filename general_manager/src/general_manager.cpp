@@ -445,7 +445,7 @@ main(int argc, char **argv)
     case 10:
     // Run online LWPR that updates its model during search; Do one CTAMP attempt (rerun) on multiple instances.
     // WARNING: DO NOT run multiple mode10 simultaneously, critical resources are at /learning_machine/data/hot
-    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.2/baseline n_obj:=1 n_run:=10 epsth:=1
+    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 n_run:=10 epsth:=1
     // \param path holds the parent directory under which CTAMP instances exist 
     // \param n_obj holds the instance type
     // \param n_run is the desired number of CTAMP attempts in this mode10-episode
@@ -462,7 +462,10 @@ main(int argc, char **argv)
       }
       else
       {
-        if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
+        std::string inst_path_filename;
+        inst_path_filename = std::string("inst_paths."+boost::lexical_cast<std::string>(n_obj)+"M."+boost::lexical_cast<std::string>(epsth));
+        
+        if( !utils::get_instance_paths(std::string(base_data_path+"/"+inst_path_filename),&instance_paths) )
         {
           ROS_ERROR("utils::get_instance_paths() -> failed");
           return false;
@@ -587,7 +590,10 @@ main(int argc, char **argv)
       }
       else
       {
-        if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
+        std::string inst_path_filename;
+        inst_path_filename = std::string("inst_paths."+boost::lexical_cast<std::string>(n_obj)+"M."+boost::lexical_cast<std::string>(epsth));
+        
+        if( !utils::get_instance_paths(std::string(base_data_path+"/"+inst_path_filename),&instance_paths) )
         {
           ROS_ERROR("utils::get_instance_paths() -> failed");
           return false;
@@ -722,6 +728,51 @@ main(int argc, char **argv)
       
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       
+      break;
+    }
+    case 14:
+    // For writing instance order into a file, should be rarely used
+    // Usage: $ roslaunch hiro_common a.launch  mode:=14 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline
+    {
+    
+      size_t n_eps = 10;
+      
+      std::vector<size_t> n_instance_per_instance_type(6);
+      n_instance_per_instance_type.at(0) = 100;
+      n_instance_per_instance_type.at(1) = 600;
+      n_instance_per_instance_type.at(2) = 300;
+      n_instance_per_instance_type.at(3) = 150;
+      n_instance_per_instance_type.at(4) = 75;
+      n_instance_per_instance_type.at(5) = 35;
+      
+      for(size_t i=0; i < n_eps; ++i)
+      {
+        for(size_t j=0; j < 6; ++j)// iterating over 6 instance types
+        {
+          size_t n_obj = j;
+          size_t n_run = n_instance_per_instance_type.at(j);
+          
+          std::vector<std::string> instance_paths(n_run);
+          
+          // Get instance order
+          utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths);
+            
+          // Write          
+          utils::write_instance_path(instance_paths,base_data_path,n_obj,i+1);
+        }
+      }
+      
+      // Init  
+      std::string run_id;
+      run_id = "/h.zeroed." + boost::lexical_cast<string>(n_obj) + "M";
+      
+      std::vector<std::string> instance_paths(n_run);
+      if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
+      {
+        ROS_ERROR("utils::get_instance_paths() -> failed");
+        return false;
+      }
+    
       break;
     }
     case 12:
