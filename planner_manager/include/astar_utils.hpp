@@ -39,16 +39,7 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   gpm_->mark_vertex(v);// Set its color to black=examined
   
   if(v == goal_)
-  {
-    // Store the updated model for the next CTAMP attempt
-    if(ml_mode_ == ml_util::LWPR_ONLINE)
-    {
-      if(  !learner_->writeBinary( std::string(ml_hot_path_+"/lwpr.bin").c_str() )  )
-        std::cerr << "learner_->writeBinary()= NOT OK" << std::endl;
-    }
-      
     throw FoundGoalSignal();
-  }
 
   // Do geometric planning (grasp and motion planning) for each out-edge of this vertex v
   std::vector<typename Graph::edge_descriptor> ungraspable_edges;// invalid because no grasp/ungrasp pose as the goal pose for the motion planning

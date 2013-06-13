@@ -15,13 +15,17 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
   ros::service::waitForService("plan_grasp");
   n_ctamp_attempt_ = 0;
   n_data_ = 0;
+  
+  lwpr_model_ = new LWPR_Object(ml_util::LWPR_INPUT_DIM,ml_util::LWPR_OUTPUT_DIM);
 }
 //! A destructor.
 /*!
   The destructor does nothing.
 */
 PlannerManager::~PlannerManager()
-{ }
+{ 
+  delete lwpr_model_;
+}
 
 //! collision_object_cb
 /*!
@@ -248,8 +252,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
           search_heuristic_ml_mode = ml_mode;// 3 possible values of ml_mode: NO_ML and SVR_OFFLINE and NO_ML_BUT_COLLECTING_SAMPLES
         
         // SVR from libsvm
-        svr_max_n_attr_ = 68 + 100;// with planning horizon M= 5, plus tolerance= 100
-        SVM_Object learner(svr_model_,svr_max_n_attr_);
+        SVM_Object learner(svr_model_,ml_util::SVR_MAX_N_ATTR);
 
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
@@ -265,14 +268,22 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       case ml_util::LWPR_ONLINE:
       {
         ROS_DEBUG("learner= LWPR");// LWPR from Edinburg Univ.
-                
-        LWPR_Object learner( std::string(ml_hot_path+"/lwpr.bin").c_str() );
+        
+        if(n_ctamp_attempt_ == 0)
+        {
+          // Initialize the vanilla LWPR model
+          lwpr_model_->useMeta(true);// Determines whether 2nd order distance matrix updates are to be performed
+          lwpr_model_->updateD(ml_util::TUNED_LWPR_UPDATE_D);// Determines whether distance matrix updates are to be performed            
+          lwpr_model_->setInitD(ml_util::TUNED_LWPR_D);/* Set initial distance metric to D*(identity matrix) */
+          lwpr_model_->setInitAlpha(ml_util::TUNED_LWPR_ALPHA);/* Set init_alpha to _alpha_ in all elements */
+          lwpr_model_->penalty(ml_util::TUNED_LWPR_PEN);
+        }
         
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
-                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&learner,ml_mode,prep_data_)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time) )
+                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,ml_mode,prep_data_)
+                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,&ml_data,ml_mode,ml_hot_path,&total_gp_time) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -517,7 +528,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       
       FILE *input;
       FILE *output;
-      SVMNode* x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));// for inputs 
+      SVMNode* x = (struct svm_node *) malloc( ml_util::SVR_MAX_N_ATTR*sizeof(struct svm_node));// for inputs 
       
       // For te_err
       input = fopen(delta_tr_data_path.c_str(),"r");// Use delta_tr_data
@@ -534,7 +545,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         return false;
       }
       
-      libsvm_predict(&old_svr_model,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
+      libsvm_predict(&old_svr_model,0,ml_util::SVR_MAX_N_ATTR,x,input,output);// 2nd arg: predict_probability=0
       fclose(input); fclose(output);
       cerr << "utils::get_n_lines(tmp_data_path) fit_te = " << utils::get_n_lines(tmp_data_path) << endl;
       
@@ -557,7 +568,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
       
       cerr << "libsvm_predict() ... " << endl;
-      libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
+      libsvm_predict(svr_model_,0,ml_util::SVR_MAX_N_ATTR,x,input,output);// 2nd arg: predict_probability=0
       fclose(input); fclose(output); free(x); 
       cerr << "utils::get_n_lines(tmp_data_path) fit_tr = " << utils::get_n_lines(tmp_data_path) << endl;
       
