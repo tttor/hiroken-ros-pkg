@@ -7,12 +7,19 @@
 
 namespace ml_util
 {
+
+// online-LWPR related params
+static const size_t LWPR_INPUT_DIM = 68;// with planning horizon M= 5
+static const size_t LWPR_OUTPUT_DIM = 1;
+
 static const bool TUNED_LWPR_UPDATE_D = false;
 static const double TUNED_LWPR_D = 0.9;
 static const double TUNED_LWPR_ALPHA = 0.010;
 static const double TUNED_LWPR_PEN = 0.010;
 
-// Offline-SVR related tuned params
+// Offline-SVR related params
+static const size_t SVR_MAX_N_ATTR = 68 + 100;// with planning horizon M= 5, plus tolerance= 100
+
 static const double TUNED_SVR_C = 3.000;
 static const double TUNED_SVR_P = 0.010;
 static const int TUNED_SVR_KERNEL_TYPE = 2;// RBF
