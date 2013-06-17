@@ -27,8 +27,8 @@ template <typename GPMGraph,typename LearningMachine>
 class AstarVisitor: public boost::default_astar_visitor
 {
 public:
-AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode,std::string ml_hot_path,double* total_gp_time)
-: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode), ml_hot_path_(ml_hot_path), total_gp_time_(total_gp_time)
+AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode,std::string ml_hot_path,double* total_gp_time,size_t* n_exp_op)
+: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode), ml_hot_path_(ml_hot_path), total_gp_time_(total_gp_time), n_exp_op_(n_exp_op)
 { }
 
 template <typename Graph>
@@ -36,6 +36,7 @@ void
 examine_vertex(typename Graph::vertex_descriptor v, Graph& g) 
 {
   cerr << "Examine v= " << get(vertex_name,g,v) << endl;
+  ++(*n_exp_op_);// Increment the number of expansion operations
   gpm_->mark_vertex(v);// Set its color to black=examined
   
   if(v == goal_)
@@ -140,7 +141,7 @@ std::vector< std::vector<double> >* ml_data_;
 size_t ml_mode_;
 std::string ml_hot_path_;
 double* total_gp_time_;
-
+size_t* n_exp_op_;
 };
 
 template <typename GPMGraph, typename CostType, typename LearningMachine>
