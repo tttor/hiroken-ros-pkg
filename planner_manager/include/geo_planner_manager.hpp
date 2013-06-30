@@ -31,11 +31,11 @@ static const std::string GET_PLANNING_SCENE_SRV_NAME = "/environment_server/get_
 static const std::string GET_ROBOT_STATE_SRV_NAME = "/environment_server/get_robot_state";
 static const std::string TRAJECTORY_FILTER_SRV_NAME = "/trajectory_filter_server/filter_trajectory_with_constraints";
 
-static const size_t NUM_PLANNING_ATTEMPTS = 1;
-static const double ALLOWED_PLANNING_TIME = 0.1 * 60.;
-static const double ALLOWED_SMOOTHING_TIME = 2.0;
-static const size_t MAX_JSPACE_DIM = 7;
-static const double EST_HIGHEST_RESULT_COST = 5.0;
+static const size_t NUM_PLANNING_ATTEMPTS = 1;// for repetitions, we rely only on goal poses in the Goal set; which contains possible un/grasp poses
+static const double ALLOWED_PLANNING_TIME = 0.1 * 60.;// in seconds
+static const double ALLOWED_SMOOTHING_TIME = 2.0;// in seconds
+static const size_t MAX_JSPACE_DIM = 7;// 6 DOF arm + 1 DOF torso
+static const double EST_HIGHEST_RESULT_COST = 5.0;// (Jun 30,2013): c_r = len, thus this only reflect the (estimated) maximum len of end-effector path in meter
 static const double MOTION_PLANNING_FAILURE_PENALTY = ALLOWED_SMOOTHING_TIME + EST_HIGHEST_RESULT_COST;
 
 static boost::mt19937 gen( std::time(0) );

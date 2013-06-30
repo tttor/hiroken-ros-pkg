@@ -42,7 +42,12 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   if(v == goal_)
     throw FoundGoalSignal();
 
-  // Do geometric planning (grasp and motion planning) for each out-edge of this vertex v
+  // Do geometric planning (grasp planning at the beginning then motion planning) for one motion plan for each unique high level action connecting v to its adjacent vertex
+  // The rule is do geo. planning starting from the lowest JSPACE then stop if one motion plan is found
+  // This is because lower-dimensional motion planning is likely (not always) to have lower cost; to speed up the planning as well
+  // For that, we have to iterate over all adjacent vertices, then sort edges of v->av
+  // TODO implement above rule, currently we just plan all out_edges  
+  // In this step,we also remove edges that does not have valid un/grasp pose as goal pose for motion planning
   std::vector<typename Graph::edge_descriptor> ungraspable_edges;// invalid because no grasp/ungrasp pose as the goal pose for the motion planning
   
   typename graph_traits<Graph>::out_edge_iterator oei, oei_end;
