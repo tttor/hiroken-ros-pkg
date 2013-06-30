@@ -484,7 +484,10 @@ convert_tg2tmm(const TaskGraph& tg)
         tie(edge, inserted) = add_edge(source_vertex, target_vertex, tmm);
         
         put( edge_name, tmm, edge, get(edge_name, tg, *ei) );
-        put( edge_weight,tmm,edge,get(edge_weight,tg,*ei) + get(edge_weight,tg,*ei) );
+        
+        // The edge weight is set very high initially (in this vanilla tmm) and ignored the weight-info from task planning represented by task_graph
+//        put( edge_weight,tmm,edge,get(edge_weight,tg,*ei) + get(edge_weight,tg,*ei) );
+        put( edge_weight,tmm,edge,std::numeric_limits<double>::max() );
         
         put( edge_jspace, tmm, edge, *j);
       }
