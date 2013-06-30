@@ -477,24 +477,6 @@ main(int argc, char **argv)
 
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       boost::filesystem::create_directories(ml_hot_path);
-      
-      // Initialize the vanilla LWPR model
-      size_t input_dim = 68;// with planning horizon M= 5
-      size_t output_dim = 1;
-      LWPR_Object lwpr(input_dim,output_dim);
-      lwpr.useMeta(true);// Determines whether 2nd order distance matrix updates are to be performed
-
-      lwpr.updateD(ml_util::TUNED_LWPR_UPDATE_D);// Determines whether distance matrix updates are to be performed            
-      lwpr.setInitD(ml_util::TUNED_LWPR_D);/* Set initial distance metric to D*(identity matrix) */
-      lwpr.setInitAlpha(ml_util::TUNED_LWPR_ALPHA);/* Set init_alpha to _alpha_ in all elements */
-      lwpr.penalty(ml_util::TUNED_LWPR_PEN);
-      
-      std::string lwpr_model_path = std::string(ml_hot_path+"/lwpr.bin");
-      if( !lwpr.writeBinary(lwpr_model_path.c_str()) )
-      {
-        ROS_ERROR("lwpr.writeBinary()= FAILED");
-        return false;
-      }
            
       // Run mode10 for several CTAMP instances
       std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode10eps.log");

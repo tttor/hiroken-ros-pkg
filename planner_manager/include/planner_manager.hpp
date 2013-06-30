@@ -125,11 +125,15 @@ std::map<std::string, arm_navigation_msgs::CollisionObject> unmovable_obj_cfg_;
 
 //! Keeps the number of samples that have been used to trained a SVR model
 size_t n_data_;
-SVMModel* svr_model_;
-int svr_max_n_attr_;
+
 size_t n_ctamp_attempt_;
 
+//! For preprocessing related data
 ml_util::PrepData prep_data_;
+
+SVMModel* svr_model_;
+
+LWPR_Object* lwpr_model_;
 };// end of: class PlannerManager
 
 #endif // #ifndef PLANNER_MANAGER_HPP_INCLUDED

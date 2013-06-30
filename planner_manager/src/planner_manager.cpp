@@ -15,13 +15,17 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
   ros::service::waitForService("plan_grasp");
   n_ctamp_attempt_ = 0;
   n_data_ = 0;
+  
+  lwpr_model_ = new LWPR_Object(ml_util::LWPR_INPUT_DIM,ml_util::LWPR_OUTPUT_DIM);
 }
 //! A destructor.
 /*!
   The destructor does nothing.
 */
 PlannerManager::~PlannerManager()
-{ }
+{ 
+  delete lwpr_model_;
+}
 
 //! collision_object_cb
 /*!
@@ -201,14 +205,14 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       tmm_goal_ = *vi;
   }
   
-  // Open up log files
+  // perf-log related var
   // The "perf.log.csv" is a single liner text file containing 
-  // (1)CTAMP_SearchTime,(2)total_mp_time,(3)#ExpandedVertices,(4)#Vertices,(5)SolPathCost,(6)#Vertices in solution path
-  std::ofstream perf_log;
-  perf_log.open(std::string(data_path+"/perf.log").c_str());
-  
-  std::ofstream csv_perf_log;
-  csv_perf_log.open(std::string(data_path+"/perf.log.csv").c_str());
+  // (1)CTAMP_SearchTime,(2)total_mp_time,(3)#ExpandedVertices,(4)#Vertices,(5)SolPathCost,(6)#Vertices in solution path,(7)#exp_op
+  std::ofstream perf_log_out;
+  perf_log_out.open(std::string(data_path+"/perf.log").c_str());
+
+  std::vector<double> perf_log;
+  perf_log.resize(7);
 
   // ml-related var
   std::vector< std::vector<double> > ml_data;
@@ -220,6 +224,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::vector<double> distances(num_vertices(tmm_));
   
   double total_gp_time = 0.;
+  size_t n_exp_op = 0;
+
   ros::Time search_begin = ros::Time::now();
   try 
   {
@@ -248,14 +254,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
           search_heuristic_ml_mode = ml_mode;// 3 possible values of ml_mode: NO_ML and SVR_OFFLINE and NO_ML_BUT_COLLECTING_SAMPLES
         
         // SVR from libsvm
-        svr_max_n_attr_ = 68 + 100;// with planning horizon M= 5, plus tolerance= 100
-        SVM_Object learner(svr_model_,svr_max_n_attr_);
+        SVM_Object learner(svr_model_,ml_util::SVR_MAX_N_ATTR);
 
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
                     , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_heuristic_ml_mode,prep_data_)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time) )
+                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&n_exp_op) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -265,14 +270,22 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       case ml_util::LWPR_ONLINE:
       {
         ROS_DEBUG("learner= LWPR");// LWPR from Edinburg Univ.
-                
-        LWPR_Object learner( std::string(ml_hot_path+"/lwpr.bin").c_str() );
+        
+        if(n_ctamp_attempt_ == 0)
+        {
+          // Initialize the vanilla LWPR model
+          lwpr_model_->useMeta(true);// Determines whether 2nd order distance matrix updates are to be performed
+          lwpr_model_->updateD(ml_util::TUNED_LWPR_UPDATE_D);// Determines whether distance matrix updates are to be performed            
+          lwpr_model_->setInitD(ml_util::TUNED_LWPR_D);/* Set initial distance metric to D*(identity matrix) */
+          lwpr_model_->setInitAlpha(ml_util::TUNED_LWPR_ALPHA);/* Set init_alpha to _alpha_ in all elements */
+          lwpr_model_->penalty(ml_util::TUNED_LWPR_PEN);
+        }
         
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
-                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,&learner,ml_mode,prep_data_)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time) )
+                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,ml_mode,prep_data_)
+                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&n_exp_op) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -296,13 +309,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     search_time -= total_gp_time;
     
     cout << "CTAMP_SearchTime= " << search_time << endl;
-    perf_log << "CTAMP_SearchTime=" << search_time << endl;
-    csv_perf_log << search_time << ",";// idx = 0
+    perf_log_out << "CTAMP_SearchTime=" << search_time << endl;
+    perf_log.at(0) = search_time;
     
     // Get #expanded vertices + total_mp_time
     // The total_mp_time is the sum of (so that TOTAL) motion planning time for each out-edges.
     // All time used by other processes in a vertex expansion is included in the search_time (which holds the overall time for search)
-    size_t n_expvert = 0;
+    size_t n_exp_vert = 0;
     boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
 
     double total_mp_time = 0.;
@@ -312,7 +325,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       if(get(vertex_color,tmm_,*vi)==color_traits<boost::default_color_type>::black())
       {
         // Count #expanded vertices
-        ++n_expvert;
+        ++n_exp_vert;
         
         typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
         for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
@@ -333,16 +346,16 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
     
     cout << "total_mp_time= " << total_mp_time << endl;
-    perf_log << "total_mp_time=" << total_mp_time << endl;
-    csv_perf_log << total_mp_time << ",";// idx=1
+    perf_log_out << "total_mp_time=" << total_mp_time << endl;
+    perf_log.at(1) = total_mp_time;
     
-    cout << "#ExpandedVertices= " << n_expvert << endl;
-    perf_log << "#ExpandedVertices=" << n_expvert << endl;
-    csv_perf_log << n_expvert << ",";// idx=2
+    cout << "#ExpandedVertices= " << n_exp_vert << endl;
+    perf_log_out << "#ExpandedVertices=" << n_exp_vert << endl;
+    perf_log.at(2) = n_exp_vert;
     
     cout << "#Vertices= " << num_vertices(tmm_) << endl;
-    perf_log << "#Vertices=" << num_vertices(tmm_) << endl;
-    csv_perf_log << num_vertices(tmm_) << ",";// idx=3
+    perf_log_out << "#Vertices=" << num_vertices(tmm_) << endl;
+    perf_log.at(3) = num_vertices(tmm_);
         
     // Convert from vector to list to enable push_front()
     std::list<TMMVertex> sol_path_vertex_list;
@@ -362,15 +375,15 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     s = *spvl_it;
     
     cout << "SolutionPath(v)=" << endl;
-    perf_log << "SolutionPath(v)=";
+    perf_log_out << "SolutionPath(v)=";
     
     cout << get(vertex_name, tmm_, *spvl_it) << endl;
-    perf_log << get(vertex_name, tmm_, *spvl_it) << ",";
+    perf_log_out << get(vertex_name, tmm_, *spvl_it) << ",";
     
     for(++spvl_it; spvl_it != sol_path_vertex_list.end(); ++spvl_it)
     {
       cout << get(vertex_name, tmm_, *spvl_it) << endl;
-      perf_log << get(vertex_name, tmm_, *spvl_it) << ",";
+      perf_log_out << get(vertex_name, tmm_, *spvl_it) << ",";
       
       // Get the cheapest path among many due to parallelism/multigraph
       TMMEdge cheapest_e;
@@ -390,15 +403,15 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       s = *spvl_it;
     }
     cout << endl;
-    perf_log << endl;
+    perf_log_out << endl;
     
     cout << "SolutionPath(e)=" << endl;
-    perf_log << "SolutionPath(e)=";
+    perf_log_out << "SolutionPath(e)=";
     
     for(std::vector<TMMEdge>::iterator i=sol_path.begin(); i!=sol_path.end(); ++i)
     {
       cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << endl;
-      perf_log << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << ",";
+      perf_log_out << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << ",";
       
       if( !strcmp(get(edge_color,tmm_,*i).c_str(),"red") )
       {
@@ -416,17 +429,15 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
     }
     cout << endl;
-    perf_log << endl;
+    perf_log_out << endl;
     
     // Confirming step
     if(recheck)
     {
       cout << "SolPathCost= " << distances[tmm_goal_] << endl;
-      perf_log << "SolPathCost=" << distances[tmm_goal_] << endl;
-      csv_perf_log << distances[tmm_goal_] << ",";// idx=4
-      
-      // Write the number of vertices in the sol_path
-      csv_perf_log << sol_path.size() + 1 ;// idx=5
+      perf_log_out << "SolPathCost=" << distances[tmm_goal_] << endl;
+      perf_log.at(4) = distances[tmm_goal_];
+      perf_log.at(5) = sol_path.size() + 1;
     }
     else
     {
@@ -435,16 +446,20 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       ctamp_sol->clear();
       
       cout << "SolPathCost= UNDEFINED" << endl;
-      perf_log << "SolPathCost=UNDEFINED" << endl;
-      csv_perf_log << 0. << ",";// idx=4, invalid value
-      
-      // Write the number of vertices in the sol_path
-      csv_perf_log << 0. ;// idx=5, invalid value
-
+      perf_log_out << "SolPathCost=UNDEFINED" << endl;
+      perf_log.at(4) = 0.;
+      perf_log.at(5) = 0.;
     }
+    
+    // Write the number of expansion ops
+    perf_log.at(6) = n_exp_op;
   }// End of: catch(FoundGoalSignal fgs) 
   
-  if(ml_mode==ml_util::SVR_OFFLINE)// Do interleaved training
+  // Write perf_log
+  utils::write_csv(perf_log,std::string(data_path+"/perf.log.csv"));
+  
+  // Do interleaved training
+  if(ml_mode==ml_util::SVR_OFFLINE)
   {
     // Initialize
     std::string raw_tr_data_path = std::string(ml_hot_path+"/tr_data.csv");// raw means un-preprocessed
@@ -517,7 +532,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       
       FILE *input;
       FILE *output;
-      SVMNode* x = (struct svm_node *) malloc(svr_max_n_attr_*sizeof(struct svm_node));// for inputs 
+      SVMNode* x = (struct svm_node *) malloc( ml_util::SVR_MAX_N_ATTR*sizeof(struct svm_node));// for inputs 
       
       // For te_err
       input = fopen(delta_tr_data_path.c_str(),"r");// Use delta_tr_data
@@ -534,7 +549,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         return false;
       }
       
-      libsvm_predict(&old_svr_model,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
+      libsvm_predict(&old_svr_model,0,ml_util::SVR_MAX_N_ATTR,x,input,output);// 2nd arg: predict_probability=0
       fclose(input); fclose(output);
       cerr << "utils::get_n_lines(tmp_data_path) fit_te = " << utils::get_n_lines(tmp_data_path) << endl;
       
@@ -557,7 +572,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
       
       cerr << "libsvm_predict() ... " << endl;
-      libsvm_predict(svr_model_,0,svr_max_n_attr_,x,input,output);// 2nd arg: predict_probability=0
+      libsvm_predict(svr_model_,0,ml_util::SVR_MAX_N_ATTR,x,input,output);// 2nd arg: predict_probability=0
       fclose(input); fclose(output); free(x); 
       cerr << "utils::get_n_lines(tmp_data_path) fit_tr = " << utils::get_n_lines(tmp_data_path) << endl;
       
@@ -834,11 +849,10 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   sol_tmm_dot.close();
   
   // Addition info. for perf.log
-  perf_log << "tidy.cfg=" << base_data_path << tidy_cfg_filename;
+  perf_log_out << "tidy.cfg=" << base_data_path << tidy_cfg_filename;
   
   // Closure
-  perf_log.close();
-  csv_perf_log.close();
+  perf_log_out.close();
   ++n_ctamp_attempt_;
   return true;
 }
