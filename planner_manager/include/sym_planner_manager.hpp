@@ -42,6 +42,7 @@ plan(PlannerManager pm)
     return false;
   }
   
+  cerr << "returning from plan() on spm" << endl;
   return true;
 }
 

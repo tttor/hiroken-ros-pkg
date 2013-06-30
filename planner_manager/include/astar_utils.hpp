@@ -179,14 +179,7 @@ operator()(Vertex v)
   {
     // Extract feature x
     Input x;
-    if ( !gpm_->get_fval(v,&x) )
-    {
-      // This happens when there is no goal-reached path from v, which means that definitely this vertex v does not belong to solution path.
-      // Therefore, we impose a very high value on h, which causes that this path will never expanded!
-      cerr << "!gpm_->get_fval(v,&x) -> h = (a very high value)" << endl;
-      h = std::numeric_limits<double>::max();
-    }
-    else
+    if( gpm_->get_fval(v,&x) )
     {
       // Preprocess data if necessary
       bool has_to_prep_data = false;
@@ -246,10 +239,20 @@ operator()(Vertex v)
         h = 0.;
       }
     }
+    else
+    {
+      cerr << "gpm_->get_fval(v,&x): FAILED -> h = 0." << endl;
+      h = 0.;
+    }
   }
   
   // Put in the main tmm!
-  if(h < 0.) h = 0.;
+  if(h < 0.)// negative value
+  {
+    cerr << "h= " << h << " -> h = 0." << endl;
+    h = 0.;
+  } 
+  
   cerr << "h(" << v << ")= " << h << endl;
   gpm_->put_heu(v,h);
   

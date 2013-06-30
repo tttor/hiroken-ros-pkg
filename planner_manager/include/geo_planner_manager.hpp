@@ -74,15 +74,19 @@ GeometricPlannerManager(PlannerManager* pm)
 bool
 plan(TMMEdge e,double* gp_time)
 {
-  // Check whether this edge is already geometrically planned: having a positive cost
-  if(get(edge_weight,pm_->tmm_,e) > 0.)
+  // Check whether this edge is already geometrically planned: edge_color is not black
+  std::string color;
+  color = get(edge_color,pm_->tmm_,e);
+  if( !strcmp(color.c_str(),std::string("black").c_str()) )
+  {
+    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
+  }
+  else
   {
     ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= already DONE.");
-    
-    // This happens in rerun mode, where this edge was planned in the previous ctamp attempt, which serve as the baseline
     return true;
   }
-  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
+
   
   // Get the start point /subseteq vertex_jstates (source of e) based on jspace of this edge e
   sensor_msgs::JointState start_state;
@@ -313,13 +317,9 @@ get_samples_online(TMMVertex v,Data* samples)
 
 //! Obtain features
 /*!
-  As the heuristic is from the learning machine.
-  We have to give the learning machine features.
+  As the heuristic is from the learning machine, we have to give the learning machine features.
   
-  One way to predict the optimal solution path is by traversing in dfs manner.
-  Annother is to use random (uniformly) whenever there is a tie that should be broke.
-  
-  Put this in geo_planner_manager.cpp because it can access pm_->tmm_.
+  This is put in geo_planner_manager.cpp because in here we can access pm_->tmm_.
   Although, this is not really appropriate.
 */
 bool

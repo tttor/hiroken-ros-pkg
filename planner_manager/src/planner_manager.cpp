@@ -103,9 +103,9 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     ROS_ERROR("Can not set the tidy_cfg!");
     return false;
   }
-      
-  // Initialize
-  TaskMotionMultigraph ori_ucs_tmm;// only used in rerun modes for (a)inheriting (re-using) motion planning result from the baseline attempts and (b)computing true cost2go
+
+// Initialize
+  TaskMotionMultigraph ori_ucs_tmm;// only used in rerun modes
   
   if(!rerun)
   {
@@ -129,6 +129,10 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     tmm_dp.property("label", get(edge_name, tmm_));
     tmm_dp.property("weight", get(edge_weight, tmm_));
     tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
+    tmm_dp.property( "color",get(edge_color, tmm_) );
+    tmm_dp.property( "srcstate",get(edge_srcstate, tmm_) );  
+    tmm_dp.property( "mptime",get(edge_mptime, tmm_) );  
+    tmm_dp.property( "planstr",get(edge_planstr, tmm_) );
     
     std::string tmm_dot_path = data_path + "/vanilla_tmm.dot";  
     std::ifstream tmm_dot(tmm_dot_path.c_str());
@@ -139,7 +143,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   {
     tmm_ = TaskMotionMultigraph();// renew the tmm_
   
-    // Read the vanilla tmm to maintain connectivity, instead of the planned tmm
+    // Read the planned tmm
     boost::dynamic_properties tmm_dp;
     
     tmm_dp.property("vertex_id", get(vertex_name, tmm_));
@@ -147,8 +151,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     tmm_dp.property("label", get(edge_name, tmm_));
     tmm_dp.property("weight", get(edge_weight, tmm_));
     tmm_dp.property("jspace", get(edge_jspace, tmm_)); 
-    
-    std::ifstream tmm_dot( std::string(base_data_path+"/vanilla_tmm.dot").c_str() );
+    tmm_dp.property("color", get(edge_color,tmm_));
+    tmm_dp.property("srcstate", get(edge_srcstate,tmm_));
+    tmm_dp.property("mptime",get(edge_mptime,tmm_));
+    tmm_dp.property("planstr",get(edge_planstr,tmm_));
+
+    std::ifstream tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
     if( !read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id") )
     {
       ROS_ERROR("read_graphviz(tmm_dot,...): Failed");
@@ -156,8 +164,18 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
     ROS_DEBUG("read_graphviz(tmm_dot,...): Succeeded");
     
+    // Put edge_planstr into edge_plan
+    graph_traits<TaskMotionMultigraph>::edge_iterator ei,ei_end;
+    for(tie(ei,ei_end)=edges(tmm_); ei!=ei_end; ++ei)
+    {
+      std::string planstr;
+      planstr = get(edge_planstr,tmm_,*ei);
+      
+      put(edge_plan,tmm_,*ei, utils::get_plan(planstr) );
+    }
+    
     // Retrieve the UCS-planned TMM 
-    // Assume that the base directoru for rerun contains UCS-planned TMM having a CTAMP solution
+    // Assume that the base for rerun contains UCS-planned TMM having a CTAMP solution 
     boost::dynamic_properties ori_ucs_tmm_dp;
     
     ori_ucs_tmm_dp.property("vertex_id", get(vertex_name, ori_ucs_tmm));
@@ -176,30 +194,104 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       ROS_ERROR("read_graphviz(ori_ucs_tmm_dot,...): Failed.");
       return false;
     }
-
-    // Inherit for re-using motion planning result
-    graph_traits<TaskMotionMultigraph>::edge_iterator ei,ei_end;
-    
-    std::vector<TMMEdge> ori_ucs_tmm_edges;
-    for(tie(ei,ei_end)=edges(ori_ucs_tmm); ei!=ei_end; ++ei)
-      ori_ucs_tmm_edges.push_back(*ei);
-    
-    for(tie(ei,ei_end)=edges(tmm_); ei!=ei_end; ++ei)
-    {
-      std::vector<TMMEdge>::iterator it;
-      it = std::find_if(ori_ucs_tmm_edges.begin(),ori_ucs_tmm_edges.end(),FindEqualEdge(*ei,tmm_,ori_ucs_tmm));
-      
-      if(it != ori_ucs_tmm_edges.end())// found
-      {
-        // Copy edge property from ori_ucs_tmm to tmm_
-        put( edge_color,tmm_,*ei,get(edge_color,ori_ucs_tmm,*it) );
-        put( edge_srcstate,tmm_,*ei,get(edge_srcstate,ori_ucs_tmm,*it) );
-        put( edge_mptime,tmm_,*ei,get(edge_mptime,ori_ucs_tmm,*it) );
-        put( edge_planstr,tmm_,*ei,get(edge_planstr,ori_ucs_tmm,*it) );
-        put( edge_plan,tmm_,*ei, utils::get_plan(get(edge_planstr,tmm_,*ei)) );
-      }
-    }    
   }// if rerun
+        
+//  // Initialize
+//  tmm_ = TaskMotionMultigraph();// renew the tmm_, necessary because there are multiple attempts in an episode
+//  TaskMotionMultigraph ori_ucs_tmm;// only used in rerun modes for (a)inheriting (re-using) motion planning result from the baseline attempts and (b)computing true cost2go
+//    
+//  if(!rerun)
+//  {
+//    // Create task plan space encoded in a task motion graph
+//    // A call to the task planner if succeed outputs "vanilla_tmm.dot"
+//    SymbolicPlannerManager spm(nh_);
+//    
+//    if( !spm.plan(*this) )
+//    {
+//      cerr << "from spm.plan()" << endl;
+//      ROS_ERROR("Can not construct TMM!");
+//      return false;
+//    }
+//    ROS_DEBUG("TMM is constructed successfully");
+//  }
+//  
+//  // Read the vanilla tmm
+//  boost::dynamic_properties tmm_dp;
+//  
+//  tmm_dp.property("vertex_id", get(vertex_name, tmm_));
+//  
+//  tmm_dp.property( "label", get(edge_name, tmm_) );
+//  tmm_dp.property( "weight", get(edge_weight, tmm_) );
+//  tmm_dp.property( "jspace", get(edge_jspace, tmm_) );
+//  tmm_dp.property( "color",get(edge_color, tmm_) );
+//  tmm_dp.property( "srcstate",get(edge_srcstate, tmm_) );  
+//  tmm_dp.property( "mptime",get(edge_mptime, tmm_) );  
+//  tmm_dp.property( "planstr",get(edge_planstr, tmm_) );
+//  
+//  std::string tmm_dot_path = data_path + "/vanilla_tmm.dot";  
+//  std::ifstream tmm_dot(tmm_dot_path.c_str());
+//  
+//  if( !read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id") )
+//  {
+//    ROS_ERROR("read_graphviz(vanilla_tmm.dot): Failed");
+//    return false;
+//  }
+//  ROS_DEBUG("read_graphviz(vanilla_tmm.dot): Succeeded");
+//  
+//  if(rerun)
+//  {
+//    // Retrieve the UCS-planned TMM 
+//    // Assume that the base directory for rerun contains UCS-planned TMM having a CTAMP solution
+//    boost::dynamic_properties ori_ucs_tmm_dp;
+//    
+//    ori_ucs_tmm_dp.property("vertex_id", get(vertex_name, ori_ucs_tmm));
+//    
+//    ori_ucs_tmm_dp.property( "label",get(edge_name, ori_ucs_tmm) );
+//    ori_ucs_tmm_dp.property( "weight",get(edge_weight, ori_ucs_tmm) );  
+//    ori_ucs_tmm_dp.property( "jspace",get(edge_jspace, ori_ucs_tmm) );
+//    ori_ucs_tmm_dp.property( "color",get(edge_color, ori_ucs_tmm) );
+//    ori_ucs_tmm_dp.property( "srcstate",get(edge_srcstate, ori_ucs_tmm) );  
+//    ori_ucs_tmm_dp.property( "mptime",get(edge_mptime, ori_ucs_tmm) );  
+//    ori_ucs_tmm_dp.property( "planstr",get(edge_planstr, ori_ucs_tmm) );
+
+//    std::ifstream ori_ucs_tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
+//    if( !read_graphviz(ori_ucs_tmm_dot, ori_ucs_tmm, ori_ucs_tmm_dp, "vertex_id") )
+//    {
+//      ROS_ERROR("read_graphviz(ori_ucs_tmm_dot,...): Failed.");
+//      return false;
+//    }
+
+//    // Inherit for re-using motion planning result
+//    graph_traits<TaskMotionMultigraph>::edge_iterator ei,ei_end;
+//    
+//    std::vector<TMMEdge> ori_ucs_tmm_edges;
+//    for(tie(ei,ei_end)=edges(ori_ucs_tmm); ei!=ei_end; ++ei)
+//      ori_ucs_tmm_edges.push_back(*ei);
+//    
+//    for(tie(ei,ei_end)=edges(tmm_); ei!=ei_end; ++ei)
+//    {
+//      std::vector<TMMEdge>::iterator it;
+//      it = std::find_if(ori_ucs_tmm_edges.begin(),ori_ucs_tmm_edges.end(),FindEqualEdge(*ei,tmm_,ori_ucs_tmm));
+//      
+//      if(it != ori_ucs_tmm_edges.end())// found
+//      {
+//        // Copy edge property from ori_ucs_tmm to tmm_
+//        // We donot copy 2 properties: edge_label and edge_jspace
+//        put( edge_weight,tmm_,*ei,get(edge_weight,ori_ucs_tmm,*it) );
+//        put( edge_color,tmm_,*ei,get(edge_color,ori_ucs_tmm,*it) );
+//        put( edge_srcstate,tmm_,*ei,get(edge_srcstate,ori_ucs_tmm,*it) );
+//        put( edge_mptime,tmm_,*ei,get(edge_mptime,ori_ucs_tmm,*it) );
+//        put( edge_planstr,tmm_,*ei,get(edge_planstr,ori_ucs_tmm,*it) );
+//        put( edge_plan,tmm_,*ei, utils::get_plan(get(edge_planstr,tmm_,*ei)) );
+//        
+//        // Change from edge in solution path (blue) to green (geometrically-validated and has motion plan)
+//        std::string color;
+//        color = get(edge_color,tmm_,*ei);
+//        if( !strcmp(color.c_str(),std::string("blue").c_str()) )
+//          put( edge_color,tmm_,*ei,std::string("green") );
+//      }
+//    }    
+//  }// if rerun
   
   // Mark the root and the goal vertex in the TMM
   boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
@@ -349,7 +441,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
         {
           put(edge_color,tmm_,*oei,"black");
-          put(edge_weight,tmm_,*oei,0.);
+          put(edge_weight,tmm_,*oei,std::numeric_limits<double>::max());
         }
       }
     }
