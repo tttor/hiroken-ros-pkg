@@ -383,6 +383,25 @@ create_makepngsh(const std::string& src_dir_path,const std::string& dir_path)
 }
 
 void
+write_csv(const std::vector<double>& data,const std::string& path)
+{
+  using namespace std;
+  
+  std::ofstream csv_out;
+  csv_out.open(path.c_str());
+  
+  for(size_t i=0; i<data.size(); ++i)
+  {
+    csv_out << data.at(i);
+    
+    if(i < data.size()-1)
+      csv_out << ",";
+  }
+  
+  csv_out.close();
+}
+
+void
 write_log(const std::vector< std::pair< std::string,std::vector<double> > >& log,const std::string& path)
 {
   using namespace std;
