@@ -146,10 +146,18 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   }
   ROS_DEBUG("read_graphviz(vanilla_tmm.dot): Succeeded");
   
+  // Need to (re)-initialize the edge color to "black" as in the past, in the vanilla_tmm, they are initialized with empty strings
+  graph_traits<TaskMotionMultigraph>::edge_iterator ei,ei_end;
+  for(tie(ei,ei_end)=edges(tmm_); ei!=ei_end; ++ei)
+  {
+    put( edge_color,tmm_,*ei,std::string("black") );
+    put( edge_weight,tmm_,*ei,std::numeric_limits<double>::max() );
+  }
+
+  // Retrieve the UCS-planned TMM only if rerun (=benchmarked attempt)
+  // Assume that the base directory for rerun contains UCS-planned TMM having a CTAMP solution  
   if(rerun)
   {
-    // Retrieve the UCS-planned TMM 
-    // Assume that the base directory for rerun contains UCS-planned TMM having a CTAMP solution
     boost::dynamic_properties ori_ucs_tmm_dp;
     
     ori_ucs_tmm_dp.property("vertex_id", get(vertex_name, ori_ucs_tmm));
