@@ -344,9 +344,14 @@ plan(const size_t& n_obj)
   
   dp.property("vertex_id", get(vertex_name, tmm));
   
-  dp.property("label", get(edge_name, tmm));
-  dp.property("weight", get(edge_weight, tmm));
-  dp.property("jspace", get(edge_jspace, tmm));
+  dp.property( "label",get(edge_name, tmm) );
+  dp.property( "weight",get(edge_weight, tmm) );
+  dp.property( "jspace",get(edge_jspace, tmm) );
+  dp.property( "color",get(edge_color, tmm) );
+  dp.property( "srcstate",get(edge_srcstate, tmm) );  
+  dp.property( "mptime",get(edge_mptime, tmm) );  
+  dp.property( "planstr",get(edge_planstr, tmm) );
+  
   
   write_graphviz_dp( tmm_dot, tmm, dp, std::string("vertex_id"));
   
@@ -484,9 +489,13 @@ convert_tg2tmm(const TaskGraph& tg)
         tie(edge, inserted) = add_edge(source_vertex, target_vertex, tmm);
         
         put( edge_name, tmm, edge, get(edge_name, tg, *ei) );
-        put( edge_weight,tmm,edge,get(edge_weight,tg,*ei) + get(edge_weight,tg,*ei) );
-        
+//        put( edge_weight,tmm,edge,get(edge_weight,tg,*ei) + get(edge_weight,tg,*ei) );
+        put( edge_weight,tmm,edge,std::numeric_limits<double>::max() );// The edge weight is set very high initially (in this vanilla tmm) and ignored the weight-info from task planning represented by task_graph
         put( edge_jspace, tmm, edge, *j);
+        put( edge_color, tmm, edge, std::string("black"));
+        put( edge_srcstate, tmm, edge, std::string(""));
+        put( edge_mptime, tmm, edge, 0.);
+        put( edge_planstr, tmm, edge, std::string(""));
       }
     }
   }// end of: FOR each edge in a task graph tg

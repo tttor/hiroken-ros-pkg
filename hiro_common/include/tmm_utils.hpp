@@ -263,4 +263,50 @@ private:
   ColorMap color_map_;  
 };
 
+//! Determine whether the given edge is same with the base edge in term of 4 properies below
+/*!
+  string base_source_name_;
+  string base_target_name_;
+  string base_name_;
+  string base_jspace_;
+  
+  REF: http://stackoverflow.com/questions/589985/vectors-structs-and-stdfind
+*/
+struct FindEqualEdge: std::unary_function<TMMEdge, bool> 
+{
+  TaskMotionMultigraph g_;// the graph where the tested edge lies
+  
+  string base_source_name_;
+  string base_target_name_;
+  string base_name_;
+  string base_jspace_;
+  
+  FindEqualEdge(TMMEdge base_e,TaskMotionMultigraph base_g,TaskMotionMultigraph g)
+  :g_(g)
+  { 
+    base_source_name_ = get(vertex_name,base_g,source(base_e,base_g));
+    base_target_name_ = get(vertex_name,base_g,target(base_e,base_g));
+    base_name_ = get(edge_name,base_g,base_e);
+    base_jspace_ = get(edge_jspace,base_g,base_e);
+  }
+  
+  bool operator()(TMMEdge const& e) const 
+  {
+    string source_name = get(vertex_name,g_,source(e,g_));
+    string target_name = get(vertex_name,g_,target(e,g_));
+    string name = get(edge_name,g_,e);
+    string jspace = get(edge_jspace,g_,e);
+      
+    return  (
+              !strcmp(source_name.c_str(),base_source_name_.c_str())
+              and
+              !strcmp(target_name.c_str(),base_target_name_.c_str())
+              and
+              !strcmp(name.c_str(),base_name_.c_str())
+              and
+              !strcmp(jspace.c_str(),base_jspace_.c_str())
+            );
+  }
+};
+
 #endif // #ifndef TMM_UTILS_HPP_INCLUDED
