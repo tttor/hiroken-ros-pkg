@@ -17,11 +17,13 @@
 #include "geo_planner_manager.hpp"
 #include "data.hpp"
 #include "ml_util.hpp"
+#include "hiro_utils.hpp"
 
 using namespace std;
 using namespace boost;
 
 struct FoundGoalSignal {}; // exception for termination
+
 
 template <typename GPMGraph,typename LearningMachine>
 class AstarVisitor: public boost::default_astar_visitor
@@ -42,25 +44,79 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   if(v == goal_)
     throw FoundGoalSignal();
 
-  // Do geometric planning (grasp and motion planning) for each out-edge of this vertex v
-  std::vector<typename Graph::edge_descriptor> ungraspable_edges;// invalid because no grasp/ungrasp pose as the goal pose for the motion planning
+  // Do geometric planning (grasp planning at the beginning then motion planning) for one motion plan for each unique high level action connecting v to its adjacent vertex
+  // The rule is do geo. planning starting from the lowest JSPACE then stop if one motion plan is found
+  // This is because lower-dimensional motion planning is likely (not always) to have lower cost; to speed up the planning as well
+  // For that, we have to iterate over all adjacent vertices, then sort edges of v->av
+  // In this step,we also remove edges that does not have valid un/grasp pose as goal pose for motion planning
+  size_t n_avi = 0;// For multigraph, n_avi = n_out-edges. Note this make an excessive call to gpm_->plan as we iterate over avi
   
-  typename graph_traits<Graph>::out_edge_iterator oei, oei_end;
-  for(tie(oei,oei_end) = out_edges(v, g); oei!=oei_end; ++oei)
+  typename graph_traits<Graph>::adjacency_iterator avi, avi_end;
+  for(tie(avi,avi_end)=adjacent_vertices(v,g); avi!=avi_end; ++avi)  
   {
-    double gp_time = 0.;
-    bool success = false;
+    ++n_avi;
+      
+    // Identify edges that connect v and its adjacent 
+    // Note: because this is multigraph, we can not simply use boost::edge(u,v,g).first
+    std::vector<typename Graph::edge_descriptor> conn_edges;// conn_ for connecting
     
-    success = gpm_->plan(*oei,&gp_time);
+    typename graph_traits<Graph>::out_edge_iterator oei, oei_end;
+    for(tie(oei,oei_end) = out_edges(v,g); oei!=oei_end; ++oei)
+    {
+      typename Graph::vertex_descriptor t;
+      t = target(*oei,g);
+      
+      if(t == *avi)
+        conn_edges.push_back(*oei);
+    }
     
-    *total_gp_time_ += gp_time;
+    // Sort edges in conn_edges based on |Jspace|
+//    // This if we can use lambda, enable lambda: put this somewhere in CMakeList.txt SET(CMAKE_CXX_FLAGS "-std=c++0x") # Add c++11 functionalit
+//    std::sort(conn_edges.begin(),conn_edges.end(),
+//              [&conn_edges](std::pair<typename Graph::edge_descriptor,size_t> p1,std::pair<typename Graph::edge_descriptor,size_t> p2) {return p1.second < p2.second;});
+    // This is just a workaround, work only for 2 jspace 
+    if(conn_edges.size() == 2)
+    {
+      if(get_jspace_size(get(edge_jspace,g,conn_edges.at(0))) > get_jspace_size(get(edge_jspace,g,conn_edges.at(1))))
+      {
+        // Swap
+        typename Graph::edge_descriptor tmp_e;
+        tmp_e = conn_edges.at(0);
+        
+        conn_edges.at(0) = conn_edges.at(1);
+        conn_edges.at(1) = tmp_e;
+      }
+    }
     
-    if(!success)
-      ungraspable_edges.push_back(*oei);
-  }
-  
-  for(typename std::vector<typename Graph::edge_descriptor>::iterator i=ungraspable_edges.begin(); i!=ungraspable_edges.end(); ++i)
-    gpm_->remove_ungraspable_edge(*i);
+    cout << "Sorted edges connecting to " << get(vertex_name,g,*avi) << " -> " << n_avi << "-th" << endl;
+    for(size_t i=0; i<conn_edges.size(); ++i)
+    {
+      cout << i << " -> " << get(edge_jspace,g,conn_edges.at(i)) << endl;
+    }
+    
+    // Do geometric planning
+    for(size_t i=0; i<conn_edges.size(); ++i)
+    {
+      typename Graph::edge_descriptor e;
+      e = conn_edges.at(i);
+
+      double gp_time = 0.;
+      bool found_mp = false;
+      bool found_gp = false;// gp for at least one goal pose
+      
+      gpm_->plan(e,&gp_time,&found_gp,&found_mp);
+      *total_gp_time_ += gp_time;
+      
+      if(!found_gp)
+      {
+        gpm_->remove_ungraspable_edge(e);
+        continue;
+      }
+      
+      if(found_mp) break;
+    }// for all conn_edges
+  }// for all avi
+  cout << get(vertex_name,g,v) << " has n_avi= " << n_avi << endl;
   
   // Update jstates of adjacent vertex av of this vertex v to the cheapest existing-just-planned edge
   gpm_->set_av_jstates(v); 
@@ -174,14 +230,7 @@ operator()(Vertex v)
   {
     // Extract feature x
     Input x;
-    if ( !gpm_->get_fval(v,&x) )
-    {
-      // This happens when there is no goal-reached path from v, which means that definitely this vertex v does not belong to solution path.
-      // Therefore, we impose a very high value on h, which causes that this path will never expanded!
-      cerr << "!gpm_->get_fval(v,&x) -> h = (a very high value)" << endl;
-      h = std::numeric_limits<double>::max();
-    }
-    else
+    if( gpm_->get_fval(v,&x) )
     {
       // Preprocess data if necessary
       bool has_to_prep_data = false;
@@ -241,10 +290,20 @@ operator()(Vertex v)
         h = 0.;
       }
     }
+    else
+    {
+      cerr << "gpm_->get_fval(v,&x): FAILED -> h = 0." << endl;
+      h = 0.;
+    }
   }
   
   // Put in the main tmm!
-  if(h < 0.) h = 0.;
+  if(h < 0.)// negative value
+  {
+    cerr << "h= " << h << " -> h = 0." << endl;
+    h = 0.;
+  } 
+  
   cerr << "h(" << v << ")= " << h << endl;
   gpm_->put_heu(v,h);
   

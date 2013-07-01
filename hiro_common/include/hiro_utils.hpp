@@ -81,4 +81,15 @@ get_tip_link(const std::string& jspace)
   return map[jspace];
 }
 
+size_t
+get_jspace_size(const std::string& jspace)
+{
+  if( !strcmp(jspace.c_str(),std::string("rarm").c_str()) or !strcmp(jspace.c_str(),std::string("larm").c_str()) )
+    return 6;
+  else if( !strcmp(jspace.c_str(),std::string("rarm_U_chest").c_str()) or !strcmp(jspace.c_str(),std::string("larm_U_chest").c_str()) )
+    return 7;
+  else
+    return std::numeric_limits<size_t>::max();
+}
+
 #endif // #ifndef HIRO_UTILS_HPP_INCLUDED

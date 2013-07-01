@@ -11,26 +11,26 @@
 class SymbolicPlannerManager
 {
 public:
-SymbolicPlannerManager(const ros::NodeHandle& nh)
-: nh_(nh)
+SymbolicPlannerManager(PlannerManager* pm)
+: pm_(pm)
 { }
 
 ~SymbolicPlannerManager()
 { }
 
 bool
-plan(PlannerManager pm)
+plan()
 {
   // Make a request to plan_task srv
   task_planner::PlanTask::Request plan_task_req;
   task_planner::PlanTask::Response plan_task_res;
   
-  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::const_iterator i=pm.movable_obj_messy_cfg_.begin(); i!=pm.movable_obj_messy_cfg_.end(); ++i)
+  for(std::map<std::string, arm_navigation_msgs::CollisionObject>::const_iterator i=pm_->movable_obj_messy_cfg_.begin(); i!=pm_->movable_obj_messy_cfg_.end(); ++i)
     plan_task_req.objects.push_back(i->second);
   
   ros::service::waitForService("plan_task"); 
   ros::ServiceClient plan_task_client;
-  plan_task_client = nh_.serviceClient<task_planner::PlanTask>("plan_task");  
+  plan_task_client = pm_->nh_.serviceClient<task_planner::PlanTask>("plan_task");  
 
   if( plan_task_client.call(plan_task_req, plan_task_res) )
   {
@@ -46,11 +46,7 @@ plan(PlannerManager pm)
 }
 
 private:
-ros::NodeHandle nh_;
-//! A helper variable
-/*!
-  More ...
-*/
+PlannerManager* pm_;
 };
 
 #endif // #ifndef SYM_PLANNER_MANAGER_HPP_INCLUDED

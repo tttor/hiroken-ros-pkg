@@ -31,11 +31,11 @@ static const std::string GET_PLANNING_SCENE_SRV_NAME = "/environment_server/get_
 static const std::string GET_ROBOT_STATE_SRV_NAME = "/environment_server/get_robot_state";
 static const std::string TRAJECTORY_FILTER_SRV_NAME = "/trajectory_filter_server/filter_trajectory_with_constraints";
 
-static const size_t NUM_PLANNING_ATTEMPTS = 1;
-static const double ALLOWED_PLANNING_TIME = 0.1 * 60.;
-static const double ALLOWED_SMOOTHING_TIME = 2.0;
-static const size_t MAX_JSPACE_DIM = 7;
-static const double EST_HIGHEST_RESULT_COST = 5.0;
+static const size_t NUM_PLANNING_ATTEMPTS = 1;// for repetitions, we rely only on goal poses in the Goal set; which contains possible un/grasp poses
+static const double ALLOWED_PLANNING_TIME = 0.1 * 60.;// in seconds
+static const double ALLOWED_SMOOTHING_TIME = 2.0;// in seconds
+static const size_t MAX_JSPACE_DIM = 7;// 6 DOF arm + 1 DOF torso
+static const double EST_HIGHEST_RESULT_COST = 5.0;// (Jun 30,2013): c_r = len, thus this only reflect the (estimated) maximum len of end-effector path in meter
 static const double MOTION_PLANNING_FAILURE_PENALTY = ALLOWED_SMOOTHING_TIME + EST_HIGHEST_RESULT_COST;
 
 static boost::mt19937 gen( std::time(0) );
@@ -72,17 +72,25 @@ GeometricPlannerManager(PlannerManager* pm)
 }
 
 bool
-plan(TMMEdge e,double* gp_time)
+plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
 {
-  // Check whether this edge is already geometrically planned: having a positive cost
-  if(get(edge_weight,pm_->tmm_,e) > 0.)
+  // Check whether this edge is already geometrically planned: edge_color is not black
+  std::string color;
+  color = get(edge_color,pm_->tmm_,e);
+  if( !strcmp(color.c_str(),std::string("black").c_str()) )
+  {
+    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
+  }
+  else
   {
     ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= already DONE.");
     
-    // This happens in rerun mode, where this edge was planned in the previous ctamp attempt, which serve as the baseline
+    *found_gp = true;
+    *found_mp = true;
+    
     return true;
   }
-  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
+
   
   // Get the start point /subseteq vertex_jstates (source of e) based on jspace of this edge e
   sensor_msgs::JointState start_state;
@@ -117,10 +125,14 @@ plan(TMMEdge e,double* gp_time)
   {
     ROS_INFO("goal_set is empty, no further motion planning, return!");
     ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (false).");
-    return false;
+    
+    *found_gp = false;
+    return true;
   }
   else
-  { }
+  {
+    *found_gp = true;
+  }
   
   // MOTION PLANNING ================================================================================================================================
   ros::Time mp_begin = ros::Time::now();
@@ -167,6 +179,7 @@ plan(TMMEdge e,double* gp_time)
   }
   ROS_INFO_STREAM("n_attempt= " << n_attempt);
   
+  *found_mp = found;
   if( !found ) // even after considering all goal poses in the goal_set
   {
     ROS_INFO_STREAM("No motion plan for " << goal_set.size() << " goals for e= " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e));
@@ -313,13 +326,9 @@ get_samples_online(TMMVertex v,Data* samples)
 
 //! Obtain features
 /*!
-  As the heuristic is from the learning machine.
-  We have to give the learning machine features.
+  As the heuristic is from the learning machine, we have to give the learning machine features.
   
-  One way to predict the optimal solution path is by traversing in dfs manner.
-  Annother is to use random (uniformly) whenever there is a tie that should be broke.
-  
-  Put this in geo_planner_manager.cpp because it can access pm_->tmm_.
+  This is put in geo_planner_manager.cpp because in here we can access pm_->tmm_.
   Although, this is not really appropriate.
 */
 bool
