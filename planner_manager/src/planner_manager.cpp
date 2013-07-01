@@ -151,6 +151,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   for(tie(ei,ei_end)=edges(tmm_); ei!=ei_end; ++ei)
   {
     put( edge_color,tmm_,*ei,std::string("black") );
+    put( edge_weight,tmm_,*ei,std::numeric_limits<double>::max() );
   }
 
   // Retrieve the UCS-planned TMM only if rerun (=benchmarked attempt)
