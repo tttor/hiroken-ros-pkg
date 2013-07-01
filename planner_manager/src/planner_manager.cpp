@@ -224,12 +224,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   
   // perf-log related var
   // The "perf.log.csv" is a single liner text file containing 
-  // (1)CTAMP_SearchTime,(2)total_mp_time,(3)#ExpandedVertices,(4)#Vertices,(5)SolPathCost,(6)#Vertices in solution path,(7)#exp_op
+  // (1)CTAMP_SearchTime,(2)total_mp_time,(3)#ExpandedVertices,(4)#Vertices,(5)SolPathCost,(6)#Vertices in solution path,(7)#exp_op,(8)Search sol. cost,(9)Search sol. #vertices,
+  std::vector<double> perf_log;
+  perf_log.resize(9);
+  
   std::ofstream perf_log_out;
   perf_log_out.open(std::string(data_path+"/perf.log").c_str());
-
-  std::vector<double> perf_log;
-  perf_log.resize(7);
 
   // ml-related var
   std::vector< std::vector<double> > ml_data;
@@ -462,14 +462,16 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       
       ctamp_sol->clear();
       
-      cout << "SolPathCost= UNDEFINED" << endl;
-      perf_log_out << "SolPathCost=UNDEFINED" << endl;
-      perf_log.at(4) = 0.;
-      perf_log.at(5) = 0.;
+      cout << "SolPathCost= " << distances[tmm_goal_] << "(but zeroed because not passed)" << endl;
+      perf_log_out << "SolPathCost= " << distances[tmm_goal_] << "(but zeroed because not passed)" << endl;
+      perf_log.at(4) = 0.;// an invalid value, cost > 0
+      perf_log.at(5) = 0.;// an invalid value, |sol| > 0
     }
     
     // Write the number of expansion ops
     perf_log.at(6) = n_exp_op;
+    perf_log.at(7) = distances[tmm_goal_];
+    perf_log.at(8) = sol_path.size() + 1;
   }// End of: catch(FoundGoalSignal fgs) 
   
   // Write perf_log
