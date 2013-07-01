@@ -6,7 +6,7 @@
 
   <arg name="joint_gui" default="False" />
 
-  <arg name="path" default="/home/vektor/rss-2013/data/with_v.4.3/baseline.hot" />
+  <arg name="path" default="/home/vektor/rss-2013/data/with_v.4.3/baseline.hot.2" />
     <param name="base_data_path" value="$(arg path)"/>
     <param name="data_path" value="$(arg path)"/>
 
