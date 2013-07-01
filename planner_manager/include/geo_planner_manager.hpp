@@ -72,7 +72,7 @@ GeometricPlannerManager(PlannerManager* pm)
 }
 
 bool
-plan(TMMEdge e,double* gp_time)
+plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
 {
   // Check whether this edge is already geometrically planned: edge_color is not black
   std::string color;
@@ -84,6 +84,10 @@ plan(TMMEdge e,double* gp_time)
   else
   {
     ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= already DONE.");
+    
+    *found_gp = true;
+    *found_mp = true;
+    
     return true;
   }
 
@@ -121,10 +125,14 @@ plan(TMMEdge e,double* gp_time)
   {
     ROS_INFO("goal_set is empty, no further motion planning, return!");
     ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (false).");
-    return false;
+    
+    *found_gp = false;
+    return true;
   }
   else
-  { }
+  {
+    *found_gp = true;
+  }
   
   // MOTION PLANNING ================================================================================================================================
   ros::Time mp_begin = ros::Time::now();
@@ -171,6 +179,7 @@ plan(TMMEdge e,double* gp_time)
   }
   ROS_INFO_STREAM("n_attempt= " << n_attempt);
   
+  *found_mp = found;
   if( !found ) // even after considering all goal poses in the goal_set
   {
     ROS_INFO_STREAM("No motion plan for " << goal_set.size() << " goals for e= " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e));
