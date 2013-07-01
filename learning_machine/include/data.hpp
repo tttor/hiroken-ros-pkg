@@ -151,10 +151,11 @@ bool
 convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata_path)
 {
   using namespace std; 
+  cerr << "convert_csv2libsvmdata : BEGIN" << endl;
   
   Data data;
   size_t n_line = utils::get_n_lines(csv_path);
-  cerr << "n_line= " << n_line << endl;
+//  cerr << "n_line= " << n_line << endl;
   
   ifstream csv(csv_path.c_str());
   if (csv.is_open())
@@ -164,7 +165,7 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
     {
       string line;
       getline (csv,line);
-//      cerr << "line= " << line << endl;
+      cerr << "line= " << line << endl;
       
       // Parse
       vector<string> str_vals;
@@ -197,7 +198,8 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
     cerr << "Cannot open: " << csv_path << endl;
     return false;
   }
-   
+
+  cerr << "convert_csv2libsvmdata : END (with write_libsvm_data(data,libsvmdata_path))" << endl;   
   return write_libsvm_data(data,libsvmdata_path);
 }
 
