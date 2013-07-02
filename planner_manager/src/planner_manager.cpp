@@ -224,7 +224,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   
   // perf-log related var
   // The "perf.log.csv" is a single liner text file containing 
-  // (1)CTAMP_SearchTime,(2)total_mp_time,(3)#ExpandedVertices,(4)#Vertices,(5)SolPathCost,(6)#Vertices in solution path,(7)#exp_op,(8)Search sol. cost,(9)Search sol. #vertices,
+  // (1)CTAMP_SearchTime,(2)total_mp_time,(3)#ExpandedVertices,(4)#Vertices,(5)SolPathCost,(6)#Vertices in solution path,(7)#exp_op,(8)Search sol. cost,(9)Search sol. #vertices, DO NOT forget to resize the vector perf_log below!
   std::vector<double> perf_log;
   perf_log.resize(9);
   
@@ -650,15 +650,15 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
     ml_log.close();
     
-    // Write log for heuristics vs true distance 
-    // The true_cost-to-go is obtained from UCS-planned TMM using Djikstra for every est-cost-to-go in the current Astar-planned tmm
+    // Write h_log for heuristics vs true distance 
+    // The true_cost-to-go is obtained from UCS-planned TMM using Djikstra (filtered for planned_edge_only)for every est-cost-to-go in the current Astar-planned tmm
     std::string h_log_path;
     h_log_path = std::string(log_path+".h.log");
     
     std::ofstream h_log;
     h_log.open(h_log_path.c_str(),std::ios::app);// appending because there are multiple instances in a episode
 
-    std::set<TMMVertex> expvert_plus_set;// expanded vertices plus vertices in the open-list/frontier
+    std::set<TMMVertex> expvert_plus_set;// expanded vertices plus vertices in the open-list/frontier, they are vertices that have heuristics
      
     boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
     for(boost::tie(vi,vi_end) = vertices(tmm_); vi!=vi_end; ++vi)
@@ -670,7 +670,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       {
         expvert_plus_set.insert(*vi);
         
-        // Do this because we do have any flag for vertex that is ever in the open-list/frontier
+        // Do this because we do not have any flag for vertex that is ever in the open-list/frontier
         graph_traits<TaskMotionMultigraph>::adjacency_iterator avi, avi_end;
         for(tie(avi,avi_end)=adjacent_vertices(*vi,tmm_); avi!=avi_end; ++avi )  
         {
@@ -681,7 +681,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, tmm_) );
     typedef filtered_graph< TaskMotionMultigraph, PlannedEdgeFilter<TMMEdgeColorMap> > UCSPlannedEdgeOnlyTMM;
-    UCSPlannedEdgeOnlyTMM ucs_tmm(ori_ucs_tmm,planned_edge_filter);
+    UCSPlannedEdgeOnlyTMM ucs_tmm(ori_ucs_tmm,planned_edge_filter);// for now, we do not struggle doing planning for un-planned edge, instead we assume that those edges "truly, as the true value" have very high cost to the goal
     
     size_t n_hcmp = 0;// the number of (est-cost2go vs. true-cost2go) obtained from this attempt
     for(std::set<TMMVertex>::iterator i=expvert_plus_set.begin(); i!=expvert_plus_set.end(); ++i)
@@ -732,16 +732,21 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
           hot_v = parents.at(hot_v);
         }
         while(hot_v != parents.at(hot_v));
-        
-        // Write
-        h_log << h << "," << cost2go /* << "," << get(vertex_name,ucs_tmm,*i) */ << std::endl;
-        ++n_hcmp;
       }
+      else
+      {
+        // Assume that if no path from this vertex to the goal on planned_edge_only ucs tmm then the true cost must be very high
+        cost2go += std::numeric_limits<double>::max();
+      }
+      
+      // Write
+      h_log << h << "," << cost2go /* << "," << get(vertex_name,ucs_tmm,*i) */ << std::endl;
+      ++n_hcmp;
     }// for each vertex in expvert_plus_set
     
     h_log.close();
 
-    // Write log for checking consistency: h(v) <= c(v,v') + h (v')
+    // Write h2_log for checking heuristic consistency: h(v) <= c(v,v') + h (v')
     std::string h2_log_path;
     h2_log_path = std::string(log_path+".h2.log");
     
@@ -761,7 +766,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         double h_v;
         h_v = get(vertex_heu,tmm_,*vi);
   
-        std::map<TMMVertex,double> av_cost_map;// Use this instead of iterating over adjacent_vertices because this is _multigraph_
+        std::map<TMMVertex,double> av_cost_map;// Use this instead of simply iterating over adjacent_vertices because this is _multigraph_
         typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei,oei_end;
         for(tie(oei,oei_end)=out_edges(*vi,tmm_);oei != oei_end; ++oei)
         {
