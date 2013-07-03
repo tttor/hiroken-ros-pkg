@@ -153,6 +153,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   {
     put( edge_color,tmm_,*ei,std::string("black") );
     put( edge_weight,tmm_,*ei,std::numeric_limits<double>::max() );
+    put( edge_nograsppose,tmm_,*ei,true );
   }
 
   // Retrieve the UCS-planned TMM only if rerun (=benchmarked attempt)
@@ -200,6 +201,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         put( edge_mptime,tmm_,*ei,get(edge_mptime,ori_ucs_tmm,*it) );
         put( edge_planstr,tmm_,*ei,get(edge_planstr,ori_ucs_tmm,*it) );
         put( edge_plan,tmm_,*ei, utils::get_plan(get(edge_planstr,tmm_,*ei)) );
+        put( edge_nograsppose,tmm_,*ei,false );
         
         // Change from edge in solution path (blue) to green (geometrically-validated and has motion plan)
         std::string color;
