@@ -232,43 +232,41 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
   samples are collected from all unique paths that are subset of the path from the root the the vertex v and have not yet used as a sample before.
   
   Concretely,
-  consire the path: 
-  ROOT --> A 
+  consider the path: 
+  (1) ROOT --> A 
   then only one path: ROOT --> A 
-  ROOT --> A --> B
+  (2) ROOT --> A --> B
   then there are 2 paths that can form new samples: ROOT--> A --> B and A --> B
   
-  Therefore, the gist is that we have to find the path from the root to the vertex v
+  Therefore, the gist is that we have to find all paths from the root to the adjacent vertices of v
 */
 bool
 get_samples_online(TMMVertex v,Data* samples)
 {
-//  ROS_DEBUG("get_samples_online(): BEGIN");
+  ROS_DEBUG_STREAM("get_samples_online(v= " << get(vertex_name,pm_->tmm_,v) << "): BEGIN");
   
-  TaskMotionMultigraph tmm;
-  tmm = pm_->tmm_;
+  TaskMotionMultigraph local_tmm;
+  local_tmm = pm_->tmm_;// Use a copy of tmm_ because this routine modifies tmm_
   
   // Remove more-expensive edges, remove parallelism
-  // Because the solution path should always choose the cheapest,
-  // or does the dfs do it already?
   std::set<TMMEdge> tobe_removed_edges;
   
   boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
-  for(boost::tie(vi,vi_end) = vertices(tmm); vi!=vi_end; ++vi)
+  for(boost::tie(vi,vi_end) = vertices(local_tmm); vi!=vi_end; ++vi)
   {
     std::map<TMMVertex,TMMEdge> tv_e_map;
     
     graph_traits<TaskMotionMultigraph>::out_edge_iterator oei,oei_end;
-    for(tie(oei,oei_end) = out_edges(*vi,tmm); oei!=oei_end; ++oei )
+    for(tie(oei,oei_end) = out_edges(*vi,local_tmm); oei!=oei_end; ++oei )
     {
       std::map<TMMVertex,TMMEdge>::iterator it;
       bool inserted;
       
-      tie(it,inserted) = tv_e_map.insert( std::make_pair(target(*oei,tmm),*oei) );
+      tie(it,inserted) = tv_e_map.insert( std::make_pair(target(*oei,local_tmm),*oei) );
       
       if(!inserted)
       {
-        if(get(edge_weight,tmm,*oei) < get(edge_weight,tmm,it->second))
+        if(get(edge_weight,local_tmm,*oei) < get(edge_weight,local_tmm,it->second))
         {
           tobe_removed_edges.insert(it->second);
 
@@ -280,47 +278,52 @@ get_samples_online(TMMVertex v,Data* samples)
         }
       }
     }
-  }// end of: For each vertex in tmm
-  
+  }// end of: For each vertex in local_tmm
+
   for(std::set<TMMEdge>::const_iterator i=tobe_removed_edges.begin(); i!=tobe_removed_edges.end(); ++i)
-    remove_edge(*i,tmm);
-//  ROS_DEBUG("Parallelism: removed");
+    remove_edge(*i,local_tmm);
+  ROS_DEBUG("Parallelism: removed");
   
-//  // Filter only the planned edge to make dfs_visit more efficient by cutting the depth of the tmm
-//  PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, tmm) );
-//  typedef filtered_graph< TaskMotionMultigraph, PlannedEdgeFilter<TMMEdgeColorMap> > PlannedTMM;
+  // Filter only the planned edge 
+  PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, local_tmm) );
+  typedef filtered_graph< TaskMotionMultigraph, PlannedEdgeFilter<TMMEdgeColorMap> > PlannedTMM;
+  typedef graph_traits<PlannedTMM>::vertex_descriptor PlannedTMMVertex;
+  typedef graph_traits<PlannedTMM>::edge_descriptor PlannedTMMEdge;
 
-//  PlannedTMM p_tmm(tmm, planned_edge_filter);
-//  ROS_DEBUG_STREAM("num_vertices(p_tmm)= " << num_vertices(p_tmm));
-//  ROS_DEBUG_STREAM("num_edges(p_tmm)= " << num_edges(p_tmm));
+  PlannedTMM filtered_local_tmm(local_tmm, planned_edge_filter);
+  ROS_DEBUG_STREAM("num_edges(local_tmm)= " << num_edges(local_tmm));
+  ROS_DEBUG_STREAM("num_edges(filtered_local_tmm)= " << num_edges(filtered_local_tmm));
 
-// Extract training samples from hot_paths: sequence of edges from tmm_root_ to the adjacent vertices of v, which are the targets of the just planned edges
-  graph_traits<TaskMotionMultigraph>::adjacency_iterator avi, avi_end;
-  for(tie(avi,avi_end)=adjacent_vertices(v,tmm); avi!=avi_end; ++avi )  
+  // Extract training samples from hot_paths: all possible paths from tmm_root_ to the adjacent vertices of v, which are the targets of the just planned edges
+  graph_traits<PlannedTMM>::adjacency_iterator avi, avi_end;
+  for(tie(avi,avi_end)=adjacent_vertices(v,filtered_local_tmm); avi!=avi_end; ++avi )  
   {
-    boost::graph_traits<TaskMotionMultigraph>::vertex_descriptor goal;
-    goal = *avi;
+    // Find predecessors_map
+    std::vector< std::vector<PlannedTMMVertex> > predecessors_map(num_vertices(filtered_local_tmm));
+    data_collector::BFSVisitor<PlannedTMM> vis(&predecessors_map);
     
-    std::vector<TMMEdge> hot_path;
+    boost::breadth_first_search(filtered_local_tmm,pm_->tmm_root_,visitor(vis));
     
-    DFSVisitor<TaskMotionMultigraph> vis(&goal,&hot_path);
-    
-    try
+    // Find hot_paths through backtracking using predecessors_map
+    std::vector< std::vector<PlannedTMMEdge> > hot_paths;
+    TMMVertex goal = *avi;
+  
+    data_collector::backtrack<PlannedTMM>(filtered_local_tmm,predecessors_map,goal,&hot_paths);
+  
+    for(size_t i=0; i<hot_paths.size(); ++i)
     {
-      depth_first_search( tmm,visitor(vis) );
+      std::reverse(hot_paths.at(i).begin(),hot_paths.at(i).end());
+      
+      ROS_DEBUG_STREAM("hot_path th= " << i+1 << " of avi= " << get(vertex_name,filtered_local_tmm,*avi));
+      for(std::vector<TMMEdge>::const_iterator j=hot_paths.at(i).begin(); j!=hot_paths.at(i).end(); ++j)
+        ROS_DEBUG_STREAM("e(" << get(vertex_name,filtered_local_tmm,source(*j,filtered_local_tmm)) << "," << get(vertex_name,filtered_local_tmm,target(*j,filtered_local_tmm)) << "), ");
+      
+      data_collector::DataCollector<PlannedTMM> dc;
+      dc.get_samples(hot_paths.at(i),filtered_local_tmm,METADATA_PATH,samples);
     }
-    catch(DFSFoundGoalSignal fg)
-    { }
-    
-//    ROS_DEBUG("hot_path= ");
-//    for(std::vector<TMMEdge>::const_iterator i=hot_path.begin(); i!=hot_path.end(); ++i)
-//      ROS_DEBUG_STREAM("e(" << get(vertex_name,tmm,source(*i,tmm)) << "," << get(vertex_name,tmm,target(*i,tmm)) << "), ");
-    
-    DataCollector<TaskMotionMultigraph> dc;
-    dc.get_samples(hot_path,tmm,METADATA_PATH,samples);
   }// end of: for_each avi
-    
-//  ROS_DEBUG("get_samples_online(): END");
+
+  ROS_DEBUG_STREAM("get_samples_online(v= " << get(vertex_name,pm_->tmm_,v) << "): END");    
   return true;
 }
 
@@ -358,7 +361,7 @@ get_fval(TMMVertex v,Input* in)
   }
     
   // Extract feature values from the estimated optimal-solution path, which is as the heuristic path
-  DataCollector<TaskMotionMultigraph> dc;
+  data_collector::DataCollector<TaskMotionMultigraph> dc;
   bool success;
   success = dc.get_fval(est_opt_sol_path,pm_->tmm_,METADATA_PATH,in);
 

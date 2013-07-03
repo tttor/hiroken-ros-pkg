@@ -6,6 +6,9 @@
 
 #include <boost/graph/depth_first_search.hpp>
 
+namespace data_collector
+{
+
 struct DFSFoundGoalSignal {}; // exception for termination
 
 template <class Graph>
@@ -44,7 +47,7 @@ void tree_edge(typename boost::graph_traits<DfsGraph>::edge_descriptor e,DfsGrap
 //    cout << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
 //  cout << endl;
 
-  get_samples<DfsGraph>(hot_path_,g,data_);
+  get_samples_local<DfsGraph>(hot_path_,g,data_);
 }
 
 //! used in collecting samples _offline_, to maintain the hot path
@@ -78,7 +81,7 @@ get_samples(const std::vector<typename boost::graph_traits<Graph>::edge_descript
 {
   labels_ = data_util::get_labels(metadata_path);
   
-  return get_samples<Graph>(path,g,samples);
+  return get_samples_local<Graph>(path,g,samples);
 }
 
 private:
@@ -106,7 +109,7 @@ get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_desc
     cerr << "get_out() failed" << endl;
     return false;
   }
-
+  
   data->insert( std::make_pair(in,out) );
   
   return true;
@@ -123,7 +126,7 @@ get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_desc
 */
 template<typename LocalGraph>
 bool
-get_samples(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g,Data* samples)
+get_samples_local(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g,Data* samples)
 {
   for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
   {
@@ -146,6 +149,16 @@ get_out(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descrip
   for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator j=path.begin(); j!=path.end(); ++j)
   {
     *out += get(edge_weight, g, *j);
+  }
+  
+  // Check for bad out values
+  if(*out == std::numeric_limits<double>::max())
+  {
+    cout << "[WARN] *out == std::numeric_limits<double>::max()" << endl;
+    for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator j=path.begin(); j!=path.end(); ++j)
+      cout << "e= " << get(edge_name, g, *j) << " has a weight of " << get(edge_weight, g, *j) << endl;
+      
+    return false;
   }
   
   // Scaling down, the dual (scale-up) is in class AstarHeuristics at file:astar_utils.hpp
@@ -341,51 +354,119 @@ std::vector<typename boost::graph_traits<Graph>::edge_descriptor> hot_path_;
 std::vector<std::string> labels_;
 };
 
-template<typename Graph>
-class DFSVisitor:public default_dfs_visitor 
+
+
+template < typename GlobalGraph >
+class BFSVisitor:public default_bfs_visitor 
 {
 public:
-DFSVisitor(typename boost::graph_traits<Graph>::vertex_descriptor* goal,std::vector< typename boost::graph_traits<Graph>::edge_descriptor >* hot_path)
-: goal_(goal), hot_path_(hot_path)
-{ }
-
-template <class DfsGraph>
-void 
-discover_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
-{
-//  std::cout << "discover " << get(vertex_name,g,v) << std::endl;
-//  std::cout << "out_degree(v,g)= " << out_degree(v,g) << std::endl;
-
-  if( (goal_ != 0) and (*goal_==v) )
-  {
-    throw DFSFoundGoalSignal(); 
-  }
-}
-
-template <class DfsGraph>
-void tree_edge(typename boost::graph_traits<DfsGraph>::edge_descriptor e,DfsGraph& g)
-{
-//  cerr << "Adding: " << get(edge_name,g,e) << endl;
-  hot_path_->push_back(e);
+  BFSVisitor(vector< vector<typename graph_traits<GlobalGraph>::vertex_descriptor> >* predecessors_map)
+  :predecessors_map_(predecessors_map)
+  { }
   
-//  cerr << "hot_path_: ";
-//  for(typename std::vector<typename boost::graph_traits<DfsGraph>::edge_descriptor>::const_iterator i=hot_path_->begin(); i!=hot_path_->end(); ++i)
-//    cout << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
-//  cout << endl;
-}
-
-template <class DfsGraph>
-void 
-finish_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
-{
-//  std::cerr << "finish " << get(vertex_name,g,v) << std::endl;  
-  if( !hot_path_->empty() )
-    hot_path_->erase( hot_path_->end()-1 );
-}
+  template < typename Edge, typename Graph >
+  void examine_edge(Edge e, const Graph & g) const
+  {
+//    cout << "examine e=(" << get(vertex_name,g,source(e,g)) << "," << get(vertex_name,g,target(e,g)) << ")" << endl;
+    predecessors_map_->at(target(e,g)).push_back(source(e,g));
+  }
 
 private:
-typename boost::graph_traits<Graph>::vertex_descriptor* goal_;// is a pointer instead of a standard const ref. variable because with pointer the default value is sure
-std::vector< typename boost::graph_traits<Graph>::edge_descriptor >* hot_path_;
+vector< vector<typename graph_traits<GlobalGraph>::vertex_descriptor> >* predecessors_map_;
 };
 
+template<typename Graph>
+void
+backtrack(const Graph& g
+         ,const std::vector< std::vector<typename graph_traits<Graph>::vertex_descriptor> >& predecessors_map
+         ,const typename graph_traits<Graph>::vertex_descriptor& v
+         ,std::vector< std::vector<typename graph_traits<Graph>::edge_descriptor> >* paths
+         )
+{
+//  cout << "v= " << get(vertex_name,g,v) << endl;
+//  
+//  cout << "paths.size()= " << paths->size() << endl;
+//  for(size_t i=0; i<paths->size(); ++i)
+//  {
+//    cout << "path th= " << i << ": " << endl;
+//    for(size_t j=0; j<paths->at(i).size(); ++j)
+//    {
+//      typename graph_traits<Graph>::edge_descriptor e = paths->at(i).at(j);
+//      cout << "e(" << get(vertex_name,g,source(e,g)) << "," << get(vertex_name,g,target(e,g)) << "),";
+//    }
+//    cout << endl;
+//  }
+  
+  if( predecessors_map.at(v).empty() )
+  {
+    return;
+  }
+  
+  size_t n_predecessors;
+  n_predecessors = predecessors_map.at(v).size();
+  
+  // find paths in path_set whose last edge has the source v
+  // Assume that all matched_paths are unique
+  std::vector< std::vector<typename graph_traits<Graph>::edge_descriptor> > matched_paths;
+
+  for(size_t j=0; j<paths->size(); ++j)
+  {
+    typename graph_traits<Graph>::edge_descriptor last_e;
+    last_e = paths->at(j).back();
+    
+    if(source(last_e,g) == v)
+    {
+      matched_paths.push_back( paths->at(j) );
+    }
+  }
+    
+  // Duplicate matched_paths as many as (n_predecessors-1)
+//  cout << "matched_paths.size()= " << matched_paths.size() << endl;
+  for(size_t i=0; i<matched_paths.size(); ++i)
+  {
+    for(size_t j=0; j<(n_predecessors-1); ++j)
+    {
+      paths->push_back(matched_paths.at(i));
+    }
+  }
+
+  for(size_t i=0; i< predecessors_map.at(v).size(); ++i)
+  {
+    typename graph_traits<Graph>::vertex_descriptor p;
+    p = predecessors_map.at(v).at(i);
+    
+    typename graph_traits<Graph>::edge_descriptor e;
+    e = boost::edge(p,v,g).first;
+    
+    // find _one_ (first found) path in path_set whose last edge has the source v,
+    // then add e to that path
+    // TODO is it possible that there exist multiple unique path that end with (v,any) ?
+    bool found = false;
+    for(size_t j=0; j<paths->size(); ++j)
+    {
+      typename graph_traits<Graph>::edge_descriptor last_e;
+      last_e = paths->at(j).back();
+      
+      if(source(last_e,g) == v)
+      {
+        paths->at(j).push_back(e);
+        found = true;
+        break;
+      }
+    }
+
+    if(!found)
+    {
+      // Create a new path with e, then push to paths
+      std::vector<typename graph_traits<Graph>::edge_descriptor> path;
+      path.push_back(e);
+      
+      paths->push_back(path);
+    }
+    
+    backtrack<Graph>(g,predecessors_map,p,paths);
+  }// for each predecessor
+}
+
+}// namespace data_collector
 #endif // #ifndef DATA_COLLECTOR_HPP_INCLUDED
