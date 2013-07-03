@@ -165,7 +165,7 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
     {
       string line;
       getline (csv,line);
-      cerr << "line= " << line << endl;
+//      cerr << "line= " << line << endl;
       
       // Parse
       vector<string> str_vals;
