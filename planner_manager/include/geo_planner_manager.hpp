@@ -98,6 +98,17 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
 //  ROS_DEBUG_STREAM("start_state: SET with " << start_state.position.size() << " joints");
   
   // Determine all possible goal poses
+  // For rerun, check whether previous runs have found that no graps pose exists, in order to speed up the rerun planning
+  if( get(edge_nograsppose,pm_->tmm_,e) )
+  {
+    ROS_DEBUG("Prev. runs have found that no graps pose exists.");
+    
+    *found_gp = false;
+    *found_mp = false;
+    
+    return true;
+  }
+  
   std::vector<sensor_msgs::JointState> goal_set;// Note that we do not use std::set because of a ros-msg constraint that is an array[] is handled as a vector
   
   std::vector<std::string> target_vertex_name_parts;
