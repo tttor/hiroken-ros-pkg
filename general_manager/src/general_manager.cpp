@@ -687,7 +687,8 @@ main(int argc, char **argv)
         boost::filesystem::create_directories(data_path);
         
         boost::filesystem::copy_file( std::string(base_data_path+"/tidy.cfg"),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
-                
+        boost::filesystem::copy_file( std::string(base_data_path+"/vanilla_tmm.dot"),std::string(data_path+"/vanilla_tmm.dot"),boost::filesystem::copy_option::overwrite_if_exists );// because this is rerun so that no call to the task plan
+        
         // Sense
         gm.sense( std::string(base_data_path+messy_cfg_filename) );
         

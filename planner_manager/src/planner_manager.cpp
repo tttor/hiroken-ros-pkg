@@ -139,6 +139,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::string tmm_dot_path = data_path + "/vanilla_tmm.dot";  
   std::ifstream tmm_dot(tmm_dot_path.c_str());
   
+  ROS_DEBUG_STREAM("Going to read " << tmm_dot_path);
   if( !read_graphviz(tmm_dot, tmm_, tmm_dp, "vertex_id") )
   {
     ROS_ERROR("read_graphviz(vanilla_tmm.dot): Failed");
