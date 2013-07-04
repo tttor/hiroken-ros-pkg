@@ -123,8 +123,8 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
 
   // Obtain samples from paths from (root,root+1, ..., v) to adjacent of v where the edge costs are already defined
   Data samples;
-  gpm_->get_samples_online(v,&samples);
-//    cerr << "online training: samples.size()= " << samples.size() << endl;
+  if(ml_mode_ != ml_util::NO_ML)
+    gpm_->get_samples_online(v,&samples);
 
   // Utilize samples
   if((ml_mode_ == ml_util::SVR_OFFLINE)or(ml_mode_ == ml_util::NO_ML_BUT_COLLECTING_SAMPLES))// Store samples for offline (interleaved) training and for offline tuning
@@ -175,10 +175,6 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       
       ml_data_->push_back(ml_datum);
     }
-  }
-  else// ml_mode_==ml_util::NO_ML
-  {
-    // do nothing
   }
 }
   
