@@ -3,8 +3,11 @@
 
 #include "data_collector.hpp"
 #include "data.hpp"
+#include "utils.hpp"
 
 #include <boost/graph/depth_first_search.hpp>
+
+#include <Eigen/Dense>
 
 namespace data_collector
 {
@@ -15,72 +18,24 @@ template <class Graph>
 class DataCollector: public boost::dfs_visitor<>
 {
 public:
-//! Used to collect samples _offline_
-DataCollector(Data* data,std::string metadata_path)
-: data_(data), in_(0)
+DataCollector(std::string metadata_path,std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg)
 { 
   labels_ = data_util::get_labels(metadata_path);
-}
-
-//! This contructor is used to get features only as inputs during search, used to supply the learning machine in order to output the heuristic
-DataCollector()
-: data_(0), in_(0)
-{ }
-
-template <class DfsGraph>
-void 
-discover_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
-{
-//  std::cout << "discover " << get(vertex_name,g,v) << std::endl;
-//  std::cout << "out_degree(v,g)= " << out_degree(v,g) << std::endl;
-}
-
-//! In collecting samples _offline_, a new sample is collected whenever an edge is added to the hot_path_ i.e. becomes a part of the search tree 
-template <class DfsGraph>
-void tree_edge(typename boost::graph_traits<DfsGraph>::edge_descriptor e,DfsGraph& g)
-{
-//  cerr << "Adding: " << get(edge_name,g,e) << endl;
-  hot_path_.push_back(e);
   
-//  cerr << "hot_path_: ";
-//  for(typename std::vector<typename boost::graph_traits<DfsGraph>::edge_descriptor>::const_iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
-//    cout << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
-//  cout << endl;
-
-  get_samples_local<DfsGraph>(hot_path_,g,data_);
+  movable_obj_tidy_cfg = movable_obj_tidy_cfg;
 }
 
-//! used in collecting samples _offline_, to maintain the hot path
-template <class DfsGraph>
-void 
-finish_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
-{
-//  std::cerr << "finish " << get(vertex_name,g,v) << std::endl;  
-  hot_path_.erase( hot_path_.end()-1 );
-
-  // This is to make the vertex named TidyHome to be discovered again if there are multiple solution paths
-  std::string name;
-  name = get(vertex_name,g,v);
-
-  if( !strcmp(name.c_str(),"TidyHome") )
-    put(vertex_color,g,v,color_traits<boost::default_color_type>::white());
-}
-
-//! used in obtaining features (as input) _online_ during search. Should be call only when using the DataCollector() constructor
+//! Used for obtaining features (as input) _online_ during search.
 bool
-get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Input* in)
+get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,Input* in)
 {
-  labels_ = data_util::get_labels(metadata_path);
-  
-  return get_fval<Graph>(path,g,in);
+  return get_fval_local<Graph>(path,g,in);
 }
 
-//!Should be call only when using the DataCollector() constructor
+//!Used _online_ during search.
 bool
-get_samples(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Data* samples)
+get_samples(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,Data* samples)
 {
-  labels_ = data_util::get_labels(metadata_path);
-  
   return get_samples_local<Graph>(path,g,samples);
 }
 
@@ -97,7 +52,7 @@ bool
 get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g,Data* data)
 {
   Input in;
-  if( !get_fval<LocalGraph>(path,g,&in) )
+  if( !get_fval_local<LocalGraph>(path,g,&in) )
   {
     cerr << "get_fval() failed" << endl;
     return false;
@@ -177,7 +132,7 @@ get_out(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descrip
 */
 template<typename LocalGraph>
 bool
-get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,Input* in)
+get_fval_local(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,Input* in)
 {
 //  cerr << "in get_fval(), path: ";
 //  for(typename std::vector<typename boost::graph_traits<Graph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
@@ -251,57 +206,49 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
 
 //! Obtain geometric-feature values
 /*!
-  Geometric features include:
-  (1) object pose in the source vertex
-  
-  
+  Geometric features are extracted from information of the head vertex
+  (1) x^{g1} : robot joint states
+  TODO (2) x^{g2} : manipulability measure m of robot state
+  (3) x^{g3}: poses of movable objects
+  (4) x^{g4}: shapes of movable objects (not used in this experiment July 5, 2013)
+  TODO (5) x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
 */
 bool 
 get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffix="")
 {
-  // Init 
+  // Init: parsing string of edge_srcstate
   std::vector<std::string> srcstate_parts;
   boost::split( srcstate_parts, srcstate, boost::is_any_of(";") );
-  
   if( srcstate_parts.at(0).size() == 0 )
   {
-    cerr << "srcstate_parts.at(0).size() == 0" << endl;
+    cerr << "srcstate_parts.at(0).size() == 0 -> get_geo_fval() returns false" << endl;
     return false;
   }
 
-  std::map<std::string,double> jname_jpos_map;// for obtaining jstate later on
-
-  for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i )
+  std::map<std::string,double> jname_jpos_map;
+  std::map< std::string,std::vector<double> > obj_pose_map;
+  
+  for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i)
   {
     std::vector<std::string> comps;
     boost::split( comps, *i, boost::is_any_of(",") );
     
     if(comps.size()==8)// object's pose data: id, x, y, z, qx, qy, qz, qw
     {
-      std::string obj_id = comps.at(0);
-      comps.erase(comps.begin());// remove the id so as to make comps and names (below) exactly have 7 elements
+      std::string id = comps.at(0);
       
-      std::vector<std::string> names;
-      names.push_back(obj_id+".x"+suffix);
-      names.push_back(obj_id+".y"+suffix);
-      names.push_back(obj_id+".z"+suffix);
-      names.push_back(obj_id+".qx"+suffix);
-      names.push_back(obj_id+".qy"+suffix);
-      names.push_back(obj_id+".qz"+suffix);
-      names.push_back(obj_id+".qw"+suffix);
-      
-      for(std::vector<std::string>::const_iterator j=names.begin(); j!=names.end(); ++j)
+      std::vector<double> pose(7);
+      for(size_t j=1; j<8; ++j)// excluding obj_id, which is at(0)
       {
-        std::string name = *j;
-        double val = boost::lexical_cast<double>( comps.at(j-names.begin()) );
-        
-        r_in->insert( std::make_pair(name,val) );
+        pose.at(j-1) = boost::lexical_cast<double>( comps.at(j) );
       }
+      
+      obj_pose_map[id] = pose;
     }
     else if(comps.size()==2)// joint-name, joint-state
     {
       // Assume that no duplicated joint data 
-      jname_jpos_map[comps.at(0)] = boost::lexical_cast<double>(comps.at(1));
+      jname_jpos_map[comps.at(0)] = boost::lexical_cast<double>( comps.at(1) );
     }
     else
     {
@@ -310,11 +257,54 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
     }
   }
 
-  //(2) joint-state on the source vertex, jname_jpos_map is set in step (1)
+  // Extract x^{g1} : robot joint states; jname_jpos_map is set above
   for(std::map<std::string,double>::const_iterator i=jname_jpos_map.begin(); i!=jname_jpos_map.end(); ++i)
   {
     r_in->insert(  std::make_pair( i->first,i->second )  );
   }
+  
+  // Extract x^{g3}: poses of movable objects
+  for(std::map< std::string,std::vector<double> >::const_iterator i=obj_pose_map.begin(); i!=obj_pose_map.end(); ++i)
+  {
+    std::string obj_id;
+    obj_id = i->first;
+      
+    std::vector<std::string> labels(7);
+    labels.at(0) = obj_id+".x"+suffix;
+    labels.at(1) = obj_id+".y"+suffix;
+    labels.at(2) = obj_id+".z"+suffix;
+    labels.at(3) = obj_id+".qx"+suffix;
+    labels.at(4) = obj_id+".qy"+suffix;
+    labels.at(5) = obj_id+".qz"+suffix;
+    labels.at(6) = obj_id+".qw"+suffix;
+      
+    for(size_t j=0; j<labels.size(); ++j)
+    {
+      std::string label;
+      label = labels.at(j);
+      
+      double val;
+      val = i->second.at(j);
+      
+      r_in->insert( std::make_pair(label,val) );
+    }
+  }
+  
+  // Extract x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
+  for(std::map< std::string,std::vector<double> >::const_iterator i=obj_pose_map.begin(); i!=obj_pose_map.end(); ++i)
+  {
+    std::string label;
+    label = std::string(i->first+".dist");
+    
+    Eigen::Vector3f curr_position;
+    Eigen::Vector3f final_position;
+    
+    double val;// Euclidean distance
+    val = sqrt( curr_position.dot(final_position) );
+    
+    r_in->insert( std::make_pair(label,val) );
+  }
+  
     
 //  //(3) manipulability in the source vertex
 //  ros::service::waitForService("get_manipulability");
@@ -347,13 +337,9 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
   return true;
 }
 
-Data* data_;
-Input* in_;
-
-std::vector<typename boost::graph_traits<Graph>::edge_descriptor> hot_path_;
 std::vector<std::string> labels_;
+utils::ObjCfg movable_obj_tidy_cfg;
 };
-
 
 
 template < typename GlobalGraph >
