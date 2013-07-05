@@ -145,6 +145,7 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   }
   else if(ml_mode_==ml_util::LWPR_ONLINE)// Train online during search (the online LWPR)
   {
+    cerr << "LWPR_ONLINE: training with " << samples.size() << " samples: BEGIN" << endl;
     for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
     {
       std::vector<double> x;
@@ -175,6 +176,7 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       
       ml_data_->push_back(ml_datum);
     }
+    cerr << "LWPR_ONLINE: training with " << samples.size() << " samples: END" << endl;
   }
 }
   
