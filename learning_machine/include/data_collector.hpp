@@ -251,57 +251,49 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
 
 //! Obtain geometric-feature values
 /*!
-  Geometric features include:
-  (1) object pose in the source vertex
-  
-  
+  Geometric features are extracted from information of the head vertex
+  (1) x^{g1} : robot joint states
+  TODO (2) x^{g2} : manipulability measure m of robot state
+  (3) x^{g3}: poses of movable objects
+  (4) x^{g4}: shapes of movable objects (not used in this experiment July 5, 2013)
+  TODO (5) x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
 */
 bool 
 get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffix="")
 {
-  // Init 
+  // Init: parsing string of edge_srcstate
   std::vector<std::string> srcstate_parts;
   boost::split( srcstate_parts, srcstate, boost::is_any_of(";") );
-  
   if( srcstate_parts.at(0).size() == 0 )
   {
-    cerr << "srcstate_parts.at(0).size() == 0" << endl;
+    cerr << "srcstate_parts.at(0).size() == 0 -> get_geo_fval() returns false" << endl;
     return false;
   }
 
-  std::map<std::string,double> jname_jpos_map;// for obtaining jstate later on
-
-  for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i )
+  std::map<std::string,double> jname_jpos_map;
+  std::pair< std::string,std::vector<double> > obj_pose;
+  
+  for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i)
   {
     std::vector<std::string> comps;
     boost::split( comps, *i, boost::is_any_of(",") );
     
     if(comps.size()==8)// object's pose data: id, x, y, z, qx, qy, qz, qw
     {
-      std::string obj_id = comps.at(0);
-      comps.erase(comps.begin());// remove the id so as to make comps and names (below) exactly have 7 elements
+      std::string id = comps.at(0);
       
-      std::vector<std::string> names;
-      names.push_back(obj_id+".x"+suffix);
-      names.push_back(obj_id+".y"+suffix);
-      names.push_back(obj_id+".z"+suffix);
-      names.push_back(obj_id+".qx"+suffix);
-      names.push_back(obj_id+".qy"+suffix);
-      names.push_back(obj_id+".qz"+suffix);
-      names.push_back(obj_id+".qw"+suffix);
-      
-      for(std::vector<std::string>::const_iterator j=names.begin(); j!=names.end(); ++j)
+      std::vector<double> pose(7);
+      for(size_t j=1; j<8; ++j)// excluding obj_id, which is at(0)
       {
-        std::string name = *j;
-        double val = boost::lexical_cast<double>( comps.at(j-names.begin()) );
-        
-        r_in->insert( std::make_pair(name,val) );
+        pose.at(j-1) = boost::lexical_cast<double>( comps.at(j) );
       }
+      
+      obj_pose = std::make_pair(id,pose);
     }
     else if(comps.size()==2)// joint-name, joint-state
     {
       // Assume that no duplicated joint data 
-      jname_jpos_map[comps.at(0)] = boost::lexical_cast<double>(comps.at(1));
+      jname_jpos_map[comps.at(0)] = boost::lexical_cast<double>( comps.at(1) );
     }
     else
     {
@@ -310,11 +302,38 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
     }
   }
 
-  //(2) joint-state on the source vertex, jname_jpos_map is set in step (1)
+  // Extract x^{g1} : robot joint states; jname_jpos_map is set above
   for(std::map<std::string,double>::const_iterator i=jname_jpos_map.begin(); i!=jname_jpos_map.end(); ++i)
   {
     r_in->insert(  std::make_pair( i->first,i->second )  );
   }
+  
+  // Extract x^{g3}: poses of movable objects
+  std::string obj_id;
+  obj_id = obj_pose.first;
+    
+  std::vector<std::string> labels(7);
+  labels.at(0) = obj_id+".x"+suffix;
+  labels.at(1) = obj_id+".y"+suffix;
+  labels.at(2) = obj_id+".z"+suffix;
+  labels.at(3) = obj_id+".qx"+suffix;
+  labels.at(4) = obj_id+".qy"+suffix;
+  labels.at(5) = obj_id+".qz"+suffix;
+  labels.at(6) = obj_id+".qw"+suffix;
+    
+  for(size_t i=0; i<labels.size(); ++i)
+  {
+    std::string label;
+    label = labels.at(i);
+    
+    double val;
+    val = obj_pose.second.at(i);
+    
+    r_in->insert( std::make_pair(label,val) );
+  }
+  
+  // Extract x^{g5}: Cartesian distances of movable objects' current pose and their final pose
+  
     
 //  //(3) manipulability in the source vertex
 //  ros::service::waitForService("get_manipulability");
@@ -353,7 +372,6 @@ Input* in_;
 std::vector<typename boost::graph_traits<Graph>::edge_descriptor> hot_path_;
 std::vector<std::string> labels_;
 };
-
 
 
 template < typename GlobalGraph >
