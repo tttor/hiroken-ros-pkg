@@ -253,22 +253,30 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
     std::vector<std::string> comps;
     boost::split( comps, *i, boost::is_any_of(",") );
     
-    if(comps.size()==8)// object's pose data: id, x, y, z, qx, qy, qz, qw
+    std::string header;
+    header = comps.at(0);
+    
+    if( !strcmp(header.c_str(),std::string("movable_obj_pose").c_str()) )
     {
-      std::string id = comps.at(0);
+      std::string id = comps.at(1);
       
-      std::vector<double> pose(7);
-      for(size_t j=1; j<8; ++j)// excluding obj_id, which is at(0)
+      std::vector<double> pose(7);// object's pose data: id, x, y, z, qx, qy, qz, qw
+      for(size_t j=2; j<8; ++j)// excluding obj_id, which is at(1), recall at(0) is for the header
       {
         pose.at(j-1) = boost::lexical_cast<double>( comps.at(j) );
       }
       
       obj_pose_map[id] = pose;
     }
-    else if(comps.size()==2)// joint-name, joint-state
+    else if( !strcmp(header.c_str(),std::string("jstate").c_str()) )
     {
-      // Assume that no duplicated joint data 
-      jname_jpos_map[comps.at(0)] = boost::lexical_cast<double>( comps.at(1) );
+      std::string jname;
+      jname = comps.at(1);//recall at(0) is for the header
+      
+      double jstate;
+      jstate = boost::lexical_cast<double>( comps.at(2) );
+      
+      jname_jpos_map[jname] = jstate;
     }
     else
     {

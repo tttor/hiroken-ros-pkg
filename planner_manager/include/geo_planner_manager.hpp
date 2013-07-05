@@ -576,8 +576,8 @@ mark_vertex(const TMMVertex& v)
 //! Obtain the description of the planning environment in the form of string
 /*!
   There are 2 descriptors of the planning environment, namely:
-  (1) wstate: workspace state, poses of manipulated objects
-  (2) jstate: joint states
+  (1) wstate: workspace state, poses of manipulated/movable objects; for current implementation (July 5, 2013) those of unmovable objects (e.g.obstacles) are ignored.
+  (2) jstate: joint states 
   
   This is for extracting features.
 */
@@ -595,6 +595,7 @@ get_planning_env_str(const TMMVertex& v)
   
   for(std::vector<arm_navigation_msgs::CollisionObject>::const_iterator i=wstate.begin(); i!=wstate.end(); ++i)
   {
+    state_str += std::string("movable_obj_pose,");// as a header
     state_str += i->id + ",";
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).position.x) + ",";
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).position.y) + ",";
@@ -619,6 +620,7 @@ get_planning_env_str(const TMMVertex& v)
       return state_str;
     }
     
+    state_str += std::string("jstate,");// as a header
     state_str += *i + ",";
     state_str += boost::lexical_cast<std::string>( joint_state.position.at(i-joint_state.name.begin()) ) + ";";
   }
