@@ -142,10 +142,7 @@ get_fval_local(const std::vector<typename boost::graph_traits<LocalGraph>::edge_
   RawInput r_in;
 
   // Geo. features extracted from the head vertex of this path: object pose+manipulability+jstates in the source vertex
-  std::string srcstate;
-  srcstate = get( edge_srcstate,g,path.at(0) );
-
-  if( !get_geo_fval(srcstate,&r_in) )
+  if( !get_geo_fval<LocalGraph>(path,g,&r_in) )
     return false;
   
   // Sym. features
@@ -228,15 +225,19 @@ get_sym_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_de
 /*!
   Geometric features are extracted from information of the head vertex
   (1) x^{g1} : robot joint states
-  TODO (2) x^{g2} : manipulability measure m of robot state
+  (2) x^{g2} : manipulability measure m of robot state
   (3) x^{g3}: poses of movable objects
   (4) x^{g4}: shapes of movable objects (not used in this experiment July 5, 2013)
   (5) x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
 */
+template<typename LocalGraph>
 bool 
-get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffix="")
+get_geo_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,RawInput* r_in,const std::string& suffix="")
 {
   // Init: parsing string of edge_srcstate
+  std::string srcstate;
+  srcstate = get( edge_srcstate,g,path.at(0) );
+  
   std::vector<std::string> srcstate_parts;
   boost::split( srcstate_parts, srcstate, boost::is_any_of(";") );
   if( srcstate_parts.at(0).size() == 0 )
@@ -246,6 +247,7 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
   }
 
   std::map<std::string,double> jname_jpos_map;
+  std::map<std::string,double> effector_manipulability_map;
   std::map< std::string,std::vector<double> > obj_pose_map;
   
   for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i)
@@ -278,9 +280,19 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
       
       jname_jpos_map[jname] = jstate;
     }
+    else if( !strcmp(header.c_str(),std::string("manipulability").c_str()) )
+    {
+      std::string effector;
+      effector = comps.at(1);//recall at(0) is for the header
+      
+      double m;
+      m = boost::lexical_cast<double>( comps.at(2) );
+      
+      effector_manipulability_map[effector] = m;
+    }
     else
     {
-      ROS_ERROR_STREAM("srcstate is corrupt; comps.size()= " << comps.size() );
+      cerr << "[ERROR] srcstate is corrupt; srcstate: " << srcstate << endl;
       return false;
     }
   }
@@ -289,6 +301,18 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
   for(std::map<std::string,double>::const_iterator i=jname_jpos_map.begin(); i!=jname_jpos_map.end(); ++i)
   {
     r_in->insert(  std::make_pair( i->first,i->second )  );
+  }
+  
+  // Extract x^{g2} : manipulability measure m of robot state
+  for(std::map<std::string,double>::const_iterator i=effector_manipulability_map.begin(); i!=effector_manipulability_map.end(); ++i)
+  {
+    std::string label;
+    label = std::string(i->first+".m");
+    
+    double val;
+    val = i->second;
+    
+    r_in->insert( std::make_pair(label,val) );
   }
   
   // Extract x^{g3}: poses of movable objects
@@ -332,35 +356,6 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
     
     r_in->insert( std::make_pair(label,val) );
   }
-  
-    
-//  //(3) manipulability in the source vertex
-//  ros::service::waitForService("get_manipulability");
-//      
-//  ros::ServiceClient gm_client;
-//  gm_client = nh_.serviceClient<hiro_common::GetManipulability>("get_manipulability");
-//  
-//  hiro_common::GetManipulability::Request gm_req;
-//  hiro_common::GetManipulability::Response gm_res;
-//  
-//  gm_req.jstate = jstate;
-//  gm_req.jspace = "rarm_U_chest";// the biggest jspace of RARM
-//  
-//  if( !(gm_client.call(gm_req,gm_res)) )
-//  {
-//    ROS_DEBUG("GetManipulability srv call: failed");
-//    return false;
-//  }
-//  r_in->insert( std::make_pair("RARM_manipulability"+suffix,gm_res.m) );
-//  
-//  gm_req.jspace = "larm_U_chest";// the biggest jspace of LARM
-//  
-//  if( !(gm_client.call(gm_req,gm_res)) )
-//  {
-//    ROS_DEBUG("GetManipulability srv call: failed");
-//    return false;
-//  }
-//  r_in->insert( std::make_pair("LARM_manipulability"+suffix,gm_res.m) );
   
   return true;
 }
