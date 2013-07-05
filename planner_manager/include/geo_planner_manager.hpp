@@ -306,15 +306,14 @@ get_samples_online(TMMVertex v,Data* samples)
   ROS_DEBUG_STREAM("num_edges(filtered_local_tmm)= " << num_edges(filtered_local_tmm));
 
   // Extract training samples from hot_paths: all possible paths from tmm_root_ to the adjacent vertices of v, which are the targets of the just planned edges
+  std::vector< std::vector<PlannedTMMVertex> > predecessors_map(num_vertices(filtered_local_tmm));
+  data_collector::BFSVisitor<PlannedTMM> vis(&predecessors_map);
+  
+  boost::breadth_first_search(filtered_local_tmm,pm_->tmm_root_,visitor(vis));// Find predecessors_map
+    
   graph_traits<PlannedTMM>::adjacency_iterator avi, avi_end;
   for(tie(avi,avi_end)=adjacent_vertices(v,filtered_local_tmm); avi!=avi_end; ++avi )  
   {
-    // Find predecessors_map
-    std::vector< std::vector<PlannedTMMVertex> > predecessors_map(num_vertices(filtered_local_tmm));
-    data_collector::BFSVisitor<PlannedTMM> vis(&predecessors_map);
-    
-    boost::breadth_first_search(filtered_local_tmm,pm_->tmm_root_,visitor(vis));
-    
     // Find hot_paths through backtracking using predecessors_map
     std::vector< std::vector<PlannedTMMEdge> > hot_paths;
     TMMVertex goal = *avi;
