@@ -329,8 +329,8 @@ get_samples_online(TMMVertex v,Data* samples)
       for(std::vector<TMMEdge>::const_iterator j=hot_paths.at(i).begin(); j!=hot_paths.at(i).end(); ++j)
         ROS_DEBUG_STREAM("e(" << get(vertex_name,filtered_local_tmm,source(*j,filtered_local_tmm)) << "," << get(vertex_name,filtered_local_tmm,target(*j,filtered_local_tmm)) << "), ");
       
-      data_collector::DataCollector<PlannedTMM> dc;
-      dc.get_samples(hot_paths.at(i),filtered_local_tmm,METADATA_PATH,samples);
+      data_collector::DataCollector<PlannedTMM> dc(METADATA_PATH,pm_->movable_obj_tidy_cfg_);
+      dc.get_samples(hot_paths.at(i),filtered_local_tmm,samples);
     }
   }// end of: for_each avi
 
@@ -372,9 +372,9 @@ get_fval(TMMVertex v,Input* in)
   }
     
   // Extract feature values from the estimated optimal-solution path, which is as the heuristic path
-  data_collector::DataCollector<TaskMotionMultigraph> dc;
+  data_collector::DataCollector<TaskMotionMultigraph> dc(METADATA_PATH,pm_->movable_obj_tidy_cfg_);
   bool success;
-  success = dc.get_fval(est_opt_sol_path,pm_->tmm_,METADATA_PATH,in);
+  success = dc.get_fval(est_opt_sol_path,pm_->tmm_,in);
 
   return success;
 }

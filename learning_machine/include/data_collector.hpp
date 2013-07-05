@@ -3,8 +3,11 @@
 
 #include "data_collector.hpp"
 #include "data.hpp"
+#include "utils.hpp"
 
 #include <boost/graph/depth_first_search.hpp>
+
+#include <Eigen/Dense>
 
 namespace data_collector
 {
@@ -15,72 +18,24 @@ template <class Graph>
 class DataCollector: public boost::dfs_visitor<>
 {
 public:
-//! Used to collect samples _offline_
-DataCollector(Data* data,std::string metadata_path)
-: data_(data), in_(0)
+DataCollector(std::string metadata_path,std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg)
 { 
   labels_ = data_util::get_labels(metadata_path);
-}
-
-//! This contructor is used to get features only as inputs during search, used to supply the learning machine in order to output the heuristic
-DataCollector()
-: data_(0), in_(0)
-{ }
-
-template <class DfsGraph>
-void 
-discover_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
-{
-//  std::cout << "discover " << get(vertex_name,g,v) << std::endl;
-//  std::cout << "out_degree(v,g)= " << out_degree(v,g) << std::endl;
-}
-
-//! In collecting samples _offline_, a new sample is collected whenever an edge is added to the hot_path_ i.e. becomes a part of the search tree 
-template <class DfsGraph>
-void tree_edge(typename boost::graph_traits<DfsGraph>::edge_descriptor e,DfsGraph& g)
-{
-//  cerr << "Adding: " << get(edge_name,g,e) << endl;
-  hot_path_.push_back(e);
   
-//  cerr << "hot_path_: ";
-//  for(typename std::vector<typename boost::graph_traits<DfsGraph>::edge_descriptor>::const_iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
-//    cout << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
-//  cout << endl;
-
-  get_samples_local<DfsGraph>(hot_path_,g,data_);
+  movable_obj_tidy_cfg = movable_obj_tidy_cfg;
 }
 
-//! used in collecting samples _offline_, to maintain the hot path
-template <class DfsGraph>
-void 
-finish_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
-{
-//  std::cerr << "finish " << get(vertex_name,g,v) << std::endl;  
-  hot_path_.erase( hot_path_.end()-1 );
-
-  // This is to make the vertex named TidyHome to be discovered again if there are multiple solution paths
-  std::string name;
-  name = get(vertex_name,g,v);
-
-  if( !strcmp(name.c_str(),"TidyHome") )
-    put(vertex_color,g,v,color_traits<boost::default_color_type>::white());
-}
-
-//! used in obtaining features (as input) _online_ during search. Should be call only when using the DataCollector() constructor
+//! Used for obtaining features (as input) _online_ during search.
 bool
-get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Input* in)
+get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,Input* in)
 {
-  labels_ = data_util::get_labels(metadata_path);
-  
-  return get_fval<Graph>(path,g,in);
+  return get_fval_local<Graph>(path,g,in);
 }
 
-//!Should be call only when using the DataCollector() constructor
+//!Used _online_ during search.
 bool
-get_samples(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Data* samples)
+get_samples(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,Data* samples)
 {
-  labels_ = data_util::get_labels(metadata_path);
-  
   return get_samples_local<Graph>(path,g,samples);
 }
 
@@ -97,7 +52,7 @@ bool
 get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g,Data* data)
 {
   Input in;
-  if( !get_fval<LocalGraph>(path,g,&in) )
+  if( !get_fval_local<LocalGraph>(path,g,&in) )
   {
     cerr << "get_fval() failed" << endl;
     return false;
@@ -177,7 +132,7 @@ get_out(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descrip
 */
 template<typename LocalGraph>
 bool
-get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,Input* in)
+get_fval_local(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,Input* in)
 {
 //  cerr << "in get_fval(), path: ";
 //  for(typename std::vector<typename boost::graph_traits<Graph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
@@ -336,7 +291,19 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
   }
   
   // Extract x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
-  
+  for(std::map< std::string,std::vector<double> >::const_iterator i=obj_pose_map.begin(); i!=obj_pose_map.end(); ++i)
+  {
+    std::string label;
+    label = std::string(i->first+".dist");
+    
+    Eigen::Vector3f curr_position;
+    Eigen::Vector3f final_position;
+    
+    double val;// Euclidean distance
+    val = sqrt( curr_position.dot(final_position) );
+    
+    r_in->insert( std::make_pair(label,val) );
+  }
   
     
 //  //(3) manipulability in the source vertex
@@ -370,11 +337,8 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
   return true;
 }
 
-Data* data_;
-Input* in_;
-
-std::vector<typename boost::graph_traits<Graph>::edge_descriptor> hot_path_;
 std::vector<std::string> labels_;
+utils::ObjCfg movable_obj_tidy_cfg;
 };
 
 
