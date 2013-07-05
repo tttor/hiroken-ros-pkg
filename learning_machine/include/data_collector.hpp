@@ -271,7 +271,7 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
   }
 
   std::map<std::string,double> jname_jpos_map;
-  std::pair< std::string,std::vector<double> > obj_pose;
+  std::map< std::string,std::vector<double> > obj_pose_map;
   
   for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i)
   {
@@ -288,7 +288,7 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
         pose.at(j-1) = boost::lexical_cast<double>( comps.at(j) );
       }
       
-      obj_pose = std::make_pair(id,pose);
+      obj_pose_map[id] = pose;
     }
     else if(comps.size()==2)// joint-name, joint-state
     {
@@ -309,30 +309,34 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
   }
   
   // Extract x^{g3}: poses of movable objects
-  std::string obj_id;
-  obj_id = obj_pose.first;
-    
-  std::vector<std::string> labels(7);
-  labels.at(0) = obj_id+".x"+suffix;
-  labels.at(1) = obj_id+".y"+suffix;
-  labels.at(2) = obj_id+".z"+suffix;
-  labels.at(3) = obj_id+".qx"+suffix;
-  labels.at(4) = obj_id+".qy"+suffix;
-  labels.at(5) = obj_id+".qz"+suffix;
-  labels.at(6) = obj_id+".qw"+suffix;
-    
-  for(size_t i=0; i<labels.size(); ++i)
+  for(std::map< std::string,std::vector<double> >::const_iterator i=obj_pose_map.begin(); i!=obj_pose_map.end(); ++i)
   {
-    std::string label;
-    label = labels.at(i);
-    
-    double val;
-    val = obj_pose.second.at(i);
-    
-    r_in->insert( std::make_pair(label,val) );
+    std::string obj_id;
+    obj_id = i->first;
+      
+    std::vector<std::string> labels(7);
+    labels.at(0) = obj_id+".x"+suffix;
+    labels.at(1) = obj_id+".y"+suffix;
+    labels.at(2) = obj_id+".z"+suffix;
+    labels.at(3) = obj_id+".qx"+suffix;
+    labels.at(4) = obj_id+".qy"+suffix;
+    labels.at(5) = obj_id+".qz"+suffix;
+    labels.at(6) = obj_id+".qw"+suffix;
+      
+    for(size_t j=0; j<labels.size(); ++j)
+    {
+      std::string label;
+      label = labels.at(j);
+      
+      double val;
+      val = i->second.at(j);
+      
+      r_in->insert( std::make_pair(label,val) );
+    }
   }
   
-  // Extract x^{g5}: Cartesian distances of movable objects' current pose and their final pose
+  // Extract x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
+  
   
     
 //  //(3) manipulability in the source vertex
