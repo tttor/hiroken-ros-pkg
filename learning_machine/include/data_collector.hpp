@@ -148,8 +148,46 @@ get_fval_local(const std::vector<typename boost::graph_traits<LocalGraph>::edge_
   if( !get_geo_fval(srcstate,&r_in) )
     return false;
   
-  // Symbolic features: Whether more TRANSFER or TRANSIT from actions in this path
-  // Symbolic features: Whether more LARM or RARM from actions in this path
+  // Sym. features
+  if( !get_sym_fval<LocalGraph>(path,g,&r_in) )
+    return false;
+    
+  // Convert the raw_in to in then return
+//  cerr << "r_in.size()= " << r_in.size() << endl;
+//    for(RawInput::iterator z=r_in.begin(); z!=r_in.end(); ++z)
+//      cerr << z->first << "= " << z->second << endl;
+//    cerr << "y= " << out << endl;
+  return data_util::convert( r_in,in,labels_ );
+}
+
+//! Obtain symbolic features
+/*!
+  They are:
+  (1) x^{s1}: position of actions
+  (2) x^{s2}: length of the path
+  (3) x^{s3}: transit transfer centric
+  (4) x^{s4}: right left arm centric
+*/
+template<typename LocalGraph>
+bool
+get_sym_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,RawInput* r_in)
+{
+  // Extract x^{s1}: position of actions
+  for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
+  {
+    std::string label;
+    label = get(edge_name,g,*i);
+    
+    size_t idx;
+    idx = i - path.begin() + 1;// Plus one because idx=0 is reserved for if Act_i is not in this path
+    
+    r_in->insert( std::make_pair(label,(double)idx) );
+  }
+  
+  // Extract  x^{s2}: length of the path
+  r_in->insert( std::make_pair("len",path.size()) );
+  
+  // Extract x^{s3}: transit transfer centric and x^{s4}: right left arm centric
   size_t n_transit = 0;
   size_t n_transfer = 0;
   size_t n_larm = 0;
@@ -176,32 +214,14 @@ get_fval_local(const std::vector<typename boost::graph_traits<LocalGraph>::edge_
     else if( !strcmp(rbt_id.c_str(),"LARM") )
       ++n_larm;
   }
-
-  r_in.insert( std::make_pair("TRANSIT-centric",(n_transit > n_transfer)) );
-  r_in.insert( std::make_pair("TRANSFER-centric",(n_transfer > n_transit)) );
   
-  r_in.insert( std::make_pair("RARM-centric",(n_rarm > n_larm)) );
-  r_in.insert( std::make_pair("LARM-centric",(n_larm > n_rarm)) );
-
-  // Symbolic features: Position of certain action label in a path
-  for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
-  {
-    std::string name;
-    name = get(edge_name,g,*i);
-    
-    size_t idx;
-    idx = i - path.begin() + 1;// Plus one because idx=0 is reserved for if Act_i is not in this path
-    
-    r_in.insert( std::make_pair(name,(double)idx) );
-  }
+  r_in->insert( std::make_pair("TRANSIT-centric",(double)n_transit/(n_transit+n_transfer)) );
+  r_in->insert( std::make_pair("TRANSFER-centric",(double)n_transfer/(n_transit+n_transfer)) );
   
-//  cerr << "r_in.size()= " << r_in.size() << endl;
-//    for(RawInput::iterator z=r_in.begin(); z!=r_in.end(); ++z)
-//      cerr << z->first << "= " << z->second << endl;
-//    cerr << "y= " << out << endl;
-    
-  // Convert then return
-  return data_util::convert( r_in,in,labels_ );
+  r_in->insert( std::make_pair("RARM-centric",(double)n_rarm/(n_rarm+n_larm)) );
+  r_in->insert( std::make_pair("LARM-centric",(double)n_larm/(n_rarm+n_larm)) );
+  
+  return true;
 }
 
 //! Obtain geometric-feature values
@@ -211,7 +231,7 @@ get_fval_local(const std::vector<typename boost::graph_traits<LocalGraph>::edge_
   TODO (2) x^{g2} : manipulability measure m of robot state
   (3) x^{g3}: poses of movable objects
   (4) x^{g4}: shapes of movable objects (not used in this experiment July 5, 2013)
-  TODO (5) x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
+  (5) x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
 */
 bool 
 get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffix="")
