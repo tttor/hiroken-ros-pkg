@@ -12,8 +12,6 @@
 namespace data_collector
 {
 
-struct DFSFoundGoalSignal {}; // exception for termination
-
 template <class Graph>
 class DataCollector: public boost::dfs_visitor<>
 {
@@ -22,7 +20,7 @@ DataCollector(std::string metadata_path,std::map<std::string, arm_navigation_msg
 { 
   labels_ = data_util::get_labels(metadata_path);
   
-  movable_obj_tidy_cfg = movable_obj_tidy_cfg;
+  movable_obj_tidy_cfg_ = movable_obj_tidy_cfg;
 }
 
 //! Used for obtaining features (as input) _online_ during search.
@@ -234,6 +232,8 @@ template<typename LocalGraph>
 bool 
 get_geo_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,RawInput* r_in,const std::string& suffix="")
 {
+//  cerr << "get_geo_fval(v_h= " << get(vertex_name,g,source(path.at(0),g)) << "): BEGIN" << endl;
+  
   // Init: parsing string of edge_srcstate
   std::string srcstate;
   srcstate = get( edge_srcstate,g,path.at(0) );
@@ -257,15 +257,17 @@ get_geo_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_de
     
     std::string header;
     header = comps.at(0);
+    comps.erase( comps.begin() );
     
     if( !strcmp(header.c_str(),std::string("movable_obj_pose").c_str()) )
     {
-      std::string id = comps.at(1);
+      std::string id = comps.at(0);
+      comps.erase( comps.begin() );
       
-      std::vector<double> pose(7);// object's pose data: id, x, y, z, qx, qy, qz, qw
-      for(size_t j=2; j<8; ++j)// excluding obj_id, which is at(1), recall at(0) is for the header
+      std::vector<double> pose(7);// object's pose data: x, y, z, qx, qy, qz, qw
+      for(size_t j=0; j<7; ++j)
       {
-        pose.at(j-1) = boost::lexical_cast<double>( comps.at(j) );
+        pose.at(j) = boost::lexical_cast<double>( comps.at(j) );
       }
       
       obj_pose_map[id] = pose;
@@ -273,20 +275,20 @@ get_geo_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_de
     else if( !strcmp(header.c_str(),std::string("jstate").c_str()) )
     {
       std::string jname;
-      jname = comps.at(1);//recall at(0) is for the header
+      jname = comps.at(0);
       
       double jstate;
-      jstate = boost::lexical_cast<double>( comps.at(2) );
+      jstate = boost::lexical_cast<double>( comps.at(1) );
       
       jname_jpos_map[jname] = jstate;
     }
     else if( !strcmp(header.c_str(),std::string("manipulability").c_str()) )
     {
       std::string effector;
-      effector = comps.at(1);//recall at(0) is for the header
+      effector = comps.at(0);
       
       double m;
-      m = boost::lexical_cast<double>( comps.at(2) );
+      m = boost::lexical_cast<double>( comps.at(1) );
       
       effector_manipulability_map[effector] = m;
     }
@@ -348,20 +350,41 @@ get_geo_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_de
     std::string label;
     label = std::string(i->first+".dist");
     
-    Eigen::Vector3f curr_position;
-    Eigen::Vector3f final_position;
+    Eigen::RowVectorXd curr_position(3);
+    curr_position << i->second.at(0), i->second.at(1), i->second.at(2);
+    
+    arm_navigation_msgs::CollisionObject col_obj;
+    col_obj = movable_obj_tidy_cfg_[i->first];
+
+    Eigen::RowVectorXd final_position(3);
+    try
+    {
+      final_position << col_obj.poses.at(0).position.x, col_obj.poses.at(0).position.y, col_obj.poses.at(0).position.z;
+    }
+    catch(std::exception& ex)
+    {
+//      cerr << ex.what() << " since " << i->first << endl;
+      continue;
+    }
     
     double val;// Euclidean distance
-    val = sqrt( curr_position.dot(final_position) );
+//    val = sqrt( curr_position.dot(final_position) );// the dot product may result negative values
+    val = sqrt( pow(curr_position[0]-final_position[0],2) + pow(curr_position[1]-final_position[1],2) + pow(curr_position[2]-final_position[2],2)  );
+    
+//    cerr << "curr_position= " << curr_position << endl;
+//    cerr << "final_position= " << final_position << endl;
+//    cerr << "dot= " << curr_position.dot(final_position) << endl;
+//    cerr << "dist val= " << val << endl;
     
     r_in->insert( std::make_pair(label,val) );
   }
   
+//  cerr << "get_geo_fval(v_h= " << get(vertex_name,g,source(path.at(0),g)) << "): END" << endl;
   return true;
 }
 
 std::vector<std::string> labels_;
-utils::ObjCfg movable_obj_tidy_cfg;
+std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg_;
 };
 
 
