@@ -446,7 +446,7 @@ main(int argc, char **argv)
     // Run online LWPR that updates its model during search; Do one CTAMP attempt (rerun) on multiple instances.
     // WARNING: DO NOT run multiple mode10 simultaneously, critical resources are at /learning_machine/data/hot
     // Number of attempts is determined in the inst_paths file
-    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 epsth:=1
+    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 epsth:=1 n_run:=2
     // \param path holds the parent directory under which CTAMP instances exist 
     // \param n_obj holds the instance type
     // \param epsth holds i-th episode with this mode
@@ -469,6 +469,15 @@ main(int argc, char **argv)
         {
           ROS_ERROR("utils::get_instance_paths() -> failed");
           return false;
+        }
+        
+        // Synch. with the requested n_run
+        if(n_run > instance_paths.size())
+          ROS_WARN("n_run > instance_paths.size(), use all instance_paths.size()");
+        else
+        {
+          std::vector<std::string> tmp_inst_paths(instance_paths.begin(),instance_paths.begin()+(n_run-1));
+          instance_paths = tmp_inst_paths;
         }
       }
       
@@ -561,7 +570,7 @@ main(int argc, char **argv)
     // Run offline SVR in a batchmode, the model is updated in between search, interleave training and testing; Do runs on multiple instances.
     // Number of attempts is determined in the inst_paths file
     // WARNING: DO NOT run multiple mode11 simultaneously, critical resources are at /learning_machine/data/hot
-    // USAGE:$ roslaunch hiro_common a.launch  mode:=11 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 epsth:=1
+    // USAGE:$ roslaunch hiro_common a.launch  mode:=11 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 epsth:=1 n_run:=2
     {
       // Init  
       std::string run_id;
@@ -581,6 +590,15 @@ main(int argc, char **argv)
         {
           ROS_ERROR("utils::get_instance_paths() -> failed");
           return false;
+        }
+        
+        // Synch. with the requested n_run
+        if(n_run > instance_paths.size())
+          ROS_WARN("n_run > instance_paths.size(), use all instance_paths.size()");
+        else
+        {
+          std::vector<std::string> tmp_inst_paths(instance_paths.begin(),instance_paths.begin()+(n_run-1));
+          instance_paths = tmp_inst_paths;
         }
       }
       
