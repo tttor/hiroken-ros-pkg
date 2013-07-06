@@ -476,7 +476,7 @@ main(int argc, char **argv)
           ROS_WARN("n_run > instance_paths.size(), use all instance_paths.size()");
         else
         {
-          std::vector<std::string> tmp_inst_paths(instance_paths.begin(),instance_paths.begin()+(n_run-1));
+          std::vector<std::string> tmp_inst_paths(instance_paths.begin(),instance_paths.begin()+n_run);
           instance_paths = tmp_inst_paths;
         }
       }
@@ -597,7 +597,7 @@ main(int argc, char **argv)
           ROS_WARN("n_run > instance_paths.size(), use all instance_paths.size()");
         else
         {
-          std::vector<std::string> tmp_inst_paths(instance_paths.begin(),instance_paths.begin()+(n_run-1));
+          std::vector<std::string> tmp_inst_paths(instance_paths.begin(),instance_paths.begin()+n_run);
           instance_paths = tmp_inst_paths;
         }
       }
