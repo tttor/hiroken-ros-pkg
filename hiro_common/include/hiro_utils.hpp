@@ -13,6 +13,17 @@ set_rbtid_eoflink_map(std::map<std::string,std::string>* map_ptr)
   return true;
 }
 
+//! "rbtid" means robot's effectors, e.g. arm
+bool
+set_rbtid_biggestjspace_map(std::map<std::string,std::string>* map_ptr)
+{
+  // Hardcoded setting here!
+  (*map_ptr)["RARM"] = std::string("rarm_U_chest");
+  (*map_ptr)["LARM"] = std::string("larm_U_chest");
+  
+  return true;
+}
+
 bool
 set_jspace_baselink_map(std::map<std::string,std::string>* map_ptr)
 {
@@ -37,6 +48,16 @@ set_jspace_tiplink_map(std::map<std::string,std::string>* map_ptr)
   (*map_ptr)["larm_U_chest"] = std::string("link_lhand_palm");
     
   return true;
+}
+
+std::map<std::string,std::string>
+get_rbtid_biggestjspace_map()
+{
+  std::map<std::string,std::string> map;
+  
+  set_rbtid_biggestjspace_map(&map);
+  
+  return map;
 }
 
 std::string

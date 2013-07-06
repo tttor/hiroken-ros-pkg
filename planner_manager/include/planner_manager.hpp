@@ -134,6 +134,9 @@ ml_util::PrepData prep_data_;
 SVMModel* svr_model_;
 
 LWPR_Object* lwpr_model_;
+
+//! Number of ml model updates/trains
+size_t n_ml_update_;
 };// end of: class PlannerManager
 
 #endif // #ifndef PLANNER_MANAGER_HPP_INCLUDED

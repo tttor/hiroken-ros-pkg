@@ -29,8 +29,9 @@ template <typename GPMGraph,typename LearningMachine>
 class AstarVisitor: public boost::default_astar_visitor
 {
 public:
-AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode,std::string ml_hot_path,double* total_gp_time,size_t* n_exp_op)
-: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode), ml_hot_path_(ml_hot_path), total_gp_time_(total_gp_time), n_exp_op_(n_exp_op)
+// For ml_mode== ONLINE_LWPR
+AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode,std::string ml_hot_path,double* total_gp_time,size_t* n_exp_op,size_t* n_ml_update)
+: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode), ml_hot_path_(ml_hot_path), total_gp_time_(total_gp_time), n_exp_op_(n_exp_op), n_ml_update_(n_ml_update)
 { }
 
 template <typename Graph>
@@ -88,11 +89,11 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       }
     }
     
-    cout << "Sorted edges connecting to " << get(vertex_name,g,*avi) << " -> " << n_avi << "-th" << endl;
-    for(size_t i=0; i<conn_edges.size(); ++i)
-    {
-      cout << i << " -> " << get(edge_jspace,g,conn_edges.at(i)) << endl;
-    }
+//    cout << "Sorted edges connecting to " << get(vertex_name,g,*avi) << " -> " << n_avi << "-th" << endl;
+//    for(size_t i=0; i<conn_edges.size(); ++i)
+//    {
+//      cout << i << " -> " << get(edge_jspace,g,conn_edges.at(i)) << endl;
+//    }
     
     // Do geometric planning
     for(size_t i=0; i<conn_edges.size(); ++i)
@@ -123,8 +124,8 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
 
   // Obtain samples from paths from (root,root+1, ..., v) to adjacent of v where the edge costs are already defined
   Data samples;
-  gpm_->get_samples_online(v,&samples);
-//    cerr << "online training: samples.size()= " << samples.size() << endl;
+  if(ml_mode_ != ml_util::NO_ML)
+    gpm_->get_samples_online(v,&samples);
 
   // Utilize samples
   if((ml_mode_ == ml_util::SVR_OFFLINE)or(ml_mode_ == ml_util::NO_ML_BUT_COLLECTING_SAMPLES))// Store samples for offline (interleaved) training and for offline tuning
@@ -145,8 +146,11 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   }
   else if(ml_mode_==ml_util::LWPR_ONLINE)// Train online during search (the online LWPR)
   {
+    cerr << "LWPR_ONLINE: training with " << samples.size() << " samples: BEGIN" << endl;
     for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
     {
+      cout << ".";
+      
       std::vector<double> x;
       x = i->first;// input
       
@@ -166,6 +170,9 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
         continue;// with the next samples
       }
       
+      // Count up the #updates
+      ++(*n_ml_update_);
+      
       // Keep ml-related data 
       std::vector<double> ml_datum;
       ml_datum.push_back(y_fit_test.at(0));// 0 
@@ -175,10 +182,9 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       
       ml_data_->push_back(ml_datum);
     }
-  }
-  else// ml_mode_==ml_util::NO_ML
-  {
-    // do nothing
+    cerr << endl;
+    
+    cerr << "LWPR_ONLINE: training with " << samples.size() << " samples: END" << endl;
   }
 }
   
@@ -198,6 +204,7 @@ size_t ml_mode_;
 std::string ml_hot_path_;
 double* total_gp_time_;
 size_t* n_exp_op_;
+size_t* n_ml_update_;
 };
 
 template <typename GPMGraph, typename CostType, typename LearningMachine>
@@ -206,15 +213,15 @@ class AstarHeuristics: public astar_heuristic<GPMGraph, CostType>
 public:
 typedef typename graph_traits<GPMGraph>::vertex_descriptor Vertex;
 
-AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,size_t ml_mode,ml_util::PrepData prep_data)
-: goal_(goal), gpm_(gpm), learner_(learner), ml_mode_(ml_mode), prep_data_(prep_data)
+AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,size_t ml_mode,ml_util::PrepData prep_data,size_t* n_ml_update)
+: goal_(goal), gpm_(gpm), learner_(learner), ml_mode_(ml_mode), prep_data_(prep_data), n_ml_update_(n_ml_update)
 { }
 
 CostType 
 operator()(Vertex v)
 {
   cerr << "Compute h(" << v << "): BEGIN" << endl;
-  double h;
+  double h = 0.;
   
   if(v == goal_)
   {
@@ -227,75 +234,83 @@ operator()(Vertex v)
     h = 0.;
   }
   else if( (ml_mode_ == ml_util::SVR_OFFLINE) or (ml_mode_ == ml_util::LWPR_ONLINE) )
-  {
-    // Extract feature x
-    Input x;
-    if( gpm_->get_fval(v,&x) )
+  { 
+    if((*n_ml_update_) > 0)
     {
-      // Preprocess data if necessary
-      bool has_to_prep_data = false;
-      bool has_to_postp_data = false;
-      
-      if(ml_mode_ == ml_util::SVR_OFFLINE)
+      // Extract feature x
+      Input x;
+      if( gpm_->get_fval(v,&x) )
       {
-        has_to_prep_data = true;
-        has_to_postp_data = true;
-      }
+        // Preprocess data if necessary
+        bool has_to_prep_data = false;
+        bool has_to_postp_data = false;
         
-      if(has_to_prep_data)
-      {
-        // All below should mimic the proprocess_data() routine implemented in matlab
-        double* x_ptr = &x[0];
-        Eigen::Map<Eigen::VectorXd> tmp_x(x_ptr,x.size());
-        
-        // Centering; PCA needs centered_x
-        Eigen::VectorXd centered_x;
-        centered_x = tmp_x - prep_data_.mu_X;
-        
-        // Project to new space
-        Eigen::VectorXd new_x;
-        new_x = centered_x.transpose() * prep_data_.T;
-        
-        // Reduce dim
-        Eigen::VectorXd lodim_x;
-        lodim_x = new_x.head(prep_data_.lo_dim);
-        
-        // Convert back to std::vector
-        x.clear();
-        x.resize(lodim_x.size());
-        for(size_t i=0; i<lodim_x.size(); ++i)
-          x.at(i) = lodim_x(i);
-      }
-        
-      // Predict yp with the learning machine
-      std::vector<double> yp;
-      yp = learner_->predict(x);
-
-      // Assign
-      if( !yp.empty() )
-      {
-        if(has_to_postp_data)
+        if(ml_mode_ == ml_util::SVR_OFFLINE)
         {
-          yp.at(0) += prep_data_.mu_y(0);
+          has_to_prep_data = true;
+          has_to_postp_data = true;
         }
-        
-        // Scaling, its dual (scale-down) is in get_out() at file:data_collector.hpp
-        // TODO better if done together in postp_data()
-        const double scale_up = 10.;
-        h = yp.at(0) * scale_up;
+          
+        if(has_to_prep_data)
+        {
+          // All below should mimic the proprocess_data() routine implemented in matlab
+          double* x_ptr = &x[0];
+          Eigen::Map<Eigen::VectorXd> tmp_x(x_ptr,x.size());
+          
+          // Centering; PCA needs centered_x
+          Eigen::VectorXd centered_x;
+          centered_x = tmp_x - prep_data_.mu_X;
+          
+          // Project to new space
+          Eigen::VectorXd new_x;
+          new_x = centered_x.transpose() * prep_data_.T;
+          
+          // Reduce dim
+          Eigen::VectorXd lodim_x;
+          lodim_x = new_x.head(prep_data_.lo_dim);
+          
+          // Convert back to std::vector
+          x.clear();
+          x.resize(lodim_x.size());
+          for(size_t i=0; i<lodim_x.size(); ++i)
+            x.at(i) = lodim_x(i);
+        }
+          
+        // Predict yp with the learning machine
+        std::vector<double> yp;
+        yp = learner_->predict(x);
+
+        // Assign
+        if( !yp.empty() )
+        {
+          if(has_to_postp_data)
+          {
+            yp.at(0) += prep_data_.mu_y(0);
+          }
+          
+          // Scaling, its dual (scale-down) is in get_out() at file:data_collector.hpp
+          // TODO better if done together in postp_data()
+          const double scale_up = 10.;
+          h = yp.at(0) * scale_up;
+        }
+        else
+        {
+          cerr << "yp.empty() -> learner_->predict(x) FAILED -> h = 0." << endl;
+          h = 0.;
+        }
       }
       else
       {
-        cerr << "yp.empty() -> learner_->predict(x) FAILED -> h = 0." << endl;
+        cerr << "gpm_->get_fval(v,&x): FAILED -> h = 0." << endl;
         h = 0.;
       }
-    }
+    }// if((*n_ml_update_) > 0)
     else
     {
-      cerr << "gpm_->get_fval(v,&x): FAILED -> h = 0." << endl;
-      h = 0.;
+        cerr << "n_ml_update_= " << (*n_ml_update_) << " -> h = 0." << endl;
+        h = 0.;
     }
-  }
+  }// else if( (ml_mode_ == ml_util::SVR_OFFLINE) or (ml_mode_ == ml_util::LWPR_ONLINE) )
   
   // Put in the main tmm!
   if(h < 0.)// negative value
@@ -317,6 +332,7 @@ GeometricPlannerManager* gpm_;
 LearningMachine* learner_;
 size_t ml_mode_;
 ml_util::PrepData prep_data_;
+size_t* n_ml_update_;// update or train
 };
 
 #endif // #ifndef ASTAR_UTILS_HPP_INCLUDED

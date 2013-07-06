@@ -445,17 +445,17 @@ main(int argc, char **argv)
     case 10:
     // Run online LWPR that updates its model during search; Do one CTAMP attempt (rerun) on multiple instances.
     // WARNING: DO NOT run multiple mode10 simultaneously, critical resources are at /learning_machine/data/hot
-    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 n_run:=10 epsth:=1
+    // Number of attempts is determined in the inst_paths file
+    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 epsth:=1 n_run:=2
     // \param path holds the parent directory under which CTAMP instances exist 
     // \param n_obj holds the instance type
-    // \param n_run is the desired number of CTAMP attempts in this mode10-episode
     // \param epsth holds i-th episode with this mode
     {
       // Init
       std::string run_id;
       run_id = "/h.onlwpr." + boost::lexical_cast<string>(n_obj) + "M" + "." + boost::lexical_cast<string>(epsth);
       
-      std::vector<std::string> instance_paths(n_run);
+      std::vector<std::string> instance_paths;
       if(mode == 1011)
       {
         instance_paths = mode1011_instance_paths;
@@ -469,6 +469,15 @@ main(int argc, char **argv)
         {
           ROS_ERROR("utils::get_instance_paths() -> failed");
           return false;
+        }
+        
+        // Synch. with the requested n_run
+        if(n_run > instance_paths.size())
+          ROS_WARN("n_run > instance_paths.size(), use all instance_paths.size()");
+        else
+        {
+          std::vector<std::string> tmp_inst_paths(instance_paths.begin(),instance_paths.begin()+n_run);
+          instance_paths = tmp_inst_paths;
         }
       }
       
@@ -491,9 +500,9 @@ main(int argc, char **argv)
         
       std::vector< std::pair< std::string,std::vector<double> > > mode10eps_log;
       
-      for(int i=0; i<n_run; ++i)
+      for(int i=0; i<instance_paths.size(); ++i)
       {
-        ROS_DEBUG_STREAM( "On runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
+        ROS_DEBUG_STREAM( "On attemp th=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
   
         // Prepare dir + tidy.cfg file
         base_data_path = instance_paths.at(i);
@@ -559,14 +568,15 @@ main(int argc, char **argv)
     }
     case 11:
     // Run offline SVR in a batchmode, the model is updated in between search, interleave training and testing; Do runs on multiple instances.
+    // Number of attempts is determined in the inst_paths file
     // WARNING: DO NOT run multiple mode11 simultaneously, critical resources are at /learning_machine/data/hot
-    // USAGE:$ roslaunch hiro_common a.launch  mode:=11 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 n_run:=100 epsth:=1
+    // USAGE:$ roslaunch hiro_common a.launch  mode:=11 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 epsth:=1 n_run:=2
     {
       // Init  
       std::string run_id;
       run_id = "/h.offepsvr." + boost::lexical_cast<string>(n_obj) + "M"+ "." + boost::lexical_cast<string>(epsth);
       
-      std::vector<std::string> instance_paths(n_run);
+      std::vector<std::string> instance_paths;
       if(mode == 1011)
       {
         instance_paths = mode1011_instance_paths;
@@ -580,6 +590,15 @@ main(int argc, char **argv)
         {
           ROS_ERROR("utils::get_instance_paths() -> failed");
           return false;
+        }
+        
+        // Synch. with the requested n_run
+        if(n_run > instance_paths.size())
+          ROS_WARN("n_run > instance_paths.size(), use all instance_paths.size()");
+        else
+        {
+          std::vector<std::string> tmp_inst_paths(instance_paths.begin(),instance_paths.begin()+n_run);
+          instance_paths = tmp_inst_paths;
         }
       }
       
@@ -602,9 +621,9 @@ main(int argc, char **argv)
       
       std::vector< std::pair< std::string,std::vector<double> > > mode11eps_log;
       
-      for(int i=0; i<n_run; ++i)
+      for(int i=0; i<instance_paths.size(); ++i)
       {
-        ROS_DEBUG_STREAM( "On runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
+        ROS_DEBUG_STREAM( "On attempt th=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
         
         // Prepare dir + tidy.cfg file
         base_data_path = instance_paths.at(i);
@@ -686,7 +705,8 @@ main(int argc, char **argv)
         boost::filesystem::create_directories(data_path);
         
         boost::filesystem::copy_file( std::string(base_data_path+"/tidy.cfg"),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
-                
+        boost::filesystem::copy_file( std::string(base_data_path+"/vanilla_tmm.dot"),std::string(data_path+"/vanilla_tmm.dot"),boost::filesystem::copy_option::overwrite_if_exists );// because this is rerun so that no call to the task plan
+        
         // Sense
         gm.sense( std::string(base_data_path+messy_cfg_filename) );
         
