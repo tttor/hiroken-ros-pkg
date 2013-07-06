@@ -22,6 +22,12 @@
 using namespace boost;
 using namespace std;
 
+enum edge_nograsppose_t { edge_nograsppose };
+namespace boost 
+{
+  BOOST_INSTALL_PROPERTY(edge, nograsppose);
+}
+
 enum edge_jspace_t { edge_jspace };
 namespace boost 
 {
@@ -71,7 +77,7 @@ namespace boost
 }
 
 typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double> > TGEdgeProperty;
-typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double, boost::property<edge_jspace_t, std::string, boost::property<edge_plan_t, trajectory_msgs::JointTrajectory, property<edge_color_t, std::string, property<edge_srcstate_t, std::string, property<edge_planstr_t, std::string, property<edge_mptime_t,double> > > > > > > > TMMEdgeProperty;
+typedef boost::property< edge_name_t, std::string, boost::property<edge_weight_t, double, boost::property<edge_jspace_t, std::string, boost::property<edge_plan_t, trajectory_msgs::JointTrajectory, property<edge_color_t, std::string, property<edge_srcstate_t, std::string, property<edge_planstr_t, std::string, property<edge_mptime_t,double, property<edge_nograsppose_t,bool> > > > > > > > > TMMEdgeProperty;
     
 typedef boost::property<vertex_name_t, std::string> TGVertexProperty;
 typedef boost::property<vertex_name_t, std::string, boost::property< vertex_jstates_t, sensor_msgs::JointState, property<vertex_color_t, default_color_type, property<vertex_wstate_t,std::vector<arm_navigation_msgs::CollisionObject>, property<vertex_heu_t, double> > > > > TMMVertexProperty;

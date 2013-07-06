@@ -22,8 +22,9 @@
 #include "hiro_utils.hpp"
 #include "data.hpp"
 #include "data_collector.hpp"
+#include "hiro_common/GetManipulability.h"
 
-static const std::string METADATA_PATH = "/home/vektor/rss-2013/data/ref/metadata.csv";
+static const std::string METADATA_PATH = "/home/vektor/rss-2013/data/ref/metadata.5.20130706.csv";
 
 static const double COL_OBJ_PUB_TIME = 1.0;// prev. 1.0, 2.0
 static const std::string SET_PLANNING_SCENE_DIFF_SRV_NAME = "/environment_server/set_planning_scene_diff";
@@ -98,6 +99,17 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
 //  ROS_DEBUG_STREAM("start_state: SET with " << start_state.position.size() << " joints");
   
   // Determine all possible goal poses
+  // For rerun, check whether previous runs have found that no graps pose exists, in order to speed up the rerun planning
+  if( get(edge_nograsppose,pm_->tmm_,e) )
+  {
+    ROS_DEBUG("Prev. runs have found that no graps pose exists.");
+    
+    *found_gp = false;
+    *found_mp = false;
+    
+    return true;
+  }
+  
   std::vector<sensor_msgs::JointState> goal_set;// Note that we do not use std::set because of a ros-msg constraint that is an array[] is handled as a vector
   
   std::vector<std::string> target_vertex_name_parts;
@@ -139,10 +151,6 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
   
   // Prepare the planning environment to do motion planning
   set_planning_env( source(e,pm_->tmm_) );
-  
-  // Put the geometric config of source vertex set above into edge prop.
-  // Note that this is also an update because the edge_srcstate has been set when its source vertex's state is updated
-  put(  edge_srcstate,pm_->tmm_,e,get_planning_env_str( source(e,pm_->tmm_) )  );
   
   // Obtain the best motion plan
   // Assume that the motion planner always return the best motion plan for every start and goal poses
@@ -232,43 +240,41 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
   samples are collected from all unique paths that are subset of the path from the root the the vertex v and have not yet used as a sample before.
   
   Concretely,
-  consire the path: 
-  ROOT --> A 
+  consider the path: 
+  (1) ROOT --> A 
   then only one path: ROOT --> A 
-  ROOT --> A --> B
+  (2) ROOT --> A --> B
   then there are 2 paths that can form new samples: ROOT--> A --> B and A --> B
   
-  Therefore, the gist is that we have to find the path from the root to the vertex v
+  Therefore, the gist is that we have to find all paths from the root to the adjacent vertices of v
 */
 bool
 get_samples_online(TMMVertex v,Data* samples)
 {
-//  ROS_DEBUG("get_samples_online(): BEGIN");
+  ROS_DEBUG_STREAM("get_samples_online(v= " << get(vertex_name,pm_->tmm_,v) << "): BEGIN");
   
-  TaskMotionMultigraph tmm;
-  tmm = pm_->tmm_;
+  TaskMotionMultigraph local_tmm;
+  local_tmm = pm_->tmm_;// Use a copy of tmm_ because this routine modifies tmm_
   
   // Remove more-expensive edges, remove parallelism
-  // Because the solution path should always choose the cheapest,
-  // or does the dfs do it already?
   std::set<TMMEdge> tobe_removed_edges;
   
   boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
-  for(boost::tie(vi,vi_end) = vertices(tmm); vi!=vi_end; ++vi)
+  for(boost::tie(vi,vi_end) = vertices(local_tmm); vi!=vi_end; ++vi)
   {
     std::map<TMMVertex,TMMEdge> tv_e_map;
     
     graph_traits<TaskMotionMultigraph>::out_edge_iterator oei,oei_end;
-    for(tie(oei,oei_end) = out_edges(*vi,tmm); oei!=oei_end; ++oei )
+    for(tie(oei,oei_end) = out_edges(*vi,local_tmm); oei!=oei_end; ++oei )
     {
       std::map<TMMVertex,TMMEdge>::iterator it;
       bool inserted;
       
-      tie(it,inserted) = tv_e_map.insert( std::make_pair(target(*oei,tmm),*oei) );
+      tie(it,inserted) = tv_e_map.insert( std::make_pair(target(*oei,local_tmm),*oei) );
       
       if(!inserted)
       {
-        if(get(edge_weight,tmm,*oei) < get(edge_weight,tmm,it->second))
+        if(get(edge_weight,local_tmm,*oei) < get(edge_weight,local_tmm,it->second))
         {
           tobe_removed_edges.insert(it->second);
 
@@ -280,47 +286,54 @@ get_samples_online(TMMVertex v,Data* samples)
         }
       }
     }
-  }// end of: For each vertex in tmm
-  
+  }// end of: For each vertex in local_tmm
+
   for(std::set<TMMEdge>::const_iterator i=tobe_removed_edges.begin(); i!=tobe_removed_edges.end(); ++i)
-    remove_edge(*i,tmm);
-//  ROS_DEBUG("Parallelism: removed");
+    remove_edge(*i,local_tmm);
+  ROS_DEBUG("Parallelism: removed");
   
-//  // Filter only the planned edge to make dfs_visit more efficient by cutting the depth of the tmm
-//  PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, tmm) );
-//  typedef filtered_graph< TaskMotionMultigraph, PlannedEdgeFilter<TMMEdgeColorMap> > PlannedTMM;
+  // Filter only the planned edge 
+  PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, local_tmm) );
+  typedef filtered_graph< TaskMotionMultigraph, PlannedEdgeFilter<TMMEdgeColorMap> > PlannedTMM;
+  typedef graph_traits<PlannedTMM>::vertex_descriptor PlannedTMMVertex;
+  typedef graph_traits<PlannedTMM>::edge_descriptor PlannedTMMEdge;
 
-//  PlannedTMM p_tmm(tmm, planned_edge_filter);
-//  ROS_DEBUG_STREAM("num_vertices(p_tmm)= " << num_vertices(p_tmm));
-//  ROS_DEBUG_STREAM("num_edges(p_tmm)= " << num_edges(p_tmm));
+  PlannedTMM filtered_local_tmm(local_tmm, planned_edge_filter);
+  ROS_DEBUG_STREAM("num_edges(local_tmm)= " << num_edges(local_tmm));
+  ROS_DEBUG_STREAM("num_edges(filtered_local_tmm)= " << num_edges(filtered_local_tmm));
 
-// Extract training samples from hot_paths: sequence of edges from tmm_root_ to the adjacent vertices of v, which are the targets of the just planned edges
-  graph_traits<TaskMotionMultigraph>::adjacency_iterator avi, avi_end;
-  for(tie(avi,avi_end)=adjacent_vertices(v,tmm); avi!=avi_end; ++avi )  
+  // Extract training samples from hot_paths: all possible paths from tmm_root_ to the adjacent vertices of v, which are the targets of the just planned edges
+  std::vector< std::vector<PlannedTMMVertex> > predecessors_map(num_vertices(filtered_local_tmm));
+  data_collector::BFSVisitor<PlannedTMM> vis(&predecessors_map);
+  
+  boost::breadth_first_search(filtered_local_tmm,pm_->tmm_root_,visitor(vis));// Find predecessors_map
+    
+  graph_traits<PlannedTMM>::adjacency_iterator avi, avi_end;
+  for(tie(avi,avi_end)=adjacent_vertices(v,filtered_local_tmm); avi!=avi_end; ++avi )  
   {
-    boost::graph_traits<TaskMotionMultigraph>::vertex_descriptor goal;
-    goal = *avi;
-    
-    std::vector<TMMEdge> hot_path;
-    
-    DFSVisitor<TaskMotionMultigraph> vis(&goal,&hot_path);
-    
-    try
+    // Find hot_paths through backtracking using predecessors_map
+    std::vector< std::vector<PlannedTMMEdge> > hot_paths;
+    TMMVertex goal = *avi;
+  
+    data_collector::backtrack<PlannedTMM>(filtered_local_tmm,predecessors_map,goal,&hot_paths);
+  
+    for(size_t i=0; i<hot_paths.size(); ++i)
     {
-      depth_first_search( tmm,visitor(vis) );
+      std::reverse(hot_paths.at(i).begin(),hot_paths.at(i).end());
+      
+      ROS_DEBUG_STREAM("hot_path th= " << i+1 << " of avi= " << get(vertex_name,filtered_local_tmm,*avi));
+      for(std::vector<TMMEdge>::const_iterator j=hot_paths.at(i).begin(); j!=hot_paths.at(i).end(); ++j)
+        ROS_DEBUG_STREAM("e(" << get(vertex_name,filtered_local_tmm,source(*j,filtered_local_tmm)) << "," << get(vertex_name,filtered_local_tmm,target(*j,filtered_local_tmm)) << "), ");
+
+      std::vector<boost::graph_traits<PlannedTMM>::edge_descriptor> path;
+      path = hot_paths.at(i);
+
+      data_collector::DataCollector<PlannedTMM> dc(METADATA_PATH,pm_->movable_obj_tidy_cfg_);
+      dc.get_samples(hot_paths.at(i),filtered_local_tmm,samples);
     }
-    catch(DFSFoundGoalSignal fg)
-    { }
-    
-//    ROS_DEBUG("hot_path= ");
-//    for(std::vector<TMMEdge>::const_iterator i=hot_path.begin(); i!=hot_path.end(); ++i)
-//      ROS_DEBUG_STREAM("e(" << get(vertex_name,tmm,source(*i,tmm)) << "," << get(vertex_name,tmm,target(*i,tmm)) << "), ");
-    
-    DataCollector<TaskMotionMultigraph> dc;
-    dc.get_samples(hot_path,tmm,METADATA_PATH,samples);
   }// end of: for_each avi
-    
-//  ROS_DEBUG("get_samples_online(): END");
+
+  ROS_DEBUG_STREAM("get_samples_online(v= " << get(vertex_name,pm_->tmm_,v) << "): END");    
   return true;
 }
 
@@ -358,9 +371,9 @@ get_fval(TMMVertex v,Input* in)
   }
     
   // Extract feature values from the estimated optimal-solution path, which is as the heuristic path
-  DataCollector<TaskMotionMultigraph> dc;
+  data_collector::DataCollector<TaskMotionMultigraph> dc(METADATA_PATH,pm_->movable_obj_tidy_cfg_);
   bool success;
-  success = dc.get_fval(est_opt_sol_path,pm_->tmm_,METADATA_PATH,in);
+  success = dc.get_fval(est_opt_sol_path,pm_->tmm_,in);
 
   return success;
 }
@@ -546,7 +559,10 @@ set_av_jstates(TMMVertex v)
     graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
     for(tie(oei,oei_end) = out_edges(i->first,pm_->tmm_); oei!=oei_end; ++oei)
     {
-      put(  edge_srcstate,pm_->tmm_,*oei,get_planning_env_str(i->first)  );
+      std::string srcstate;
+      srcstate = get_planning_env_str(i->first);
+
+      put(edge_srcstate,pm_->tmm_,*oei,srcstate);
     }
   }// end of: each avi in av_ce_map
   
@@ -554,17 +570,11 @@ set_av_jstates(TMMVertex v)
   return true;
 }
 
-void
-mark_vertex(const TMMVertex& v)
-{
-  put(vertex_color, pm_->tmm_, v, color_traits<boost::default_color_type>::black());// for examined vertex
-}
-
 //! Obtain the description of the planning environment in the form of string
 /*!
   There are 2 descriptors of the planning environment, namely:
-  (1) wstate: workspace state, poses of manipulated objects
-  (2) jstate: joint states
+  (1) wstate: workspace state, poses of manipulated/movable objects; for current implementation (July 5, 2013) those of unmovable objects (e.g.obstacles) are ignored.
+  (2) jstate: joint states and manipulability measure of end-effectors (computed here for convenient in feature extraction)
   
   This is for extracting features.
 */
@@ -575,13 +585,14 @@ get_planning_env_str(const TMMVertex& v)
   
   std::string state_str;
   
-  // We assume that there is no uncertainty
-  // Therefore, object poses are just based on vertex's wstate prop. set at the beginning 
+  // Put the workspace state W(v)
+  // We assume that there is no uncertainty. Therefore, object poses are just based on vertex's wstate prop. set at the init_vertex().
   std::vector<arm_navigation_msgs::CollisionObject> wstate;
   wstate = get( vertex_wstate,pm_->tmm_,v );
   
   for(std::vector<arm_navigation_msgs::CollisionObject>::const_iterator i=wstate.begin(); i!=wstate.end(); ++i)
   {
+    state_str += std::string("movable_obj_pose,");// as a header
     state_str += i->id + ",";
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).position.x) + ",";
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).position.y) + ",";
@@ -592,7 +603,7 @@ get_planning_env_str(const TMMVertex& v)
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).orientation.w) + ";";// The last one use ";", instead of ","
   }
   
-  // Put joint states
+  // Put joint states Q(v)
   sensor_msgs::JointState joint_state;  
   joint_state = get( vertex_jstates,pm_->tmm_,v );
   
@@ -606,14 +617,48 @@ get_planning_env_str(const TMMVertex& v)
       return state_str;
     }
     
+    state_str += std::string("jstate,");// as a header
     state_str += *i + ",";
     state_str += boost::lexical_cast<std::string>( joint_state.position.at(i-joint_state.name.begin()) ) + ";";
   }
-  boost::erase_last(state_str,";");
   
-  ROS_DEBUG_STREAM("get_planning_env_str(): END");  
+  // Put manipulability measure of end-effectors (computed here for convenient in feature extraction)
+  ros::service::waitForService("get_manipulability");
+  
+  ros::ServiceClient gm_client;
+  gm_client = pm_->nh_.serviceClient<hiro_common::GetManipulability>("get_manipulability");
+  
+  hiro_common::GetManipulability::Request gm_req;
+  hiro_common::GetManipulability::Response gm_res;
+  
+  gm_req.jstate = joint_state;
+  
+  std::map<std::string,std::string> eff_biggestjspace_map;
+  eff_biggestjspace_map = get_rbtid_biggestjspace_map();
+  
+  for(std::map<std::string,std::string>::const_iterator i=eff_biggestjspace_map.begin(); i!=eff_biggestjspace_map.end(); ++i)
+  {
+    gm_req.jspace = i->second;
+    
+    if( !(gm_client.call(gm_req,gm_res)) )
+    {
+      ROS_ERROR("GetManipulability srv call: failed");
+      state_str = "FAILED_IN_GETTING_MANIPULABILITY_MEASURE";
+      return state_str;
+    }
+    
+    state_str += std::string("manipulability,");// as a header
+    state_str += i->first + ",";
+    state_str += boost::lexical_cast<std::string>(gm_res.m) + ";";
+  }
+  
+  // Remove the last ";" to make it easier to read the parsing result
+  boost::erase_last(state_str,";");
+
+  ROS_DEBUG_STREAM("get_planning_env_str(" << get(vertex_name,pm_->tmm_,v) << "): END");
   return state_str;
 } 
+
 //!
 /*!
   Mainly, this initialize the state in a vertex.
@@ -624,9 +669,9 @@ get_planning_env_str(const TMMVertex& v)
 void
 init_vertex(const TMMVertex& v)
 {
-//  ROS_DEBUG_STREAM("init_vertex(" << get(vertex_name,pm_->tmm_,v) << "): BEGIN");
+  ROS_DEBUG_STREAM("init_vertex(" << get(vertex_name,pm_->tmm_,v) << "): BEGIN");
   
-  // Call to /environment_server/get_robot_state srv
+  // (1) Set Q(v) with robot's home pose obtained through calling to /environment_server/get_robot_state srv @now(= home pose)
   arm_navigation_msgs::GetRobotState::Request req;
   arm_navigation_msgs::GetRobotState::Response res;
   
@@ -653,54 +698,79 @@ init_vertex(const TMMVertex& v)
 
   put(vertex_jstates, pm_->tmm_, v, res.robot_state.joint_state);
   
-  //Set wstate based on the vertex's name
-  std::string name = get(vertex_name, pm_->tmm_, v);
+  // (2) Set vertex_wstate  W(v) based on the vertex's name since we assume workspace state is deterministic so that it can be known in advance
+  std::vector<arm_navigation_msgs::CollisionObject> wstate;
   
+  // Infer which movable object has been tidied up
+  std::vector<std::string> tidied_object_ids;  
+
+  std::string name = get(vertex_name, pm_->tmm_, v);
+
   std::vector<std::string> name_parts;
   boost::split( name_parts, name, boost::is_any_of("[") );// e.g from "GRASPED_CAN1[CAN2.CAN3.]" to "GRASPED_CAN1" and "CAN2.CAN3.]"
-
-  std::vector<std::string> tidied_object_ids;  
-  if(name_parts.size()==2)
+  
+  std::string state;
+  state = name_parts.at(0);
+  
+  if( !strcmp(state.c_str(),std::string("MessyHome").c_str()) )
   {
-    boost::split( tidied_object_ids, name_parts.at(1), boost::is_any_of(".") );// e.g. from "CAN2.CAN3.]" to CAN2 and CAN3 and ]
+    // no object has been tidied up
+    tidied_object_ids.clear();
+  }
+  else if( !strcmp(state.c_str(),std::string("TidyHome").c_str()) )
+  {
+    // all objects have been tidied up
+    // we infer the tidied_object_ids from movable_obj_messy_cfg_ since it holds only objects that are under consideration (inside planning horizon)
+    for(std::map<std::string,arm_navigation_msgs::CollisionObject>::const_iterator i=pm_->movable_obj_messy_cfg_.begin(); i!=pm_->movable_obj_messy_cfg_.end(); ++i)
+    {
+      tidied_object_ids.push_back(i->first);
+    }
+  }
+  else
+  {
+    // Infer from bookeeper [...]
+    std::string bookeeper;
+    bookeeper = name_parts.at(1);
+    
+    boost::split( tidied_object_ids, bookeeper, boost::is_any_of(".") );// e.g. from "CAN2.CAN3.]" to CAN2 and CAN3 and ]
     tidied_object_ids.erase(tidied_object_ids.end()-1);//remove a "]"
+        
+    // Plus from state, if nec.
+    std::vector<std::string> state_parts;
+    boost::split( state_parts, state, boost::is_any_of("_") );// e.g. from Released_CAN1 to ...
+      
+    if( !strcmp(state_parts.at(0).c_str(),std::string("Released").c_str()) )// WARN: All letters but "R" are small
+    {
+      std::string released_obj_id;
+      released_obj_id = state_parts.at(1);
+      
+      tidied_object_ids.push_back(released_obj_id);
+    }
   }
   
-  std::vector<arm_navigation_msgs::CollisionObject> wstate;
+   // Assign the exact pose values
+//  cerr << "tidied_object_ids= " << endl;
+//  for(size_t j=0; j<tidied_object_ids.size(); ++j)
+//  {
+//    cerr << tidied_object_ids.at(j) << endl;
+//  }
   
   for(std::map<std::string,arm_navigation_msgs::CollisionObject>::const_iterator i=pm_->movable_obj_messy_cfg_.begin(); i!=pm_->movable_obj_messy_cfg_.end(); ++i)
   {
     std::vector<std::string>::iterator it;
     it = std::find(tidied_object_ids.begin(),tidied_object_ids.end(),i->first);
     
-    if( it==tidied_object_ids.end() )
+    if( it==tidied_object_ids.end() )// not found
       wstate.push_back(i->second);
     else
       wstate.push_back( pm_->movable_obj_tidy_cfg_[i->first] );
   }
   
+  // For unmovable objects
   for(std::map<std::string,arm_navigation_msgs::CollisionObject>::const_iterator i=pm_->unmovable_obj_cfg_.begin(); i!=pm_->unmovable_obj_cfg_.end(); ++i)
   {
       wstate.push_back( pm_->unmovable_obj_cfg_[i->first] );
   }
-  
-  // Plus setting wstate with unmovable object listed in messy.cfg file 
-//  std::string data_path;
-//  if( !ros::param::get("/data_path", data_path) )
-//    ROS_WARN("Can not get /data_path, use the default value instead");
-//  
-//  utils::ObjCfg all_obj_cfg;
-//  utils::read_obj_cfg(std::string(data_path+"/messy.cfg"),&all_obj_cfg);
-//  
-//  utils::ObjCfg unmovable_obj_cfg;
-//  for(utils::ObjCfg::const_iterator i=all_obj_cfg.begin(); i!=all_obj_cfg.end(); ++i)
-//  {
-//    std::string id;
-//    id = i->id;
-//    
-//    b
-//  }
-  
   
 //  for(std::vector<arm_navigation_msgs::CollisionObject>::const_iterator i=wstate.begin(); i!=wstate.end(); ++i)
 //  {
@@ -715,6 +785,27 @@ init_vertex(const TMMVertex& v)
 //  }
   
   put(vertex_wstate,pm_->tmm_,v,wstate);
+  
+  // For out-edges of the root,its out-edges' srcstate are never updated during search as the update happens when the parent is expanded
+  if(v == pm_->tmm_root_)
+  {
+    std::string root_srcstate;
+    root_srcstate = get_planning_env_str(pm_->tmm_root_);
+    
+    typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+    for(tie(oei,oei_end) = out_edges(pm_->tmm_root_,pm_->tmm_); oei!=oei_end; ++oei)
+    {
+      put(edge_srcstate,pm_->tmm_,*oei,root_srcstate);
+    }
+  }
+  
+  ROS_DEBUG_STREAM("init_vertex(" << get(vertex_name,pm_->tmm_,v) << "): END");
+}
+
+void
+mark_vertex(const TMMVertex& v)
+{
+  put(vertex_color, pm_->tmm_, v, color_traits<boost::default_color_type>::black());// for examined vertex
 }
 
 void

@@ -3,82 +3,38 @@
 
 #include "data_collector.hpp"
 #include "data.hpp"
+#include "utils.hpp"
 
 #include <boost/graph/depth_first_search.hpp>
 
-struct DFSFoundGoalSignal {}; // exception for termination
+#include <Eigen/Dense>
+
+namespace data_collector
+{
 
 template <class Graph>
 class DataCollector: public boost::dfs_visitor<>
 {
 public:
-//! Used to collect samples _offline_
-DataCollector(Data* data,std::string metadata_path)
-: data_(data), in_(0)
+DataCollector(std::string metadata_path,std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg)
 { 
   labels_ = data_util::get_labels(metadata_path);
-}
-
-//! This contructor is used to get features only as inputs during search, used to supply the learning machine in order to output the heuristic
-DataCollector()
-: data_(0), in_(0)
-{ }
-
-template <class DfsGraph>
-void 
-discover_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
-{
-//  std::cout << "discover " << get(vertex_name,g,v) << std::endl;
-//  std::cout << "out_degree(v,g)= " << out_degree(v,g) << std::endl;
-}
-
-//! In collecting samples _offline_, a new sample is collected whenever an edge is added to the hot_path_ i.e. becomes a part of the search tree 
-template <class DfsGraph>
-void tree_edge(typename boost::graph_traits<DfsGraph>::edge_descriptor e,DfsGraph& g)
-{
-//  cerr << "Adding: " << get(edge_name,g,e) << endl;
-  hot_path_.push_back(e);
   
-//  cerr << "hot_path_: ";
-//  for(typename std::vector<typename boost::graph_traits<DfsGraph>::edge_descriptor>::const_iterator i=hot_path_.begin(); i!=hot_path_.end(); ++i)
-//    cout << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
-//  cout << endl;
-
-  get_samples<DfsGraph>(hot_path_,g,data_);
+  movable_obj_tidy_cfg_ = movable_obj_tidy_cfg;
 }
 
-//! used in collecting samples _offline_, to maintain the hot path
-template <class DfsGraph>
-void 
-finish_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
-{
-//  std::cerr << "finish " << get(vertex_name,g,v) << std::endl;  
-  hot_path_.erase( hot_path_.end()-1 );
-
-  // This is to make the vertex named TidyHome to be discovered again if there are multiple solution paths
-  std::string name;
-  name = get(vertex_name,g,v);
-
-  if( !strcmp(name.c_str(),"TidyHome") )
-    put(vertex_color,g,v,color_traits<boost::default_color_type>::white());
-}
-
-//! used in obtaining features (as input) _online_ during search. Should be call only when using the DataCollector() constructor
+//! Used for obtaining features (as input) _online_ during search.
 bool
-get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Input* in)
+get_fval(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,Input* in)
 {
-  labels_ = data_util::get_labels(metadata_path);
-  
-  return get_fval<Graph>(path,g,in);
+  return get_fval_local<Graph>(path,g,in);
 }
 
-//!Should be call only when using the DataCollector() constructor
+//!Used _online_ during search.
 bool
-get_samples(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,const string& metadata_path,Data* samples)
+get_samples(const std::vector<typename boost::graph_traits<Graph>::edge_descriptor>& path,const Graph& g,Data* samples)
 {
-  labels_ = data_util::get_labels(metadata_path);
-  
-  return get_samples<Graph>(path,g,samples);
+  return get_samples_local<Graph>(path,g,samples);
 }
 
 private:
@@ -94,7 +50,7 @@ bool
 get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g,Data* data)
 {
   Input in;
-  if( !get_fval<LocalGraph>(path,g,&in) )
+  if( !get_fval_local<LocalGraph>(path,g,&in) )
   {
     cerr << "get_fval() failed" << endl;
     return false;
@@ -106,7 +62,7 @@ get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_desc
     cerr << "get_out() failed" << endl;
     return false;
   }
-
+  
   data->insert( std::make_pair(in,out) );
   
   return true;
@@ -123,7 +79,7 @@ get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_desc
 */
 template<typename LocalGraph>
 bool
-get_samples(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g,Data* samples)
+get_samples_local(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path,const LocalGraph& g,Data* samples)
 {
   for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
   {
@@ -148,6 +104,16 @@ get_out(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descrip
     *out += get(edge_weight, g, *j);
   }
   
+  // Check for bad out values
+  if(*out == std::numeric_limits<double>::max())
+  {
+    cout << "[WARN] *out == std::numeric_limits<double>::max()" << endl;
+    for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator j=path.begin(); j!=path.end(); ++j)
+      cout << "e= " << get(edge_name, g, *j) << " has a weight of " << get(edge_weight, g, *j) << endl;
+      
+    return false;
+  }
+  
   // Scaling down, the dual (scale-up) is in class AstarHeuristics at file:astar_utils.hpp
   // TODO better to do this in prep_data()
   double scale = 0.1;
@@ -164,7 +130,7 @@ get_out(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descrip
 */
 template<typename LocalGraph>
 bool
-get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,Input* in)
+get_fval_local(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,Input* in)
 {
 //  cerr << "in get_fval(), path: ";
 //  for(typename std::vector<typename boost::graph_traits<Graph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
@@ -174,14 +140,49 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
   RawInput r_in;
 
   // Geo. features extracted from the head vertex of this path: object pose+manipulability+jstates in the source vertex
-  std::string srcstate;
-  srcstate = get( edge_srcstate,g,path.at(0) );
-
-  if( !get_geo_fval(srcstate,&r_in) )
+  if( !get_geo_fval<LocalGraph>(path,g,&r_in) )
     return false;
   
-  // Symbolic features: Whether more TRANSFER or TRANSIT from actions in this path
-  // Symbolic features: Whether more LARM or RARM from actions in this path
+  // Sym. features
+  if( !get_sym_fval<LocalGraph>(path,g,&r_in) )
+    return false;
+    
+  // Convert the raw_in to in then return
+//  cerr << "r_in.size()= " << r_in.size() << endl;
+//    for(RawInput::iterator z=r_in.begin(); z!=r_in.end(); ++z)
+//      cerr << z->first << "= " << z->second << endl;
+//    cerr << "y= " << out << endl;
+  return data_util::convert( r_in,in,labels_ );
+}
+
+//! Obtain symbolic features
+/*!
+  They are:
+  (1) x^{s1}: position of actions
+  (2) x^{s2}: length of the path
+  (3) x^{s3}: transit transfer centric
+  (4) x^{s4}: right left arm centric
+*/
+template<typename LocalGraph>
+bool
+get_sym_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,RawInput* r_in)
+{
+  // Extract x^{s1}: position of actions
+  for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
+  {
+    std::string label;
+    label = get(edge_name,g,*i);
+    
+    size_t idx;
+    idx = i - path.begin() + 1;// Plus one because idx=0 is reserved for if Act_i is not in this path
+    
+    r_in->insert( std::make_pair(label,(double)idx) );
+  }
+  
+  // Extract  x^{s2}: length of the path
+  r_in->insert( std::make_pair("len",path.size()) );
+  
+  // Extract x^{s3}: transit transfer centric and x^{s4}: right left arm centric
   size_t n_transit = 0;
   size_t n_transfer = 0;
   size_t n_larm = 0;
@@ -208,184 +209,296 @@ get_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descri
     else if( !strcmp(rbt_id.c_str(),"LARM") )
       ++n_larm;
   }
-
-  r_in.insert( std::make_pair("TRANSIT-centric",(n_transit > n_transfer)) );
-  r_in.insert( std::make_pair("TRANSFER-centric",(n_transfer > n_transit)) );
   
-  r_in.insert( std::make_pair("RARM-centric",(n_rarm > n_larm)) );
-  r_in.insert( std::make_pair("LARM-centric",(n_larm > n_rarm)) );
-
-  // Symbolic features: Position of certain action label in a path
-  for(typename std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>::const_iterator i=path.begin(); i!=path.end(); ++i)
-  {
-    std::string name;
-    name = get(edge_name,g,*i);
-    
-    size_t idx;
-    idx = i - path.begin() + 1;// Plus one because idx=0 is reserved for if Act_i is not in this path
-    
-    r_in.insert( std::make_pair(name,(double)idx) );
-  }
+  r_in->insert( std::make_pair("TRANSIT-centric",(double)n_transit/(n_transit+n_transfer)) );
+  r_in->insert( std::make_pair("TRANSFER-centric",(double)n_transfer/(n_transit+n_transfer)) );
   
-//  cerr << "r_in.size()= " << r_in.size() << endl;
-//    for(RawInput::iterator z=r_in.begin(); z!=r_in.end(); ++z)
-//      cerr << z->first << "= " << z->second << endl;
-//    cerr << "y= " << out << endl;
-    
-  // Convert then return
-  return data_util::convert( r_in,in,labels_ );
-}
-
-//! Obtain geometric-feature values
-/*!
-  Geometric features include:
-  (1) object pose in the source vertex
-  
-  
-*/
-bool 
-get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffix="")
-{
-  // Init 
-  std::vector<std::string> srcstate_parts;
-  boost::split( srcstate_parts, srcstate, boost::is_any_of(";") );
-  
-  if( srcstate_parts.at(0).size() == 0 )
-  {
-    cerr << "srcstate_parts.at(0).size() == 0" << endl;
-    return false;
-  }
-
-  std::map<std::string,double> jname_jpos_map;// for obtaining jstate later on
-
-  for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i )
-  {
-    std::vector<std::string> comps;
-    boost::split( comps, *i, boost::is_any_of(",") );
-    
-    if(comps.size()==8)// object's pose data: id, x, y, z, qx, qy, qz, qw
-    {
-      std::string obj_id = comps.at(0);
-      comps.erase(comps.begin());// remove the id so as to make comps and names (below) exactly have 7 elements
-      
-      std::vector<std::string> names;
-      names.push_back(obj_id+".x"+suffix);
-      names.push_back(obj_id+".y"+suffix);
-      names.push_back(obj_id+".z"+suffix);
-      names.push_back(obj_id+".qx"+suffix);
-      names.push_back(obj_id+".qy"+suffix);
-      names.push_back(obj_id+".qz"+suffix);
-      names.push_back(obj_id+".qw"+suffix);
-      
-      for(std::vector<std::string>::const_iterator j=names.begin(); j!=names.end(); ++j)
-      {
-        std::string name = *j;
-        double val = boost::lexical_cast<double>( comps.at(j-names.begin()) );
-        
-        r_in->insert( std::make_pair(name,val) );
-      }
-    }
-    else if(comps.size()==2)// joint-name, joint-state
-    {
-      // Assume that no duplicated joint data 
-      jname_jpos_map[comps.at(0)] = boost::lexical_cast<double>(comps.at(1));
-    }
-    else
-    {
-      ROS_ERROR_STREAM("srcstate is corrupt; comps.size()= " << comps.size() );
-      return false;
-    }
-  }
-
-  //(2) joint-state on the source vertex, jname_jpos_map is set in step (1)
-  for(std::map<std::string,double>::const_iterator i=jname_jpos_map.begin(); i!=jname_jpos_map.end(); ++i)
-  {
-    r_in->insert(  std::make_pair( i->first,i->second )  );
-  }
-    
-//  //(3) manipulability in the source vertex
-//  ros::service::waitForService("get_manipulability");
-//      
-//  ros::ServiceClient gm_client;
-//  gm_client = nh_.serviceClient<hiro_common::GetManipulability>("get_manipulability");
-//  
-//  hiro_common::GetManipulability::Request gm_req;
-//  hiro_common::GetManipulability::Response gm_res;
-//  
-//  gm_req.jstate = jstate;
-//  gm_req.jspace = "rarm_U_chest";// the biggest jspace of RARM
-//  
-//  if( !(gm_client.call(gm_req,gm_res)) )
-//  {
-//    ROS_DEBUG("GetManipulability srv call: failed");
-//    return false;
-//  }
-//  r_in->insert( std::make_pair("RARM_manipulability"+suffix,gm_res.m) );
-//  
-//  gm_req.jspace = "larm_U_chest";// the biggest jspace of LARM
-//  
-//  if( !(gm_client.call(gm_req,gm_res)) )
-//  {
-//    ROS_DEBUG("GetManipulability srv call: failed");
-//    return false;
-//  }
-//  r_in->insert( std::make_pair("LARM_manipulability"+suffix,gm_res.m) );
+  r_in->insert( std::make_pair("RARM-centric",(double)n_rarm/(n_rarm+n_larm)) );
+  r_in->insert( std::make_pair("LARM-centric",(double)n_larm/(n_rarm+n_larm)) );
   
   return true;
 }
 
-Data* data_;
-Input* in_;
+//! Obtain geometric-feature values
+/*!
+  Geometric features are extracted from information of the head vertex
+  (1) x^{g1} : robot joint states
+  (2) x^{g2} : manipulability measure m of robot state
+  (3) x^{g3}: poses of movable objects
+  (4) x^{g4}: shapes of movable objects (not used in this experiment July 5, 2013)
+  (5) x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
+*/
+template<typename LocalGraph>
+bool 
+get_geo_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,RawInput* r_in,const std::string& suffix="")
+{
+//  cerr << "get_geo_fval(v_h= " << get(vertex_name,g,source(path.at(0),g)) << "): BEGIN" << endl;
+  
+  // Init: parsing string of edge_srcstate
+  std::string srcstate;
+  srcstate = get( edge_srcstate,g,path.at(0) );
+  
+  std::vector<std::string> srcstate_parts;
+  boost::split( srcstate_parts, srcstate, boost::is_any_of(";") );
+  if( srcstate_parts.at(0).size() == 0 )
+  {
+    cerr << "srcstate_parts.at(0).size() == 0 -> get_geo_fval() returns false" << endl;
+    return false;
+  }
 
-std::vector<typename boost::graph_traits<Graph>::edge_descriptor> hot_path_;
+  std::map<std::string,double> jname_jpos_map;
+  std::map<std::string,double> effector_manipulability_map;
+  std::map< std::string,std::vector<double> > obj_pose_map;
+  
+  for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i)
+  {
+    std::vector<std::string> comps;
+    boost::split( comps, *i, boost::is_any_of(",") );
+    
+    std::string header;
+    header = comps.at(0);
+    comps.erase( comps.begin() );
+    
+    if( !strcmp(header.c_str(),std::string("movable_obj_pose").c_str()) )
+    {
+      std::string id = comps.at(0);
+      comps.erase( comps.begin() );
+      
+      std::vector<double> pose(7);// object's pose data: x, y, z, qx, qy, qz, qw
+      for(size_t j=0; j<7; ++j)
+      {
+        pose.at(j) = boost::lexical_cast<double>( comps.at(j) );
+      }
+      
+      obj_pose_map[id] = pose;
+    }
+    else if( !strcmp(header.c_str(),std::string("jstate").c_str()) )
+    {
+      std::string jname;
+      jname = comps.at(0);
+      
+      double jstate;
+      jstate = boost::lexical_cast<double>( comps.at(1) );
+      
+      jname_jpos_map[jname] = jstate;
+    }
+    else if( !strcmp(header.c_str(),std::string("manipulability").c_str()) )
+    {
+      std::string effector;
+      effector = comps.at(0);
+      
+      double m;
+      m = boost::lexical_cast<double>( comps.at(1) );
+      
+      effector_manipulability_map[effector] = m;
+    }
+    else
+    {
+      cerr << "[ERROR] srcstate is corrupt; srcstate: " << srcstate << endl;
+      return false;
+    }
+  }
+
+  // Extract x^{g1} : robot joint states; jname_jpos_map is set above
+  for(std::map<std::string,double>::const_iterator i=jname_jpos_map.begin(); i!=jname_jpos_map.end(); ++i)
+  {
+    r_in->insert(  std::make_pair( i->first,i->second )  );
+  }
+  
+  // Extract x^{g2} : manipulability measure m of robot state
+  for(std::map<std::string,double>::const_iterator i=effector_manipulability_map.begin(); i!=effector_manipulability_map.end(); ++i)
+  {
+    std::string label;
+    label = std::string(i->first+".m");
+    
+    double val;
+    val = i->second;
+    
+    r_in->insert( std::make_pair(label,val) );
+  }
+  
+  // Extract x^{g3}: poses of movable objects
+  for(std::map< std::string,std::vector<double> >::const_iterator i=obj_pose_map.begin(); i!=obj_pose_map.end(); ++i)
+  {
+    std::string obj_id;
+    obj_id = i->first;
+      
+    std::vector<std::string> labels(7);
+    labels.at(0) = obj_id+".x"+suffix;
+    labels.at(1) = obj_id+".y"+suffix;
+    labels.at(2) = obj_id+".z"+suffix;
+    labels.at(3) = obj_id+".qx"+suffix;
+    labels.at(4) = obj_id+".qy"+suffix;
+    labels.at(5) = obj_id+".qz"+suffix;
+    labels.at(6) = obj_id+".qw"+suffix;
+      
+    for(size_t j=0; j<labels.size(); ++j)
+    {
+      std::string label;
+      label = labels.at(j);
+      
+      double val;
+      val = i->second.at(j);
+      
+      r_in->insert( std::make_pair(label,val) );
+    }
+  }
+  
+  // Extract x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
+  for(std::map< std::string,std::vector<double> >::const_iterator i=obj_pose_map.begin(); i!=obj_pose_map.end(); ++i)
+  {
+    std::string label;
+    label = std::string(i->first+".dist");
+    
+    Eigen::RowVectorXd curr_position(3);
+    curr_position << i->second.at(0), i->second.at(1), i->second.at(2);
+    
+    arm_navigation_msgs::CollisionObject col_obj;
+    col_obj = movable_obj_tidy_cfg_[i->first];
+
+    Eigen::RowVectorXd final_position(3);
+    try
+    {
+      final_position << col_obj.poses.at(0).position.x, col_obj.poses.at(0).position.y, col_obj.poses.at(0).position.z;
+    }
+    catch(std::exception& ex)
+    {
+//      cerr << ex.what() << " since " << i->first << endl;
+      continue;
+    }
+    
+    double val;// Euclidean distance
+//    val = sqrt( curr_position.dot(final_position) );// the dot product may result negative values
+    val = sqrt( pow(curr_position[0]-final_position[0],2) + pow(curr_position[1]-final_position[1],2) + pow(curr_position[2]-final_position[2],2)  );
+    
+//    cerr << "curr_position= " << curr_position << endl;
+//    cerr << "final_position= " << final_position << endl;
+//    cerr << "dot= " << curr_position.dot(final_position) << endl;
+//    cerr << "dist val= " << val << endl;
+    
+    r_in->insert( std::make_pair(label,val) );
+  }
+  
+//  cerr << "get_geo_fval(v_h= " << get(vertex_name,g,source(path.at(0),g)) << "): END" << endl;
+  return true;
+}
+
 std::vector<std::string> labels_;
+std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg_;
+};
+
+
+template < typename GlobalGraph >
+class BFSVisitor:public default_bfs_visitor 
+{
+public:
+  BFSVisitor(vector< vector<typename graph_traits<GlobalGraph>::vertex_descriptor> >* predecessors_map)
+  :predecessors_map_(predecessors_map)
+  { }
+  
+  template < typename Edge, typename Graph >
+  void examine_edge(Edge e, const Graph & g) const
+  {
+//    cout << "examine e=(" << get(vertex_name,g,source(e,g)) << "," << get(vertex_name,g,target(e,g)) << ")" << endl;
+    predecessors_map_->at(target(e,g)).push_back(source(e,g));
+  }
+
+private:
+vector< vector<typename graph_traits<GlobalGraph>::vertex_descriptor> >* predecessors_map_;
 };
 
 template<typename Graph>
-class DFSVisitor:public default_dfs_visitor 
+void
+backtrack(const Graph& g
+         ,const std::vector< std::vector<typename graph_traits<Graph>::vertex_descriptor> >& predecessors_map
+         ,const typename graph_traits<Graph>::vertex_descriptor& v
+         ,std::vector< std::vector<typename graph_traits<Graph>::edge_descriptor> >* paths
+         )
 {
-public:
-DFSVisitor(typename boost::graph_traits<Graph>::vertex_descriptor* goal,std::vector< typename boost::graph_traits<Graph>::edge_descriptor >* hot_path)
-: goal_(goal), hot_path_(hot_path)
-{ }
-
-template <class DfsGraph>
-void 
-discover_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
-{
-//  std::cout << "discover " << get(vertex_name,g,v) << std::endl;
-//  std::cout << "out_degree(v,g)= " << out_degree(v,g) << std::endl;
-
-  if( (goal_ != 0) and (*goal_==v) )
-  {
-    throw DFSFoundGoalSignal(); 
-  }
-}
-
-template <class DfsGraph>
-void tree_edge(typename boost::graph_traits<DfsGraph>::edge_descriptor e,DfsGraph& g)
-{
-//  cerr << "Adding: " << get(edge_name,g,e) << endl;
-  hot_path_->push_back(e);
+//  cout << "v= " << get(vertex_name,g,v) << endl;
+//  
+//  cout << "paths.size()= " << paths->size() << endl;
+//  for(size_t i=0; i<paths->size(); ++i)
+//  {
+//    cout << "path th= " << i << ": " << endl;
+//    for(size_t j=0; j<paths->at(i).size(); ++j)
+//    {
+//      typename graph_traits<Graph>::edge_descriptor e = paths->at(i).at(j);
+//      cout << "e(" << get(vertex_name,g,source(e,g)) << "," << get(vertex_name,g,target(e,g)) << "),";
+//    }
+//    cout << endl;
+//  }
   
-//  cerr << "hot_path_: ";
-//  for(typename std::vector<typename boost::graph_traits<DfsGraph>::edge_descriptor>::const_iterator i=hot_path_->begin(); i!=hot_path_->end(); ++i)
-//    cout << "e(" << get(vertex_name,g,source(*i,g)) << "," << get(vertex_name,g,target(*i,g)) << "), ";
-//  cout << endl;
+  if( predecessors_map.at(v).empty() )
+  {
+    return;
+  }
+  
+  size_t n_predecessors;
+  n_predecessors = predecessors_map.at(v).size();
+  
+  // find paths in path_set whose last edge has the source v
+  // Assume that all matched_paths are unique
+  std::vector< std::vector<typename graph_traits<Graph>::edge_descriptor> > matched_paths;
+
+  for(size_t j=0; j<paths->size(); ++j)
+  {
+    typename graph_traits<Graph>::edge_descriptor last_e;
+    last_e = paths->at(j).back();
+    
+    if(source(last_e,g) == v)
+    {
+      matched_paths.push_back( paths->at(j) );
+    }
+  }
+    
+  // Duplicate matched_paths as many as (n_predecessors-1)
+//  cout << "matched_paths.size()= " << matched_paths.size() << endl;
+  for(size_t i=0; i<matched_paths.size(); ++i)
+  {
+    for(size_t j=0; j<(n_predecessors-1); ++j)
+    {
+      paths->push_back(matched_paths.at(i));
+    }
+  }
+
+  for(size_t i=0; i< predecessors_map.at(v).size(); ++i)
+  {
+    typename graph_traits<Graph>::vertex_descriptor p;
+    p = predecessors_map.at(v).at(i);
+    
+    typename graph_traits<Graph>::edge_descriptor e;
+    e = boost::edge(p,v,g).first;
+    
+    // find _one_ (first found) path in path_set whose last edge has the source v,
+    // then add e to that path
+    // TODO is it possible that there exist multiple unique path that end with (v,any) ?
+    bool found = false;
+    for(size_t j=0; j<paths->size(); ++j)
+    {
+      typename graph_traits<Graph>::edge_descriptor last_e;
+      last_e = paths->at(j).back();
+      
+      if(source(last_e,g) == v)
+      {
+        paths->at(j).push_back(e);
+        found = true;
+        break;
+      }
+    }
+
+    if(!found)
+    {
+      // Create a new path with e, then push to paths
+      std::vector<typename graph_traits<Graph>::edge_descriptor> path;
+      path.push_back(e);
+      
+      paths->push_back(path);
+    }
+    
+    backtrack<Graph>(g,predecessors_map,p,paths);
+  }// for each predecessor
 }
 
-template <class DfsGraph>
-void 
-finish_vertex(typename boost::graph_traits<DfsGraph>::vertex_descriptor v,DfsGraph& g)
-{
-//  std::cerr << "finish " << get(vertex_name,g,v) << std::endl;  
-  if( !hot_path_->empty() )
-    hot_path_->erase( hot_path_->end()-1 );
-}
-
-private:
-typename boost::graph_traits<Graph>::vertex_descriptor* goal_;// is a pointer instead of a standard const ref. variable because with pointer the default value is sure
-std::vector< typename boost::graph_traits<Graph>::edge_descriptor >* hot_path_;
-};
-
+}// namespace data_collector
 #endif // #ifndef DATA_COLLECTOR_HPP_INCLUDED

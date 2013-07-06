@@ -9,7 +9,7 @@ namespace ml_util
 {
 
 // online-LWPR related params
-static const size_t LWPR_INPUT_DIM = 68;// with planning horizon M= 5
+static const size_t LWPR_INPUT_DIM = 76;// with planning horizon M= 5 on /home/vektor/rss-2013/data/ref/metadata.5.20130706.csv
 static const size_t LWPR_OUTPUT_DIM = 1;
 
 static const bool TUNED_LWPR_UPDATE_D = false;

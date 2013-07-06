@@ -151,10 +151,11 @@ bool
 convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata_path)
 {
   using namespace std; 
+  cerr << "convert_csv2libsvmdata : BEGIN" << endl;
   
   Data data;
   size_t n_line = utils::get_n_lines(csv_path);
-  cerr << "n_line= " << n_line << endl;
+//  cerr << "n_line= " << n_line << endl;
   
   ifstream csv(csv_path.c_str());
   if (csv.is_open())
@@ -172,16 +173,40 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
       if(str_vals.at(0).size() == 0)
       {
         cerr << "str_vals.at(0).size() == 0 [csv is CORRUPTED]" << endl;
-        return false;
+        continue;
       }
       
       // Obtain the input vector and the output
       Input in;
+      bool all_in_okay = true;
       for(vector<string>::const_iterator i=str_vals.begin(); i!=str_vals.end()-1; ++i)// minus the single output value
-        in.push_back( boost::lexical_cast<double>(*i) );
-        
+      {
+        double in_val;
+        try
+        {
+          in_val = boost::lexical_cast<double>(*i);
+        }
+        catch(std::exception const&  ex)
+        {
+          std::cerr << ex.what() << std::endl;
+          all_in_okay = false;
+          break;
+        }
+      
+        in.push_back(in_val);
+      }
+      if(!all_in_okay) continue;
+      
       Output out;
-      out = boost::lexical_cast<double>(str_vals.back());
+      try
+      {
+        out = boost::lexical_cast<double>(str_vals.back());
+      }
+      catch(std::exception const&  ex)
+      {
+        std::cerr << ex.what() << std::endl;
+        continue;
+      }
       
       // Wrap up
       bool unique;
@@ -197,7 +222,8 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
     cerr << "Cannot open: " << csv_path << endl;
     return false;
   }
-   
+
+  cerr << "convert_csv2libsvmdata : END (with write_libsvm_data(data,libsvmdata_path))" << endl;   
   return write_libsvm_data(data,libsvmdata_path);
 }
 
