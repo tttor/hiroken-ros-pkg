@@ -12,8 +12,6 @@
 namespace data_collector
 {
 
-struct DFSFoundGoalSignal {}; // exception for termination
-
 template <class Graph>
 class DataCollector: public boost::dfs_visitor<>
 {
@@ -22,7 +20,7 @@ DataCollector(std::string metadata_path,std::map<std::string, arm_navigation_msg
 { 
   labels_ = data_util::get_labels(metadata_path);
   
-  movable_obj_tidy_cfg = movable_obj_tidy_cfg;
+  movable_obj_tidy_cfg_ = movable_obj_tidy_cfg;
 }
 
 //! Used for obtaining features (as input) _online_ during search.
@@ -142,10 +140,7 @@ get_fval_local(const std::vector<typename boost::graph_traits<LocalGraph>::edge_
   RawInput r_in;
 
   // Geo. features extracted from the head vertex of this path: object pose+manipulability+jstates in the source vertex
-  std::string srcstate;
-  srcstate = get( edge_srcstate,g,path.at(0) );
-
-  if( !get_geo_fval(srcstate,&r_in) )
+  if( !get_geo_fval<LocalGraph>(path,g,&r_in) )
     return false;
   
   // Sym. features
@@ -228,15 +223,21 @@ get_sym_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_de
 /*!
   Geometric features are extracted from information of the head vertex
   (1) x^{g1} : robot joint states
-  TODO (2) x^{g2} : manipulability measure m of robot state
+  (2) x^{g2} : manipulability measure m of robot state
   (3) x^{g3}: poses of movable objects
   (4) x^{g4}: shapes of movable objects (not used in this experiment July 5, 2013)
   (5) x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions
 */
+template<typename LocalGraph>
 bool 
-get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffix="")
+get_geo_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_descriptor>& path, const LocalGraph& g,RawInput* r_in,const std::string& suffix="")
 {
+//  cerr << "get_geo_fval(v_h= " << get(vertex_name,g,source(path.at(0),g)) << "): BEGIN" << endl;
+  
   // Init: parsing string of edge_srcstate
+  std::string srcstate;
+  srcstate = get( edge_srcstate,g,path.at(0) );
+  
   std::vector<std::string> srcstate_parts;
   boost::split( srcstate_parts, srcstate, boost::is_any_of(";") );
   if( srcstate_parts.at(0).size() == 0 )
@@ -246,6 +247,7 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
   }
 
   std::map<std::string,double> jname_jpos_map;
+  std::map<std::string,double> effector_manipulability_map;
   std::map< std::string,std::vector<double> > obj_pose_map;
   
   for(std::vector<std::string>::const_iterator i=srcstate_parts.begin(); i!=srcstate_parts.end(); ++i)
@@ -253,26 +255,46 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
     std::vector<std::string> comps;
     boost::split( comps, *i, boost::is_any_of(",") );
     
-    if(comps.size()==8)// object's pose data: id, x, y, z, qx, qy, qz, qw
+    std::string header;
+    header = comps.at(0);
+    comps.erase( comps.begin() );
+    
+    if( !strcmp(header.c_str(),std::string("movable_obj_pose").c_str()) )
     {
       std::string id = comps.at(0);
+      comps.erase( comps.begin() );
       
-      std::vector<double> pose(7);
-      for(size_t j=1; j<8; ++j)// excluding obj_id, which is at(0)
+      std::vector<double> pose(7);// object's pose data: x, y, z, qx, qy, qz, qw
+      for(size_t j=0; j<7; ++j)
       {
-        pose.at(j-1) = boost::lexical_cast<double>( comps.at(j) );
+        pose.at(j) = boost::lexical_cast<double>( comps.at(j) );
       }
       
       obj_pose_map[id] = pose;
     }
-    else if(comps.size()==2)// joint-name, joint-state
+    else if( !strcmp(header.c_str(),std::string("jstate").c_str()) )
     {
-      // Assume that no duplicated joint data 
-      jname_jpos_map[comps.at(0)] = boost::lexical_cast<double>( comps.at(1) );
+      std::string jname;
+      jname = comps.at(0);
+      
+      double jstate;
+      jstate = boost::lexical_cast<double>( comps.at(1) );
+      
+      jname_jpos_map[jname] = jstate;
+    }
+    else if( !strcmp(header.c_str(),std::string("manipulability").c_str()) )
+    {
+      std::string effector;
+      effector = comps.at(0);
+      
+      double m;
+      m = boost::lexical_cast<double>( comps.at(1) );
+      
+      effector_manipulability_map[effector] = m;
     }
     else
     {
-      ROS_ERROR_STREAM("srcstate is corrupt; comps.size()= " << comps.size() );
+      cerr << "[ERROR] srcstate is corrupt; srcstate: " << srcstate << endl;
       return false;
     }
   }
@@ -281,6 +303,18 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
   for(std::map<std::string,double>::const_iterator i=jname_jpos_map.begin(); i!=jname_jpos_map.end(); ++i)
   {
     r_in->insert(  std::make_pair( i->first,i->second )  );
+  }
+  
+  // Extract x^{g2} : manipulability measure m of robot state
+  for(std::map<std::string,double>::const_iterator i=effector_manipulability_map.begin(); i!=effector_manipulability_map.end(); ++i)
+  {
+    std::string label;
+    label = std::string(i->first+".m");
+    
+    double val;
+    val = i->second;
+    
+    r_in->insert( std::make_pair(label,val) );
   }
   
   // Extract x^{g3}: poses of movable objects
@@ -316,49 +350,41 @@ get_geo_fval(const std::string& srcstate,RawInput* r_in,const std::string& suffi
     std::string label;
     label = std::string(i->first+".dist");
     
-    Eigen::Vector3f curr_position;
-    Eigen::Vector3f final_position;
+    Eigen::RowVectorXd curr_position(3);
+    curr_position << i->second.at(0), i->second.at(1), i->second.at(2);
+    
+    arm_navigation_msgs::CollisionObject col_obj;
+    col_obj = movable_obj_tidy_cfg_[i->first];
+
+    Eigen::RowVectorXd final_position(3);
+    try
+    {
+      final_position << col_obj.poses.at(0).position.x, col_obj.poses.at(0).position.y, col_obj.poses.at(0).position.z;
+    }
+    catch(std::exception& ex)
+    {
+//      cerr << ex.what() << " since " << i->first << endl;
+      continue;
+    }
     
     double val;// Euclidean distance
-    val = sqrt( curr_position.dot(final_position) );
+//    val = sqrt( curr_position.dot(final_position) );// the dot product may result negative values
+    val = sqrt( pow(curr_position[0]-final_position[0],2) + pow(curr_position[1]-final_position[1],2) + pow(curr_position[2]-final_position[2],2)  );
+    
+//    cerr << "curr_position= " << curr_position << endl;
+//    cerr << "final_position= " << final_position << endl;
+//    cerr << "dot= " << curr_position.dot(final_position) << endl;
+//    cerr << "dist val= " << val << endl;
     
     r_in->insert( std::make_pair(label,val) );
   }
   
-    
-//  //(3) manipulability in the source vertex
-//  ros::service::waitForService("get_manipulability");
-//      
-//  ros::ServiceClient gm_client;
-//  gm_client = nh_.serviceClient<hiro_common::GetManipulability>("get_manipulability");
-//  
-//  hiro_common::GetManipulability::Request gm_req;
-//  hiro_common::GetManipulability::Response gm_res;
-//  
-//  gm_req.jstate = jstate;
-//  gm_req.jspace = "rarm_U_chest";// the biggest jspace of RARM
-//  
-//  if( !(gm_client.call(gm_req,gm_res)) )
-//  {
-//    ROS_DEBUG("GetManipulability srv call: failed");
-//    return false;
-//  }
-//  r_in->insert( std::make_pair("RARM_manipulability"+suffix,gm_res.m) );
-//  
-//  gm_req.jspace = "larm_U_chest";// the biggest jspace of LARM
-//  
-//  if( !(gm_client.call(gm_req,gm_res)) )
-//  {
-//    ROS_DEBUG("GetManipulability srv call: failed");
-//    return false;
-//  }
-//  r_in->insert( std::make_pair("LARM_manipulability"+suffix,gm_res.m) );
-  
+//  cerr << "get_geo_fval(v_h= " << get(vertex_name,g,source(path.at(0),g)) << "): END" << endl;
   return true;
 }
 
 std::vector<std::string> labels_;
-utils::ObjCfg movable_obj_tidy_cfg;
+std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg_;
 };
 
 

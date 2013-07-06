@@ -88,11 +88,11 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       }
     }
     
-    cout << "Sorted edges connecting to " << get(vertex_name,g,*avi) << " -> " << n_avi << "-th" << endl;
-    for(size_t i=0; i<conn_edges.size(); ++i)
-    {
-      cout << i << " -> " << get(edge_jspace,g,conn_edges.at(i)) << endl;
-    }
+//    cout << "Sorted edges connecting to " << get(vertex_name,g,*avi) << " -> " << n_avi << "-th" << endl;
+//    for(size_t i=0; i<conn_edges.size(); ++i)
+//    {
+//      cout << i << " -> " << get(edge_jspace,g,conn_edges.at(i)) << endl;
+//    }
     
     // Do geometric planning
     for(size_t i=0; i<conn_edges.size(); ++i)
