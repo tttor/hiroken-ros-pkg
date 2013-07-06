@@ -14,7 +14,7 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
 {
   ros::service::waitForService("plan_grasp");
   n_ctamp_attempt_ = 0;
-  n_data_ = 0;
+  n_ml_update_ = 0;
   
   lwpr_model_ = new LWPR_Object(ml_util::LWPR_INPUT_DIM,ml_util::LWPR_OUTPUT_DIM);
 }
@@ -70,6 +70,7 @@ bool
 PlannerManager::clear_n_ctamp_attempt_srv_handle(planner_manager::Misc::Request& req, planner_manager::Misc::Response& res)
 {
   n_ctamp_attempt_ = 0;
+  
   return true;
 }
 
@@ -279,8 +280,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
-                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_heuristic_ml_mode,prep_data_)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&n_exp_op) )
+                    , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_heuristic_ml_mode,prep_data_,&n_ml_update_)
+                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&n_exp_op,&n_ml_update_) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -299,13 +300,15 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
           lwpr_model_->setInitD(ml_util::TUNED_LWPR_D);/* Set initial distance metric to D*(identity matrix) */
           lwpr_model_->setInitAlpha(ml_util::TUNED_LWPR_ALPHA);/* Set init_alpha to _alpha_ in all elements */
           lwpr_model_->penalty(ml_util::TUNED_LWPR_PEN);
+          
+          ROS_DEBUG("lwpr_model_: INITIALIZED");
         }
         
         ROS_DEBUG("Searching over TMM ...");
         astar_search( tmm_
                     , tmm_root_
-                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,ml_mode,prep_data_)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&n_exp_op) )
+                    , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,ml_mode,prep_data_,&n_ml_update_)
+                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&n_exp_op,&n_ml_update_) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
