@@ -302,36 +302,33 @@ get_samples_online(TMMVertex v,Data* samples)
   ROS_DEBUG_STREAM("num_edges(local_tmm)= " << num_edges(local_tmm));
   ROS_DEBUG_STREAM("num_edges(filtered_local_tmm)= " << num_edges(filtered_local_tmm));
 
-  // Extract training samples from hot_paths: all possible paths from tmm_root_ to the adjacent vertices of v, which are the targets of the just planned edges
+  // Extract training samples from hot_paths: all possible paths from tmm_root_ to the adjacent vertices of v
   std::vector< std::vector<PlannedTMMVertex> > predecessors_map(num_vertices(filtered_local_tmm));
   data_collector::BFSVisitor<PlannedTMM> vis(&predecessors_map);
-  
+
   boost::breadth_first_search(filtered_local_tmm,pm_->tmm_root_,visitor(vis));// Find predecessors_map
-    
-  graph_traits<PlannedTMM>::adjacency_iterator avi, avi_end;
-  for(tie(avi,avi_end)=adjacent_vertices(v,filtered_local_tmm); avi!=avi_end; ++avi )  
+
+  std::vector< std::vector<PlannedTMMEdge> > hot_paths;
+  data_collector::backtrack<PlannedTMM>(filtered_local_tmm,predecessors_map,v,&hot_paths);// Find all planned paths from root to the expanded vertex v
+       
+  graph_traits<PlannedTMM>::out_edge_iterator oei,oei_end;
+  for(tie(oei,oei_end)=out_edges(v,filtered_local_tmm); oei!=oei_end; ++oei )// Recall that filtered_local_tmm is _not_ a multigraph now  
   {
-    // Find hot_paths through backtracking using predecessors_map
-    std::vector< std::vector<PlannedTMMEdge> > hot_paths;
-    TMMVertex goal = *avi;
-  
-    data_collector::backtrack<PlannedTMM>(filtered_local_tmm,predecessors_map,goal,&hot_paths);
-  
     for(size_t i=0; i<hot_paths.size(); ++i)
     {
-      std::reverse(hot_paths.at(i).begin(),hot_paths.at(i).end());
-      
-      ROS_DEBUG_STREAM("hot_path th= " << i+1 << " of avi= " << get(vertex_name,filtered_local_tmm,*avi));
-      for(std::vector<TMMEdge>::const_iterator j=hot_paths.at(i).begin(); j!=hot_paths.at(i).end(); ++j)
-        ROS_DEBUG_STREAM("e(" << get(vertex_name,filtered_local_tmm,source(*j,filtered_local_tmm)) << "," << get(vertex_name,filtered_local_tmm,target(*j,filtered_local_tmm)) << "), ");
+      std::vector<PlannedTMMEdge> hot_path;
+      hot_path = hot_paths.at(i);
 
-      std::vector<boost::graph_traits<PlannedTMM>::edge_descriptor> path;
-      path = hot_paths.at(i);
+      std::reverse(hot_path.begin(),hot_path.end());// because it is resulted from a backtracking
 
+      // Append with this out-edge 
+      hot_path.push_back(*oei);
+
+      // Get samples
       data_collector::DataCollector<PlannedTMM> dc(METADATA_PATH,pm_->movable_obj_tidy_cfg_);
-      dc.get_samples(hot_paths.at(i),filtered_local_tmm,samples);
+      dc.get_samples(hot_path,filtered_local_tmm,samples);
     }
-  }// end of: for_each avi
+  }
 
   ROS_DEBUG_STREAM("get_samples_online(v= " << get(vertex_name,pm_->tmm_,v) << "): END");    
   return true;
