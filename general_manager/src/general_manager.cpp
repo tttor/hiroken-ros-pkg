@@ -319,7 +319,7 @@ main(int argc, char **argv)
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
         
-        if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )
         {
           ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << j+1  );
           break;
