@@ -255,6 +255,7 @@ main(int argc, char **argv)
   int mode = 0;
   if( !ros::param::get("/mode",mode) )
     ROS_WARN("Can not get /mode, use the default value (=0) instead");
+  cerr << "mode= " << mode << endl;
   
   int n_obj = 0;
   if( !ros::param::get("/n_obj",n_obj) )
@@ -776,6 +777,52 @@ main(int argc, char **argv)
         return false;
       }
     
+      break;
+    }
+    case 15:
+    // For rebase-ing i.e. fix some stuff in the baseline
+    // Assume that al directories under path(base_data_path) are baseline directories
+    // This overwrites all perf logs, tmm.dot
+    // Usage: $ roslaunch hiro_common a.launch  mode:=15 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline.rebased.test
+    {
+      // Get all directory under path, assume all directories are the baselines
+      std::vector<std::string> instance_paths;
+      
+      boost::filesystem::directory_iterator end_itr; // default construction yields past-the-end
+      for ( boost::filesystem::directory_iterator itr(base_data_path);itr != end_itr; ++itr )
+      {
+        if ( is_directory(itr->status()) )
+          instance_paths.push_back( itr->path().string() );
+      }
+      
+      // Run for all instances
+      for(size_t i=0; i<instance_paths.size(); ++i)
+      {
+        ROS_DEBUG_STREAM("Rebasing " << i+1 << " of " << instance_paths.size());
+
+        // Prepare dir + tidy.cfg file
+        base_data_path = instance_paths.at(i);
+        ros::param::set("/base_data_path",base_data_path);
+        
+        std::string data_path;
+        data_path = base_data_path;
+        ros::param::set("/data_path",data_path);
+
+        // Sense
+        gm.sense( std::string(base_data_path+messy_cfg_filename) );
+
+        // Plan, rerun=false
+        ml_util::MLMode mode = ml_util::NO_ML;
+        bool rerun = true;
+        std::string log_path;// not used in this mode
+        std::string ml_hot_path;// not used in this mode
+        
+        if( !gm.plan(mode,rerun,ml_hot_path) )// Informed search, with the (planned) TMM under base_path
+        {
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
+          break;
+        }
+      }
       break;
     }
     case 12:

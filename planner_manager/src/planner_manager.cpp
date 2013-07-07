@@ -107,6 +107,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
 
   // Initialize
   tmm_ = TaskMotionMultigraph();// renew the tmm_, necessary because there are multiple attempts in an episode
+  ucs_tmm_ = TaskMotionMultigraph();// renew the ucs_tmm_, necessary because there are multiple attempts in an episode
     
   if(!rerun)
   {
@@ -320,7 +321,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
         for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
         {
-          total_mp_time += get(edge_mptime,tmm_,*oei);
+          std::string color;
+          color = get(edge_color,tmm_,*oei);
+          
+          if( strcmp(color.c_str(),std::string("black").c_str()) )// if _not_ black
+            total_mp_time += get(edge_mptime,tmm_,*oei);
         }
       }
       else
