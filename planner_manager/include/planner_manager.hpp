@@ -137,6 +137,9 @@ LWPR_Object* lwpr_model_;
 
 //! Number of ml model updates/trains
 size_t n_ml_update_;
+
+//! Only used in rerun mode, for inheriting motion planning from prev. run that used UCS and for computing true cost2go
+TaskMotionMultigraph ucs_tmm_;
 };// end of: class PlannerManager
 
 #endif // #ifndef PLANNER_MANAGER_HPP_INCLUDED

@@ -107,7 +107,6 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
 
   // Initialize
   tmm_ = TaskMotionMultigraph();// renew the tmm_, necessary because there are multiple attempts in an episode
-  TaskMotionMultigraph ori_ucs_tmm;// only used in rerun modes for (a)inheriting (re-using) motion planning result from the baseline attempts and (b)computing true cost2go
     
   if(!rerun)
   {
@@ -154,64 +153,32 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   {
     put( edge_color,tmm_,*ei,std::string("black") );
     put( edge_weight,tmm_,*ei,std::numeric_limits<double>::max() );
-    put( edge_nograsppose,tmm_,*ei,true );
   }
 
   // Retrieve the UCS-planned TMM only if rerun (=benchmarked attempt)
   // Assume that the base directory for rerun contains UCS-planned TMM having a CTAMP solution  
   if(rerun)
   {
-    boost::dynamic_properties ori_ucs_tmm_dp;
+    boost::dynamic_properties ucs_tmm_dp;
     
-    ori_ucs_tmm_dp.property("vertex_id", get(vertex_name, ori_ucs_tmm));
+    ucs_tmm_dp.property("vertex_id", get(vertex_name, ucs_tmm_));
     
-    ori_ucs_tmm_dp.property( "label",get(edge_name, ori_ucs_tmm) );
-    ori_ucs_tmm_dp.property( "weight",get(edge_weight, ori_ucs_tmm) );  
-    ori_ucs_tmm_dp.property( "jspace",get(edge_jspace, ori_ucs_tmm) );
-    ori_ucs_tmm_dp.property( "color",get(edge_color, ori_ucs_tmm) );
-    ori_ucs_tmm_dp.property( "srcstate",get(edge_srcstate, ori_ucs_tmm) );  
-    ori_ucs_tmm_dp.property( "mptime",get(edge_mptime, ori_ucs_tmm) );  
-    ori_ucs_tmm_dp.property( "planstr",get(edge_planstr, ori_ucs_tmm) );
+    ucs_tmm_dp.property( "label",get(edge_name, ucs_tmm_) );
+    ucs_tmm_dp.property( "weight",get(edge_weight, ucs_tmm_) );  
+    ucs_tmm_dp.property( "jspace",get(edge_jspace, ucs_tmm_) );
+    ucs_tmm_dp.property( "color",get(edge_color, ucs_tmm_) );
+    ucs_tmm_dp.property( "srcstate",get(edge_srcstate, ucs_tmm_) );  
+    ucs_tmm_dp.property( "mptime",get(edge_mptime, ucs_tmm_) );  
+    ucs_tmm_dp.property( "planstr",get(edge_planstr, ucs_tmm_) );
 
-    std::ifstream ori_ucs_tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
-    if( !read_graphviz(ori_ucs_tmm_dot, ori_ucs_tmm, ori_ucs_tmm_dp, "vertex_id") )
+    std::ifstream ucs_tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
+    if( !read_graphviz(ucs_tmm_dot, ucs_tmm_, ucs_tmm_dp, "vertex_id") )
     {
-      ROS_ERROR("read_graphviz(ori_ucs_tmm_dot,...): Failed.");
+      ROS_ERROR("read_graphviz(ucs_tmm_dot,...): Failed.");
       return false;
     }
-
-    // Inherit for re-using motion planning result
-    graph_traits<TaskMotionMultigraph>::edge_iterator ei,ei_end;
-    
-    std::vector<TMMEdge> ori_ucs_tmm_edges;
-    for(tie(ei,ei_end)=edges(ori_ucs_tmm); ei!=ei_end; ++ei)
-      ori_ucs_tmm_edges.push_back(*ei);
-    
-    for(tie(ei,ei_end)=edges(tmm_); ei!=ei_end; ++ei)
-    {
-      std::vector<TMMEdge>::iterator it;
-      it = std::find_if(ori_ucs_tmm_edges.begin(),ori_ucs_tmm_edges.end(),FindEqualEdge(*ei,tmm_,ori_ucs_tmm));
-      
-      if(it != ori_ucs_tmm_edges.end())// found
-      {
-        // Copy edge property from ori_ucs_tmm to tmm_
-        // We donot copy 2 properties: edge_label and edge_jspace
-        put( edge_weight,tmm_,*ei,get(edge_weight,ori_ucs_tmm,*it) );
-        put( edge_color,tmm_,*ei,get(edge_color,ori_ucs_tmm,*it) );
-        put( edge_srcstate,tmm_,*ei,get(edge_srcstate,ori_ucs_tmm,*it) );
-        put( edge_mptime,tmm_,*ei,get(edge_mptime,ori_ucs_tmm,*it) );
-        put( edge_planstr,tmm_,*ei,get(edge_planstr,ori_ucs_tmm,*it) );
-        put( edge_plan,tmm_,*ei, utils::get_plan(get(edge_planstr,tmm_,*ei)) );
-        put( edge_nograsppose,tmm_,*ei,false );
-        
-        // Change from edge in solution path (blue) to green (geometrically-validated and has motion plan)
-        std::string color;
-        color = get(edge_color,tmm_,*ei);
-        if( !strcmp(color.c_str(),std::string("blue").c_str()) )
-          put( edge_color,tmm_,*ei,std::string("green") );
-      }
-    }    
-  }// if rerun
+    ROS_DEBUG("read_graphviz(ucs_tmm_dot,...): Succeeded");
+  }// if(rerun)
   
   // Mark the root and the goal vertex in the TMM
   boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
@@ -687,7 +654,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, tmm_) );
     typedef filtered_graph< TaskMotionMultigraph, PlannedEdgeFilter<TMMEdgeColorMap> > UCSPlannedEdgeOnlyTMM;
-    UCSPlannedEdgeOnlyTMM ucs_tmm(ori_ucs_tmm,planned_edge_filter);// for now, we do not struggle doing planning for un-planned edge, instead we assume that those edges "truly, as the true value" have very high cost to the goal
+    UCSPlannedEdgeOnlyTMM filtered_ucs_tmm(ucs_tmm_,planned_edge_filter);// for now, we do not struggle doing planning for un-planned edge, instead we assume that those edges "truly, as the true value" have very high cost to the goal
     
     size_t n_hcmp = 0;// the number of (est-cost2go vs. true-cost2go) obtained from this attempt
     for(std::set<TMMVertex>::iterator i=expvert_plus_set.begin(); i!=expvert_plus_set.end(); ++i)
@@ -701,15 +668,15 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       // Obtain true_cost-to-go using the Djikstra
       double cost2go = 0.;// initialize with an invalid cost 
             
-      std::vector< graph_traits<UCSPlannedEdgeOnlyTMM>::vertex_descriptor > parents(num_vertices(ucs_tmm));
+      std::vector< graph_traits<UCSPlannedEdgeOnlyTMM>::vertex_descriptor > parents(num_vertices(filtered_ucs_tmm));
       typedef graph_traits<UCSPlannedEdgeOnlyTMM>::vertices_size_type size_type;
-      for(size_type p=0; p < num_vertices(ucs_tmm); ++p)
+      for(size_type p=0; p < num_vertices(filtered_ucs_tmm); ++p)
         parents.at(p) = p;
       
       graph_traits<UCSPlannedEdgeOnlyTMM>::vertex_descriptor dijkstra_src;
       dijkstra_src = *i;
       
-      dijkstra_shortest_paths( ucs_tmm,dijkstra_src,predecessor_map(&parents[0]) );
+      dijkstra_shortest_paths( filtered_ucs_tmm,dijkstra_src,predecessor_map(&parents[0]) );
       
       if(parents.at(tmm_goal_) != tmm_goal_)// then, there is a path in ucs-planned TMM from src to the goal
       {
@@ -721,12 +688,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         {
           double cheapest_cost = std::numeric_limits<double>::max();// of the several edges of (parent of hot_v)-->(hot_v), can not use boost::edge() due to multigraph
           graph_traits<UCSPlannedEdgeOnlyTMM>::out_edge_iterator oei,oei_end;
-          for(boost::tie(oei,oei_end) = out_edges(parents.at(hot_v),ucs_tmm); oei!=oei_end; ++oei)
+          for(boost::tie(oei,oei_end) = out_edges(parents.at(hot_v),filtered_ucs_tmm); oei!=oei_end; ++oei)
           {
-            if(target(*oei,ucs_tmm) == hot_v)
+            if(target(*oei,filtered_ucs_tmm) == hot_v)
             {
               double cost;
-              cost = get(edge_weight,ucs_tmm,*oei);
+              cost = get(edge_weight,filtered_ucs_tmm,*oei);
               
               if(cost < cheapest_cost) 
                 cheapest_cost = cost;
@@ -746,7 +713,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
       
       // Write
-      h_log << h << "," << cost2go /* << "," << get(vertex_name,ucs_tmm,*i) */ << std::endl;
+      h_log << h << "," << cost2go /* << "," << get(vertex_name,filtered_ucs_tmm,*i) */ << std::endl;
       ++n_hcmp;
     }// for each vertex in expvert_plus_set
     
