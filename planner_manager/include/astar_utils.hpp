@@ -103,16 +103,9 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
 
       double gp_time = 0.;
       bool found_mp = false;
-      bool found_gp = false;// gp for at least one goal pose
       
-      gpm_->plan(e,&gp_time,&found_gp,&found_mp);
+      gpm_->plan(e,&gp_time,&found_mp);
       *total_gp_time_ += gp_time;
-      
-      if(!found_gp)
-      {
-        gpm_->remove_ungraspable_edge(e);
-        continue;
-      }
       
       if(found_mp) break;
     }// for all conn_edges
