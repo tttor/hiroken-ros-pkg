@@ -75,41 +75,68 @@ GeometricPlannerManager(PlannerManager* pm)
 bool
 plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
 {
-  // Check whether this edge is already geometrically planned: edge_color is not black
-  std::string color;
-  color = get(edge_color,pm_->tmm_,e);
-  if( !strcmp(color.c_str(),std::string("black").c_str()) )
+  // Check whether this edge is already geometrically planned in the prev. run, in this case, the one used UCS
+  graph_traits<TaskMotionMultigraph>::edge_iterator ucs_tmm_ei,ucs_tmm_ei_end;
+  tie(ucs_tmm_ei,ucs_tmm_ei_end) = edges(pm_->ucs_tmm_);
+  
+  if(ucs_tmm_ei != ucs_tmm_ei_end)// if this is rerun mode
   {
-    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
-  }
-  else
-  {
-    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= already DONE.");
+    graph_traits<TaskMotionMultigraph>::edge_iterator matched_edge_it;
+    matched_edge_it = std::find_if( ucs_tmm_ei,ucs_tmm_ei_end,FindEqualEdge(e,pm_->tmm_,pm_->ucs_tmm_) );
     
-    *found_gp = true;
-    *found_mp = true;
-    
-    return true;
-  }
+    if(matched_edge_it != ucs_tmm_ei_end)// found, otherwise the should-be matched edge is already removed as no grasp pose
+    {
+      std::string matched_edge_color;
+      matched_edge_color = get(edge_color,pm_->ucs_tmm_,*matched_edge_it);
+      
+      if( strcmp(matched_edge_color.c_str(),std::string("black").c_str()) )// if the color is _not_ "black", then it has been motion planned
+      {
+        ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= already DONE.");
+      
+        // Inherit the property from matched_edge of ucs_tmm_ to this tmm_
+        // We do not copy these properties: 
+        // (1,2) edge_label and edge_jspace (as they are unchanged) and 
+        // (3) srcstate (as it is always updated in set_av_jstate()) and
+        // (4) no_grasppose (as we know exa)
+        put( edge_weight,pm_->tmm_,e,
+             get(edge_weight,pm_->ucs_tmm_,*matched_edge_it) );
+        
+        put( edge_color,pm_->tmm_,e,
+             get(edge_color,pm_->ucs_tmm_,*matched_edge_it) );
+             
+        put( edge_mptime,pm_->tmm_,e,
+             get(edge_mptime,pm_->ucs_tmm_,*matched_edge_it) );
+        
+        put( edge_planstr,pm_->tmm_,e,
+             get(edge_planstr,pm_->ucs_tmm_,*matched_edge_it) );
+             
+        put( edge_plan,pm_->tmm_,e, 
+             get(edge_plan,pm_->ucs_tmm_,*matched_edge_it) );
 
+        *found_gp = true;
+        *found_mp = true;
+      
+        return true;
+      }
+    }//if(matched_edge_it != ucs_tmm_ei_end)// found
+    else
+    {
+      ROS_DEBUG("Prev. runs have found that no graps pose exists, as the matched edge in ucs_tmm_ has been removed.");
+    
+      *found_gp = false;
+      *found_mp = false;
+      
+      return true;
+    }// _not_ if(matched_edge_it != ucs_tmm_ei_end)// found
+  }// if(ucs_tmm_ei != ucs_tmm_ei_end)// if this is rerun mode
+  
+  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
   
   // Get the start point /subseteq vertex_jstates (source of e) based on jspace of this edge e
   sensor_msgs::JointState start_state;
   start_state = get_jstate_subset(  get(edge_jspace, pm_->tmm_, e), get(vertex_jstates, pm_->tmm_, source(e, pm_->tmm_))  );
-//  ROS_DEBUG_STREAM("start_state: SET with " << start_state.position.size() << " joints");
   
   // Determine all possible goal poses
-  // For rerun, check whether previous runs have found that no graps pose exists, in order to speed up the rerun planning
-  if( get(edge_nograsppose,pm_->tmm_,e) )
-  {
-    ROS_DEBUG("Prev. runs have found that no graps pose exists.");
-    
-    *found_gp = false;
-    *found_mp = false;
-    
-    return true;
-  }
-  
   std::vector<sensor_msgs::JointState> goal_set;// Note that we do not use std::set because of a ros-msg constraint that is an array[] is handled as a vector
   
   std::vector<std::string> target_vertex_name_parts;
@@ -144,6 +171,7 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
   else
   {
     *found_gp = true;
+    // edge no_grasppose is not set false here, as the edge will be immediately removed
   }
   
   // MOTION PLANNING ================================================================================================================================
