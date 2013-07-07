@@ -55,6 +55,13 @@ struct GeoPlanningCost
   {
     return (process + result);
   }
+  
+  void
+  clear()
+  {
+    process = 0.;
+    result = 0.;
+  }
 };
 
 class GeometricPlannerManager
@@ -73,7 +80,7 @@ GeometricPlannerManager(PlannerManager* pm)
 }
 
 bool
-plan(TMMEdge e,double* gp_time,double* mp_time,bool* found_mp)
+plan(TMMEdge e,double* gp_time,double* mp_time,bool* mp_found_ptr)
 {
   // Check whether this edge is already geometrically planned in the prev. run, in this case, the one used UCS
   // Assume that time spent for this checking (includes finding matched edge, inheriting) can be ignored
@@ -115,9 +122,9 @@ plan(TMMEdge e,double* gp_time,double* mp_time,bool* found_mp)
              get(edge_plan,pm_->ucs_tmm_,*matched_edge_it) );
 
         if( !strcmp(matched_edge_color.c_str(),std::string("red").c_str()) )// no motion plan
-          *found_mp = false;
+          *mp_found_ptr = false;
         else if( !strcmp(matched_edge_color.c_str(),std::string("green").c_str()) )
-          *found_mp = true;
+          *mp_found_ptr = true;
         
         return true;
       }
@@ -127,7 +134,7 @@ plan(TMMEdge e,double* gp_time,double* mp_time,bool* found_mp)
       ROS_DEBUG("Prev. runs have found that no graps pose exists, as the matched edge in ucs_tmm_ has been removed, this edge will also be removed.");
     
       remove_edge(e,pm_->tmm_);
-      *found_mp = false;
+      *mp_found_ptr = false;
       
       return true;
     }// _not_ if(matched_edge_it != ucs_tmm_ei_end)// found
@@ -213,7 +220,29 @@ plan(TMMEdge e,double* gp_time,double* mp_time,bool* found_mp)
   }
   ROS_INFO_STREAM("n_attempt= " << n_attempt);
   
-  *found_mp = found;
+  // Reset the planning environment
+  reset_planning_env();
+  
+  // Calculate the cost of iterating over the goal set
+  // Because we only strive for 1 success, n_failure is always n_attempt-1
+  double iter_cost;
+  iter_cost = exp( (double)(n_attempt-1)/(double)(n_attempt) );
+  
+  // Sanity check isNan
+  if( (cost.total()+iter_cost) != (cost.total()+iter_cost) )
+  {
+    ROS_ERROR_STREAM("iter_cost= " << iter_cost);
+    ROS_ERROR_STREAM("cost.process= " << cost.process);
+    ROS_ERROR_STREAM("cost.result= " << cost.result);
+    ROS_ERROR("nan detected in motion planning cost -> cancel the result of motion planning as if there is no motion plan found");
+    
+    // Then cancel the result of motion planning as if there is no motion plan found
+    plan = trajectory_msgs::JointTrajectory();
+    cost.clear();
+    found = false;
+  }
+
+  *mp_found_ptr = found;
   if( !found ) // even after considering all goal poses in the goal_set
   {
     ROS_INFO_STREAM("No motion plan for " << goal_set.size() << " goals for e= " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e));
@@ -228,24 +257,6 @@ plan(TMMEdge e,double* gp_time,double* mp_time,bool* found_mp)
   {
     put(edge_color,pm_->tmm_,e,std::string("green"));// geometrically validated and there exists, at least, one motion plan
   }
-  
-  // Calculate the cost of iterating over the goal set
-  // Because we only strive for 1 success, n_failure is always n_attempt-1
-  double iter_cost;
-  iter_cost = exp( (double)(n_attempt-1)/(double)(n_attempt) );
-  
-  // Sanity check isNan
-  if( (cost.total()+iter_cost) != (cost.total()+iter_cost) )
-  {
-    ROS_ERROR_STREAM("iter_cost= " << iter_cost);
-    ROS_ERROR_STREAM("cost.process= " << cost.process);
-    ROS_ERROR_STREAM("cost.result= " << cost.result);
-    ROS_ERROR("nan detected in edge cost");
-    return false;
-  }
-  
-  // Reset the planning environment
-  reset_planning_env();
   
   // Sum up + Put the best motion plan of this edge e and its geo. planning cost
   put( edge_plan,pm_->tmm_,e,plan );
