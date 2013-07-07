@@ -73,7 +73,7 @@ GeometricPlannerManager(PlannerManager* pm)
 }
 
 bool
-plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
+plan(TMMEdge e,double* gp_time,bool* found_mp)
 {
   // Check whether this edge is already geometrically planned in the prev. run, in this case, the one used UCS
   // Assume that time spent for this checking (includes finding matched edge, inheriting) can be ignored
@@ -114,17 +114,19 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
         put( edge_plan,pm_->tmm_,e, 
              get(edge_plan,pm_->ucs_tmm_,*matched_edge_it) );
 
-        *found_gp = true;
-        *found_mp = true;
+        if( !strcmp(matched_edge_color.c_str(),std::string("red").c_str()) )// no motion plan
+          *found_mp = false;
+        else if( !strcmp(matched_edge_color.c_str(),std::string("green").c_str()) )
+          *found_mp = true;
         
         return true;
       }
     }//if(matched_edge_it != ucs_tmm_ei_end)// found
     else
     {
-      ROS_DEBUG("Prev. runs have found that no graps pose exists, as the matched edge in ucs_tmm_ has been removed.");
+      ROS_DEBUG("Prev. runs have found that no graps pose exists, as the matched edge in ucs_tmm_ has been removed, this edge will also be removed.");
     
-      *found_gp = false;
+      remove_edge(e,pm_->tmm_);
       *found_mp = false;
       
       return true;
@@ -163,16 +165,11 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
       
   if( goal_set.empty() )
   {
-    ROS_INFO("goal_set is empty, no further motion planning, return!");
-    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (false).");
+    ROS_INFO("goal_set is empty, no further motion planning, remove this edge and return!");
+    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END");
     
-    *found_gp = false;
+    remove_edge(e,pm_->tmm_);
     return true;
-  }
-  else
-  {
-    *found_gp = true;
-    // edge no_grasppose is not set false here, as the edge will be immediately removed
   }
   
   // MOTION PLANNING ================================================================================================================================
@@ -260,7 +257,7 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
 
   put( edge_mptime,pm_->tmm_,e,mp_time );
 
-  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (true).");  
+  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END");  
   return true;
 }
 //! Obtain samples as the search progresses, get samples from paths from (root,root+1, ..., v) to adjacent of v
@@ -838,13 +835,6 @@ void
 put_heu(TMMVertex v, const double& h)
 {
   put(vertex_heu,pm_->tmm_,v,h);
-}
-
-void
-remove_ungraspable_edge(TMMEdge e)
-{
-  ROS_DEBUG_STREAM("Remove e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]");
-  remove_edge(e,pm_->tmm_);
 }
 
 private:
