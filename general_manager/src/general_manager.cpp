@@ -177,7 +177,7 @@ plan(const ml_util::MLMode& ml_mode,const bool rerun=false,const std::string& ml
     ROS_ERROR("Call to /plan srv: FAILED");
     return false;
   }
-
+  
   if(ctamp_sol != NULL)
     *ctamp_sol = res.ctamp_sol;
       
@@ -803,7 +803,7 @@ main(int argc, char **argv)
         ROS_DEBUG_STREAM("Rebasing " << i+1 << " of " << instance_paths.size());
         std::ofstream rebasing_log;
         rebasing_log.open(rebasing_log_path.c_str(),std::ios::app);
-        rebasing_log << instance_paths.at(i) << endl;
+        rebasing_log << instance_paths.at(i);
         rebasing_log.close();
 
         // Prepare dir + tidy.cfg file
@@ -832,15 +832,17 @@ main(int argc, char **argv)
         }
         
         // Remove all files if this CTAMP attempt returns no solution because for now we focus only on the one who has a solution if seach with UCS
+        rebasing_log.open(rebasing_log_path.c_str(),std::ios::app);
         if( ctamp_sol.empty() )
         {
-          std::ofstream rebasing_log;
-          rebasing_log.open(rebasing_log_path.c_str(),std::ios::app);
-          rebasing_log << "REMOVED " << data_path << endl;
-          rebasing_log.close();
-        
+          rebasing_log << " -> ctamp_sol.empty(), REMOVED" << endl;
           boost::filesystem::remove_all( boost::filesystem::path(data_path) );
         }
+        else
+        {
+          rebasing_log << " -> OKAY" << endl;
+        }
+        rebasing_log.close();
       }
       break;
     }

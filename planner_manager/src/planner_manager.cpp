@@ -407,7 +407,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     for(std::vector<TMMEdge>::iterator i=sol_path.begin(); i!=sol_path.end(); ++i)
     {
-      cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << endl;
+      cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << " --> " << get(edge_color,tmm_,*i) << endl;
       perf_log_out << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << ",";
       
       if( !strcmp(get(edge_color,tmm_,*i).c_str(),"red") )

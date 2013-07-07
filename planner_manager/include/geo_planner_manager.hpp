@@ -97,7 +97,13 @@ plan(TMMEdge e,double* gp_time,double* mp_time,bool* mp_found_ptr)
       std::string matched_edge_color;
       matched_edge_color = get(edge_color,pm_->ucs_tmm_,*matched_edge_it);
       
-      if( strcmp(matched_edge_color.c_str(),std::string("black").c_str()) )// if the color is _not_ "black", then it has been motion planned
+      if( !strcmp(matched_edge_color.c_str(),std::string("blue").c_str()) )
+      {
+        put(edge_color,pm_->ucs_tmm_,*matched_edge_it,"green");// reset the blue (solution path mark) to green
+        matched_edge_color = get(edge_color,pm_->ucs_tmm_,*matched_edge_it);// re-obtain
+      }
+      
+      if( !strcmp(matched_edge_color.c_str(),std::string("red").c_str()) or !strcmp(matched_edge_color.c_str(),std::string("green").c_str())  )
       {
         ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= already DONE.");
       
