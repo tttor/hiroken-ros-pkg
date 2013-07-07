@@ -255,7 +255,6 @@ main(int argc, char **argv)
   int mode = 0;
   if( !ros::param::get("/mode",mode) )
     ROS_WARN("Can not get /mode, use the default value (=0) instead");
-  cerr << "mode= " << mode << endl;
   
   int n_obj = 0;
   if( !ros::param::get("/n_obj",n_obj) )
@@ -818,16 +817,29 @@ main(int argc, char **argv)
         // Sense
         gm.sense( std::string(base_data_path+messy_cfg_filename) );
 
-        // Plan, rerun=false
+        // Plan
         ml_util::MLMode mode = ml_util::NO_ML;
         bool rerun = true;
         std::string log_path;// not used in this mode
         std::string ml_hot_path;// not used in this mode
+        std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
+        std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
         
-        if( !gm.plan(mode,rerun,ml_hot_path) )// Informed search, with the (planned) TMM under base_path
+        if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )
         {
           ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
           break;
+        }
+        
+        // Remove all files if this CTAMP attempt returns no solution because for now we focus only on the one who has a solution if seach with UCS
+        if( ctamp_sol.empty() )
+        {
+          std::ofstream rebasing_log;
+          rebasing_log.open(rebasing_log_path.c_str(),std::ios::app);
+          rebasing_log << "REMOVED " << data_path << endl;
+          rebasing_log.close();
+        
+          boost::filesystem::remove_all( boost::filesystem::path(data_path) );
         }
       }
       break;
