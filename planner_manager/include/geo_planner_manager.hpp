@@ -76,6 +76,7 @@ bool
 plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
 {
   // Check whether this edge is already geometrically planned in the prev. run, in this case, the one used UCS
+  // Assume that time spent for this checking (includes finding matched edge, inheriting) can be ignored
   graph_traits<TaskMotionMultigraph>::edge_iterator ucs_tmm_ei,ucs_tmm_ei_end;
   tie(ucs_tmm_ei,ucs_tmm_ei_end) = edges(pm_->ucs_tmm_);
   
