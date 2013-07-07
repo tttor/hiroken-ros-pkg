@@ -735,47 +735,19 @@ main(int argc, char **argv)
     }
     case 14:
     // For writing instance order into a file, should be rarely used
-    // Usage: $ roslaunch hiro_common a.launch  mode:=14 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline
+    // Usage: $ roslaunch hiro_common a.launch  mode:=14 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=3 n_run:=25
     {
-    
-      size_t n_eps = 10;
-      
-      std::vector<size_t> n_instance_per_instance_type(6);
-      n_instance_per_instance_type.at(0) = 100;
-      n_instance_per_instance_type.at(1) = 600;
-      n_instance_per_instance_type.at(2) = 300;
-      n_instance_per_instance_type.at(3) = 150;
-      n_instance_per_instance_type.at(4) = 75;
-      n_instance_per_instance_type.at(5) = 35;
-      
+      size_t n_eps = 10; 
       for(size_t i=0; i < n_eps; ++i)
       {
-        for(size_t j=0; j < 6; ++j)// iterating over 6 instance types
-        {
-          size_t n_obj = j;
-          size_t n_run = n_instance_per_instance_type.at(j);
+        std::vector<std::string> instance_paths(n_run);
+        
+        // Get instance order
+        utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths);
           
-          std::vector<std::string> instance_paths(n_run);
-          
-          // Get instance order
-          utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths);
-            
-          // Write          
-          utils::write_instance_path(instance_paths,base_data_path,n_obj,i+1);
-        }
+        // Write          
+        utils::write_instance_path(instance_paths,base_data_path,n_obj,i+1);
       }
-      
-      // Init  
-      std::string run_id;
-      run_id = "/h.zeroed." + boost::lexical_cast<string>(n_obj) + "M";
-      
-      std::vector<std::string> instance_paths(n_run);
-      if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
-      {
-        ROS_ERROR("utils::get_instance_paths() -> failed");
-        return false;
-      }
-    
       break;
     }
     case 15:
