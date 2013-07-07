@@ -795,10 +795,17 @@ main(int argc, char **argv)
           instance_paths.push_back( itr->path().string() );
       }
       
+      std::string rebasing_log_path;
+      rebasing_log_path = base_data_path + "/rebasing.log";
+      
       // Run for all instances
       for(size_t i=0; i<instance_paths.size(); ++i)
       {
         ROS_DEBUG_STREAM("Rebasing " << i+1 << " of " << instance_paths.size());
+        std::ofstream rebasing_log;
+        rebasing_log.open(rebasing_log_path.c_str(),std::ios::app);
+        rebasing_log << instance_paths.at(i) << endl;
+        rebasing_log.close();
 
         // Prepare dir + tidy.cfg file
         base_data_path = instance_paths.at(i);
