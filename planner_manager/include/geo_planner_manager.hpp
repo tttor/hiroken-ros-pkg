@@ -116,7 +116,7 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
 
         *found_gp = true;
         *found_mp = true;
-      
+        
         return true;
       }
     }//if(matched_edge_it != ucs_tmm_ei_end)// found
