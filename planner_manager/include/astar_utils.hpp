@@ -30,8 +30,8 @@ class AstarVisitor: public boost::default_astar_visitor
 {
 public:
 // For ml_mode== ONLINE_LWPR
-AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode,std::string ml_hot_path,double* total_gp_time,size_t* n_exp_op,size_t* n_ml_update)
-: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode), ml_hot_path_(ml_hot_path), total_gp_time_(total_gp_time), n_exp_op_(n_exp_op), n_ml_update_(n_ml_update)
+AstarVisitor(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManager* gpm,LearningMachine* learner,std::vector< std::vector<double> >* ml_data,size_t ml_mode,std::string ml_hot_path,double* total_gp_time,double* total_mp_time,size_t* n_exp_op,size_t* n_ml_update)
+: goal_(goal), gpm_(gpm), learner_(learner), ml_data_(ml_data), ml_mode_(ml_mode), ml_hot_path_(ml_hot_path), total_gp_time_(total_gp_time),total_mp_time_(total_mp_time), n_exp_op_(n_exp_op), n_ml_update_(n_ml_update)
 { }
 
 template <typename Graph>
@@ -102,10 +102,13 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       e = conn_edges.at(i);
 
       double gp_time = 0.;
+      double mp_time = 0.;
       bool found_mp = false;
       
-      gpm_->plan(e,&gp_time,&found_mp);
+      gpm_->plan(e,&gp_time,&mp_time,&found_mp);
+
       *total_gp_time_ += gp_time;
+      *total_mp_time_ += mp_time;
       
       if(found_mp) break;
     }// for all conn_edges
@@ -196,6 +199,7 @@ std::vector< std::vector<double> >* ml_data_;
 size_t ml_mode_;
 std::string ml_hot_path_;
 double* total_gp_time_;
+double* total_mp_time_;
 size_t* n_exp_op_;
 size_t* n_ml_update_;
 };
