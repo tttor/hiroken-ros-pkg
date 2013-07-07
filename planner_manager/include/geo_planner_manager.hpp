@@ -73,7 +73,7 @@ GeometricPlannerManager(PlannerManager* pm)
 }
 
 bool
-plan(TMMEdge e,double* gp_time,bool* found_mp)
+plan(TMMEdge e,double* gp_time,double* mp_time,bool* found_mp)
 {
   // Check whether this edge is already geometrically planned in the prev. run, in this case, the one used UCS
   // Assume that time spent for this checking (includes finding matched edge, inheriting) can be ignored
@@ -252,10 +252,8 @@ plan(TMMEdge e,double* gp_time,bool* found_mp)
   put( edge_planstr,pm_->tmm_,e,get_planstr(plan) );
   put( edge_weight,pm_->tmm_,e,cost.total()+iter_cost );
   
-  double mp_time;// refers to motion_planning + grasp planning time
-  mp_time = (ros::Time::now()-mp_begin).toSec();
-
-  put( edge_mptime,pm_->tmm_,e,mp_time );
+  *mp_time = (ros::Time::now()-mp_begin).toSec();
+  put( edge_mptime,pm_->tmm_,e,*mp_time );
 
   ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END");  
   return true;

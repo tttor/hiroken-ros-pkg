@@ -213,6 +213,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::vector<double> distances(num_vertices(tmm_));
   
   double total_gp_time = 0.;
+  double total_mp_time = 0.;
   size_t n_exp_op = 0;
 
   ros::Time search_begin = ros::Time::now();
@@ -249,7 +250,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         astar_search( tmm_
                     , tmm_root_
                     , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_heuristic_ml_mode,prep_data_,&n_ml_update_)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&n_exp_op,&n_ml_update_) )
+                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&total_mp_time,&n_exp_op,&n_ml_update_) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -276,7 +277,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         astar_search( tmm_
                     , tmm_root_
                     , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,ml_mode,prep_data_,&n_ml_update_)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&n_exp_op,&n_ml_update_) )
+                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&total_mp_time,&n_exp_op,&n_ml_update_) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -294,10 +295,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   {
     ROS_INFO("GOAL_FOUND.");
     
-    // Get elapsed time for planning that is represented by the search process, but excluding grasp planning time (because we do not care it for now)
+    // Get elapsed time for planning that is represented by the search process, but _excluding_ grasp planning time (because we do not care it for now) and motion planning time (because it is stored separately in edge_mptime)
     double search_time;
     search_time = (ros::Time::now()-search_begin).toSec();
     search_time -= total_gp_time;
+    search_time -= total_mp_time;
     
     cout << "CTAMP_SearchTime= " << search_time << endl;
     perf_log_out << "CTAMP_SearchTime=" << search_time << endl;
