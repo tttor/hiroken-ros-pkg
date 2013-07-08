@@ -66,13 +66,25 @@ benchmark_path_srv_handle(hiro_common::BenchmarkPath::Request& req, hiro_common:
   else
   {
     std::vector<geometry_msgs::Point> path;
-    path = convert_to_cartesian(req.trajectory,std::string("/link_base"));
     
+    if( !convert_to_cartesian(req.trajectory,std::string("/link_base"),&path) )
+    {
+      ROS_ERROR("BenchmarkPath: END with !convert_to_cartesian()");
+      return false;
+    }
+    
+          
     // Length
     double len = 0.0;
     for (size_t i = 1 ; i < path.size() ; ++i)
         len += distance(path[i-1], path[i]);
-        
+    
+    if(len != len)
+    {
+      ROS_ERROR("BenchmarkPath: END with (len != len)");
+      return false;
+    }
+      
     res.length = len;
   }
   
@@ -181,14 +193,12 @@ visualize_path(const trajectory_msgs::JointTrajectory& path)
   }// end of: for-each point in the path
 }
 
-std::vector<geometry_msgs::Point>
-convert_to_cartesian(const trajectory_msgs::JointTrajectory& joint_trajectory,const std::string& ref_frame)
+bool
+convert_to_cartesian(const trajectory_msgs::JointTrajectory& joint_trajectory,const std::string& ref_frame,std::vector<geometry_msgs::Point>* cartesian_trajectory)
 {
   // Obtain the jspace
   std::string jspace;
   jspace = get_jspace(joint_trajectory.joint_names);
-    
-  std::vector<geometry_msgs::Point> cartesian_trajectory;
   
   for(size_t i=0; i < joint_trajectory.points.size(); ++i)
   {
@@ -199,27 +209,33 @@ convert_to_cartesian(const trajectory_msgs::JointTrajectory& joint_trajectory,co
     // For now, there actually is only 1 stamp 
     for(size_t j=0; j< fk_response.pose_stamped.size(); ++j)
     {
-    /*
-      ROS_INFO_STREAM("Link    : " << fk_response.fk_link_names[j].c_str());
-      ROS_INFO_STREAM("Position: " << 
-        fk_response.pose_stamped[j].pose.position.x << "," <<  
-        fk_response.pose_stamped[j].pose.position.y << "," << 
-        fk_response.pose_stamped[j].pose.position.z);
-      ROS_INFO("Orientation: %f %f %f %f",
-        fk_response.pose_stamped[j].pose.orientation.x,
-        fk_response.pose_stamped[j].pose.orientation.y,
-        fk_response.pose_stamped[j].pose.orientation.z,
-        fk_response.pose_stamped[j].pose.orientation.w);
-    */
+//      ROS_INFO_STREAM("Link    : " << fk_response.fk_link_names[j].c_str());
+//      ROS_INFO_STREAM("Position: " << 
+//        fk_response.pose_stamped[j].pose.position.x << "," <<  
+//        fk_response.pose_stamped[j].pose.position.y << "," << 
+//        fk_response.pose_stamped[j].pose.position.z);
+//      ROS_INFO("Orientation: %f %f %f %f",
+//        fk_response.pose_stamped[j].pose.orientation.x,
+//        fk_response.pose_stamped[j].pose.orientation.y,
+//        fk_response.pose_stamped[j].pose.orientation.z,
+//        fk_response.pose_stamped[j].pose.orientation.w);
+
       geometry_msgs::Point p;
       p.x = fk_response.pose_stamped[j].pose.position.x;
       p.y = fk_response.pose_stamped[j].pose.position.y;
       p.z = fk_response.pose_stamped[j].pose.position.z;
       
-      cartesian_trajectory.push_back(p);
+      if( (p.x != p.x) or (p.y != p.y) or (p.z != p.z) )
+      {
+        ROS_ERROR("convert_to_cartesian() has Nan values.");
+        return false;
+      }
+      
+      cartesian_trajectory->push_back(p);
     } 
   }
-  return cartesian_trajectory;
+  
+  return true;
 }
 
 void
@@ -254,6 +270,19 @@ distance(const geometry_msgs::Point& point_1, const geometry_msgs::Point& point_
   //This is merely a Euclidean distance  
   dist = sqrt(  pow((point_1.x-point_2.x), 2) + pow((point_1.y-point_2.y), 2) + pow((point_1.z-point_2.z), 2)  );
   
+  using namespace std;
+  if(dist != dist)
+  {
+    std::cerr << "Nan: dist= " << dist << std::endl;
+    std::cerr << "point_1.x= " << point_1.x << endl;
+    std::cerr << "point_1.y= " << point_1.y << endl;
+    std::cerr << "point_1.z= " << point_1.z << endl;
+    std::cerr << "point_2.x= " << point_2.x << endl;
+    std::cerr << "point_2.y= " << point_2.y << endl;
+    std::cerr << "point_2.z= " << point_2.z << endl;
+  }
+  
+    
   return dist;
 }
 double// TODO recheck me!
