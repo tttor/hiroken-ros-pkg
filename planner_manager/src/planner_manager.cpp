@@ -13,7 +13,10 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
   nh_(nh)
 {
   ros::service::waitForService("plan_grasp");
+  
   n_ctamp_attempt_ = 0;
+  n_ml_update_ = 0;
+  n_svr_training_data_ = 0;
   n_ml_update_ = 0;
   
   lwpr_model_ = new LWPR_Object(ml_util::LWPR_INPUT_DIM,ml_util::LWPR_OUTPUT_DIM);
@@ -578,11 +581,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       
       std::vector<double> y_fit_tr;
       y_fit_tr = ml_util::get_y_fit(tmp_data_path); 
-
+      
+      cerr << "old n_svr_training_data_= " << n_svr_training_data_ << endl;
+      
       // Put the content to variables to make it consistent with the one in ml_util::LWPR_ONLINE
       if( (y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size()) )
       {
-        n_data_ += y_true.size();
+        n_svr_training_data_ += y_true.size();
       }
       else
       {
@@ -593,6 +598,9 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         return false;
       }
       
+      cerr << "n_svr_training_data_= " << n_svr_training_data_ << endl;
+      cerr << "y_true.size()= " << y_true.size() << endl;
+      
       for(size_t i=0; i < y_true.size(); ++i)
       {
         std::vector<double> ml_datum;
@@ -601,7 +609,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         ml_datum.at(0) = y_fit_te.at(i);
         ml_datum.at(1) = y_fit_tr.at(i);
         ml_datum.at(2) = y_true.at(i);
-        ml_datum.at(3) = n_data_;// number of samples that are used to trained the SVR model so far.
+        ml_datum.at(3) = n_svr_training_data_;// number of samples that are used to trained the SVR model so far.
         
         ml_data.push_back(ml_datum);
       }
