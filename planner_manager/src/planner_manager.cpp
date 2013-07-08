@@ -13,7 +13,10 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
   nh_(nh)
 {
   ros::service::waitForService("plan_grasp");
+  
   n_ctamp_attempt_ = 0;
+  n_ml_update_ = 0;
+  n_svr_training_data_ = 0;
   n_ml_update_ = 0;
   
   lwpr_model_ = new LWPR_Object(ml_util::LWPR_INPUT_DIM,ml_util::LWPR_OUTPUT_DIM);
@@ -578,11 +581,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       
       std::vector<double> y_fit_tr;
       y_fit_tr = ml_util::get_y_fit(tmp_data_path); 
-
+      
+      cerr << "old n_svr_training_data_= " << n_svr_training_data_ << endl;
+      
       // Put the content to variables to make it consistent with the one in ml_util::LWPR_ONLINE
       if( (y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size()) )
       {
-        n_data_ += y_true.size();
+        n_svr_training_data_ += y_true.size();
       }
       else
       {
@@ -593,6 +598,9 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         return false;
       }
       
+      cerr << "n_svr_training_data_= " << n_svr_training_data_ << endl;
+      cerr << "y_true.size()= " << y_true.size() << endl;
+      
       for(size_t i=0; i < y_true.size(); ++i)
       {
         std::vector<double> ml_datum;
@@ -601,7 +609,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         ml_datum.at(0) = y_fit_te.at(i);
         ml_datum.at(1) = y_fit_tr.at(i);
         ml_datum.at(2) = y_true.at(i);
-        ml_datum.at(3) = n_data_;// number of samples that are used to trained the SVR model so far.
+        ml_datum.at(3) = n_svr_training_data_;// number of samples that are used to trained the SVR model so far.
         
         ml_data.push_back(ml_datum);
       }
@@ -612,7 +620,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     boost::filesystem::remove( boost::filesystem::path(delta_csv_tr_data_path) );
   }// if(ml_mode==ml_util::SVR_OFFLINE)
   
-  // Logging of ML-related data
+  // Logging of ML-related data and heuristic-related data
   if(ml_mode==ml_util::SVR_OFFLINE or ml_mode==ml_util::LWPR_ONLINE)
   {
     // Write ml_data
@@ -627,7 +635,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       ml_log << i->at(0) << "," 
              << i->at(1) << "," 
              << i->at(2) << "," 
-             << i->at(3) << std::endl;
+             << i->at(3) << ","
+             << n_ctamp_attempt_+1 << std::endl;// n-th attempt when this data comes from, plus 1 because n_ctamp_attempt_ is incremented by one later at the end
     }
     ml_log.close();
     
@@ -721,7 +730,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
       
       // Write
-      h_log << h << "," << cost2go /* << "," << get(vertex_name,filtered_ucs_tmm,*i) */ << std::endl;
+      h_log << h 
+            << "," << cost2go 
+            << ","<< n_ctamp_attempt_+1 // n-th attempt when this data comes from, plus 1 because n_ctamp_attempt_ is incremented by one later at the end
+            /* << "," << get(vertex_name,filtered_ucs_tmm,*i) */ 
+            << std::endl;
       ++n_hcmp;
     }// for each vertex in expvert_plus_set
     
@@ -774,7 +787,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
           double c_v_av;
           c_v_av = i->second;
           
-          h2_log << h_v << "," << h_av << "," << c_v_av /*<< "," << get(vertex_name,tmm_,*vi) << "," << get(vertex_name,tmm_,i->first) */ << std::endl;
+          h2_log << h_v 
+                 << "," << h_av 
+                 << "," << c_v_av 
+                 << ","<< n_ctamp_attempt_+1 // n-th attempt when this data comes from, plus 1 because n_ctamp_attempt_ is incremented by one later at the end
+                 /*<< "," << get(vertex_name,tmm_,*vi) << "," << get(vertex_name,tmm_,i->first) */ 
+                 << std::endl;
           ++n_hcmp2;
         }
       }
