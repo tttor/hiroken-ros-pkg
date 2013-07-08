@@ -177,7 +177,7 @@ plan(const ml_util::MLMode& ml_mode,const bool rerun=false,const std::string& ml
     ROS_ERROR("Call to /plan srv: FAILED");
     return false;
   }
-
+  
   if(ctamp_sol != NULL)
     *ctamp_sol = res.ctamp_sol;
       
@@ -318,7 +318,7 @@ main(int argc, char **argv)
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
         
-        if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )
         {
           ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << j+1  );
           break;
@@ -735,47 +735,87 @@ main(int argc, char **argv)
     }
     case 14:
     // For writing instance order into a file, should be rarely used
-    // Usage: $ roslaunch hiro_common a.launch  mode:=14 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline
+    // Usage: $ roslaunch hiro_common a.launch  mode:=14 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=3 n_run:=25
     {
-    
-      size_t n_eps = 10;
-      
-      std::vector<size_t> n_instance_per_instance_type(6);
-      n_instance_per_instance_type.at(0) = 100;
-      n_instance_per_instance_type.at(1) = 600;
-      n_instance_per_instance_type.at(2) = 300;
-      n_instance_per_instance_type.at(3) = 150;
-      n_instance_per_instance_type.at(4) = 75;
-      n_instance_per_instance_type.at(5) = 35;
-      
+      size_t n_eps = 10; 
       for(size_t i=0; i < n_eps; ++i)
       {
-        for(size_t j=0; j < 6; ++j)// iterating over 6 instance types
-        {
-          size_t n_obj = j;
-          size_t n_run = n_instance_per_instance_type.at(j);
+        std::vector<std::string> instance_paths(n_run);
+        
+        // Get instance order
+        utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths);
           
-          std::vector<std::string> instance_paths(n_run);
-          
-          // Get instance order
-          utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths);
-            
-          // Write          
-          utils::write_instance_path(instance_paths,base_data_path,n_obj,i+1);
-        }
+        // Write          
+        utils::write_instance_path(instance_paths,base_data_path,n_obj,i+1);
       }
+      break;
+    }
+    case 15:
+    // For rebase-ing i.e. fix some stuff in the baseline
+    // Assume that al directories under path(base_data_path) are baseline directories
+    // This overwrites all perf logs, tmm.dot
+    // Usage: $ roslaunch hiro_common a.launch  mode:=15 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline.rebased.test
+    {
+      // Get all directory under path, assume all directories are the baselines
+      std::vector<std::string> instance_paths;
       
-      // Init  
-      std::string run_id;
-      run_id = "/h.zeroed." + boost::lexical_cast<string>(n_obj) + "M";
-      
-      std::vector<std::string> instance_paths(n_run);
-      if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths) )
+      boost::filesystem::directory_iterator end_itr; // default construction yields past-the-end
+      for ( boost::filesystem::directory_iterator itr(base_data_path);itr != end_itr; ++itr )
       {
-        ROS_ERROR("utils::get_instance_paths() -> failed");
-        return false;
+        if ( is_directory(itr->status()) )
+          instance_paths.push_back( itr->path().string() );
       }
-    
+      
+      std::string rebasing_log_path;
+      rebasing_log_path = base_data_path + "/rebasing.log";
+      
+      // Run for all instances
+      for(size_t i=0; i<instance_paths.size(); ++i)
+      {
+        ROS_DEBUG_STREAM("Rebasing " << i+1 << " of " << instance_paths.size());
+        std::ofstream rebasing_log;
+        rebasing_log.open(rebasing_log_path.c_str(),std::ios::app);
+        rebasing_log << instance_paths.at(i);
+        rebasing_log.close();
+
+        // Prepare dir + tidy.cfg file
+        base_data_path = instance_paths.at(i);
+        ros::param::set("/base_data_path",base_data_path);
+        
+        std::string data_path;
+        data_path = base_data_path;
+        ros::param::set("/data_path",data_path);
+
+        // Sense
+        gm.sense( std::string(base_data_path+messy_cfg_filename) );
+
+        // Plan
+        ml_util::MLMode mode = ml_util::NO_ML;
+        bool rerun = true;
+        std::string log_path;// not used in this mode
+        std::string ml_hot_path;// not used in this mode
+        std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
+        std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
+        
+        if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )
+        {
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << i+1 << "... " << instance_paths.at(i) << " on mode= " << mode );
+          break;
+        }
+        
+        // Remove all files if this CTAMP attempt returns no solution because for now we focus only on the one who has a solution if seach with UCS
+        rebasing_log.open(rebasing_log_path.c_str(),std::ios::app);
+        if( ctamp_sol.empty() )
+        {
+          rebasing_log << " -> ctamp_sol.empty(), REMOVED" << endl;
+          boost::filesystem::remove_all( boost::filesystem::path(data_path) );
+        }
+        else
+        {
+          rebasing_log << " -> OKAY" << endl;
+        }
+        rebasing_log.close();
+      }
       break;
     }
     case 12:

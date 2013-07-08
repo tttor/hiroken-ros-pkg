@@ -124,9 +124,12 @@ std::map<std::string, arm_navigation_msgs::CollisionObject> movable_obj_tidy_cfg
 std::map<std::string, arm_navigation_msgs::CollisionObject> unmovable_obj_cfg_;
 
 //! Keeps the number of samples that have been used to trained a SVR model
-size_t n_data_;
+size_t n_svr_training_data_;
 
 size_t n_ctamp_attempt_;
+
+//! Number of ml model updates/trains
+size_t n_ml_update_;
 
 //! For preprocessing related data
 ml_util::PrepData prep_data_;
@@ -135,8 +138,8 @@ SVMModel* svr_model_;
 
 LWPR_Object* lwpr_model_;
 
-//! Number of ml model updates/trains
-size_t n_ml_update_;
+//! Only used in rerun mode, for inheriting motion planning from prev. run that used UCS and for computing true cost2go
+TaskMotionMultigraph ucs_tmm_;
 };// end of: class PlannerManager
 
 #endif // #ifndef PLANNER_MANAGER_HPP_INCLUDED
