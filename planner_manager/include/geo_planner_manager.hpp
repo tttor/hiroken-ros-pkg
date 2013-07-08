@@ -234,20 +234,6 @@ plan(TMMEdge e,double* gp_time,double* mp_time,bool* mp_found_ptr)
   double iter_cost;
   iter_cost = exp( (double)(n_attempt-1)/(double)(n_attempt) );
   
-  // Sanity check isNan
-  if( (cost.total()+iter_cost) != (cost.total()+iter_cost) )
-  {
-    ROS_ERROR_STREAM("iter_cost= " << iter_cost);
-    ROS_ERROR_STREAM("cost.process= " << cost.process);
-    ROS_ERROR_STREAM("cost.result= " << cost.result);
-    ROS_ERROR("nan detected in motion planning cost -> cancel the result of motion planning as if there is no motion plan found");
-    
-    // Then cancel the result of motion planning as if there is no motion plan found
-    plan = trajectory_msgs::JointTrajectory();
-    cost.clear();
-    found = false;
-  }
-
   *mp_found_ptr = found;
   if( !found ) // even after considering all goal poses in the goal_set
   {
@@ -1164,16 +1150,18 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
 
       benchmark_path_req.trajectory = filtered_trajectory;
 
-      if (benchmark_path_client.call(benchmark_path_req, benchmark_path_res))
+      if( !benchmark_path_client.call(benchmark_path_req, benchmark_path_res) )
       {
-        ROS_DEBUG("BenchmarkPath succeeded");
+        ROS_WARN("BenchmarkPath service failed, treat as if there is no motion plan");
+
+        *found = false;
+        cost->result = 0.;
+        cost->process = jspace_cost + planning_time + MOTION_PLANNING_FAILURE_PENALTY;
+      
+        return true;
       }
-      else
-      {
-        ROS_ERROR("BenchmarkPath service failed on %s",benchmark_path_client.getService().c_str());
-        return false;
-      }
-  
+      ROS_DEBUG("BenchmarkPath succeeded");
+      
       // Accumulate the cost 
       cost->result = benchmark_path_res.length;// + benchmark_path_res.smoothness + benchmark_path_res.clearance
       cost->process = jspace_cost + (planning_time + smoothing_time);// in the text, smoothing time is included within planning_time
