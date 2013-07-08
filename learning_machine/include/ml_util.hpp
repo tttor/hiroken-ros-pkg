@@ -20,10 +20,10 @@ static const double TUNED_LWPR_PEN = 0.010;
 // Offline-SVR related params
 static const size_t SVR_MAX_N_ATTR = 76 + 50;// plus tolerance= 50; with planning horizon M= 5 on /home/vektor/rss-2013/data/ref/metadata.5.20130706.csv
 
-static const double TUNED_SVR_C = 3.000;
+static const double TUNED_SVR_C = 32.000;
 static const double TUNED_SVR_P = 0.010;
 static const int TUNED_SVR_KERNEL_TYPE = 2;// RBF
-static const double TUNED_SVR_GAMMA = 0.015;
+static const double TUNED_SVR_GAMMA = 0.002;
 static const std::string TUNED_SVR_DIM_RED = "pca";
 static const size_t TUNED_SVR_LO_DIM = 50;
 
