@@ -620,7 +620,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     boost::filesystem::remove( boost::filesystem::path(delta_csv_tr_data_path) );
   }// if(ml_mode==ml_util::SVR_OFFLINE)
   
-  // Logging of ML-related data
+  // Logging of ML-related data and heuristic-related data
   if(ml_mode==ml_util::SVR_OFFLINE or ml_mode==ml_util::LWPR_ONLINE)
   {
     // Write ml_data
@@ -635,7 +635,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       ml_log << i->at(0) << "," 
              << i->at(1) << "," 
              << i->at(2) << "," 
-             << i->at(3) << std::endl;
+             << i->at(3) << ","
+             << n_ctamp_attempt_+1 << std::endl;// n-th attempt when this data comes from, plus 1 because n_ctamp_attempt_ is incremented by one later at the end
     }
     ml_log.close();
     
@@ -729,7 +730,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
       
       // Write
-      h_log << h << "," << cost2go /* << "," << get(vertex_name,filtered_ucs_tmm,*i) */ << std::endl;
+      h_log << h 
+            << "," << cost2go 
+            << ","<< n_ctamp_attempt_+1 // n-th attempt when this data comes from, plus 1 because n_ctamp_attempt_ is incremented by one later at the end
+            /* << "," << get(vertex_name,filtered_ucs_tmm,*i) */ 
+            << std::endl;
       ++n_hcmp;
     }// for each vertex in expvert_plus_set
     
@@ -782,7 +787,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
           double c_v_av;
           c_v_av = i->second;
           
-          h2_log << h_v << "," << h_av << "," << c_v_av /*<< "," << get(vertex_name,tmm_,*vi) << "," << get(vertex_name,tmm_,i->first) */ << std::endl;
+          h2_log << h_v 
+                 << "," << h_av 
+                 << "," << c_v_av 
+                 << ","<< n_ctamp_attempt_+1 // n-th attempt when this data comes from, plus 1 because n_ctamp_attempt_ is incremented by one later at the end
+                 /*<< "," << get(vertex_name,tmm_,*vi) << "," << get(vertex_name,tmm_,i->first) */ 
+                 << std::endl;
           ++n_hcmp2;
         }
       }
