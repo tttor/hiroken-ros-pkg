@@ -471,7 +471,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     std::string tmp_data_path  = std::string(ml_hot_path+"/fit.out");// _must_ be always overwritten
     
     SVMModel old_svr_model;
-    if(n_ctamp_attempt_ > 0) // If not the first attemp (at least the model has been updated once)
+    if(n_ctamp_attempt_ > 0)// equivalent with if(n_ml_update_ > 0) with an assumption that every attempt is successfully followed by an ml update
     {
       old_svr_model = *svr_model_;
     }
@@ -512,6 +512,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
     
     svr_model_ = svm_train(&problem,&param);
+    ++n_ml_update_;
+    
 //    if( svm_save_model(model_path.c_str(),svr_model_) )
 //    {
 //      ROS_ERROR("Cannot save svm model.");
@@ -520,8 +522,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     svm_destroy_param(&param); free(problem.y); free(problem.x); free(x_space);
     
     // Benchmark: obtain prediction error with tr_data + put data into ml_data
-    // Note that the svm model used to predict is trained/updated using a bunch of data (samples obtained from this CTAMP instance), 
-    // instead of being trained one-by-one (which wil take long time)
+    // Note that the svm model used to predict is trained/updated using a bunch of data (samples obtained from this CTAMP instance), instead of being trained one-by-one (which wil take long time)
     if(n_ctamp_attempt_ > 0)
     {
       ROS_DEBUG_STREAM("Obtaining te_err anf tr_err for n_samples= " << utils::get_n_lines(delta_tr_data_path));
@@ -533,7 +534,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       FILE *output;
       SVMNode* x = (struct svm_node *) malloc( ml_util::SVR_MAX_N_ATTR*sizeof(struct svm_node));// for inputs 
       
-      // For te_err
+      // For te_err, note that we use old_svr_model
       input = fopen(delta_tr_data_path.c_str(),"r");// Use delta_tr_data
       if(input == NULL)
       {
@@ -555,7 +556,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       std::vector<double> y_fit_te;
       y_fit_te = ml_util::get_y_fit(tmp_data_path); 
       
-      // For tr_err
+      // For tr_err, note that we use the newly updated svr_model_
       input = fopen(delta_tr_data_path.c_str(),"r");// Use delta_tr_data
       if(input == NULL)
       {
@@ -609,7 +610,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     // Remove deltas after every te_err and tr_err retrieval; clear after one ctamp attempt
     boost::filesystem::remove( boost::filesystem::path(delta_tr_data_path) );
     boost::filesystem::remove( boost::filesystem::path(delta_csv_tr_data_path) );
-  }
+  }// if(ml_mode==ml_util::SVR_OFFLINE)
   
   // Logging of ML-related data
   if(ml_mode==ml_util::SVR_OFFLINE or ml_mode==ml_util::LWPR_ONLINE)
