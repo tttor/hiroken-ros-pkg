@@ -55,6 +55,13 @@ struct GeoPlanningCost
   {
     return (process + result);
   }
+  
+  void
+  clear()
+  {
+    process = 0.;
+    result = 0.;
+  }
 };
 
 class GeometricPlannerManager
@@ -73,43 +80,79 @@ GeometricPlannerManager(PlannerManager* pm)
 }
 
 bool
-plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
+plan(TMMEdge e,double* gp_time,double* mp_time,bool* mp_found_ptr)
 {
-  // Check whether this edge is already geometrically planned: edge_color is not black
-  std::string color;
-  color = get(edge_color,pm_->tmm_,e);
-  if( !strcmp(color.c_str(),std::string("black").c_str()) )
+  // Check whether this edge is already geometrically planned in the prev. run, in this case, the one used UCS
+  // Assume that time spent for this checking (includes finding matched edge, inheriting) can be ignored
+  graph_traits<TaskMotionMultigraph>::edge_iterator ucs_tmm_ei,ucs_tmm_ei_end;
+  tie(ucs_tmm_ei,ucs_tmm_ei_end) = edges(pm_->ucs_tmm_);
+  
+  if(ucs_tmm_ei != ucs_tmm_ei_end)// if this is rerun mode
   {
-    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
-  }
-  else
-  {
-    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= already DONE.");
+    graph_traits<TaskMotionMultigraph>::edge_iterator matched_edge_it;
+    matched_edge_it = std::find_if( ucs_tmm_ei,ucs_tmm_ei_end,FindEqualEdge(e,pm_->tmm_,pm_->ucs_tmm_) );
     
-    *found_gp = true;
-    *found_mp = true;
-    
-    return true;
-  }
+    if(matched_edge_it != ucs_tmm_ei_end)// found, otherwise the should-be matched edge is already removed as no grasp pose
+    {
+      std::string matched_edge_color;
+      matched_edge_color = get(edge_color,pm_->ucs_tmm_,*matched_edge_it);
+      
+      if( !strcmp(matched_edge_color.c_str(),std::string("blue").c_str()) )
+      {
+        put(edge_color,pm_->ucs_tmm_,*matched_edge_it,"green");// reset the blue (solution path mark) to green
+        matched_edge_color = get(edge_color,pm_->ucs_tmm_,*matched_edge_it);// re-obtain
+      }
+      
+      if( !strcmp(matched_edge_color.c_str(),std::string("red").c_str()) or !strcmp(matched_edge_color.c_str(),std::string("green").c_str())  )
+      {
+        ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= already DONE.");
+      
+        // Inherit the property from matched_edge of ucs_tmm_ to this tmm_
+        // We do not copy these properties: 
+        // (1,2) edge_label and edge_jspace (as they are unchanged) and 
+        // (3) srcstate (as it is always updated in set_av_jstate()) and
+        // (4) no_grasppose (as we know exa)
+        put( edge_weight,pm_->tmm_,e,
+             get(edge_weight,pm_->ucs_tmm_,*matched_edge_it) );
+        
+        put( edge_color,pm_->tmm_,e,
+             get(edge_color,pm_->ucs_tmm_,*matched_edge_it) );
+             
+        put( edge_mptime,pm_->tmm_,e,
+             get(edge_mptime,pm_->ucs_tmm_,*matched_edge_it) );
+        
+        put( edge_planstr,pm_->tmm_,e,
+             get(edge_planstr,pm_->ucs_tmm_,*matched_edge_it) );
+             
+        put( edge_plan,pm_->tmm_,e, 
+             get(edge_plan,pm_->ucs_tmm_,*matched_edge_it) );
 
+        if( !strcmp(matched_edge_color.c_str(),std::string("red").c_str()) )// no motion plan
+          *mp_found_ptr = false;
+        else if( !strcmp(matched_edge_color.c_str(),std::string("green").c_str()) )
+          *mp_found_ptr = true;
+        
+        return true;
+      }
+    }//if(matched_edge_it != ucs_tmm_ei_end)// found
+    else
+    {
+      ROS_DEBUG("Prev. runs have found that no graps pose exists, as the matched edge in ucs_tmm_ has been removed, this edge will also be removed.");
+    
+      remove_edge(e,pm_->tmm_);
+      *mp_found_ptr = false;
+      
+      return true;
+    }// _not_ if(matched_edge_it != ucs_tmm_ei_end)// found
+  }// if(ucs_tmm_ei != ucs_tmm_ei_end)// if this is rerun mode
+  
+  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
   
   // Get the start point /subseteq vertex_jstates (source of e) based on jspace of this edge e
   sensor_msgs::JointState start_state;
   start_state = get_jstate_subset(  get(edge_jspace, pm_->tmm_, e), get(vertex_jstates, pm_->tmm_, source(e, pm_->tmm_))  );
-//  ROS_DEBUG_STREAM("start_state: SET with " << start_state.position.size() << " joints");
   
   // Determine all possible goal poses
-  // For rerun, check whether previous runs have found that no graps pose exists, in order to speed up the rerun planning
-  if( get(edge_nograsppose,pm_->tmm_,e) )
-  {
-    ROS_DEBUG("Prev. runs have found that no graps pose exists.");
-    
-    *found_gp = false;
-    *found_mp = false;
-    
-    return true;
-  }
-  
   std::vector<sensor_msgs::JointState> goal_set;// Note that we do not use std::set because of a ros-msg constraint that is an array[] is handled as a vector
   
   std::vector<std::string> target_vertex_name_parts;
@@ -135,15 +178,11 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
       
   if( goal_set.empty() )
   {
-    ROS_INFO("goal_set is empty, no further motion planning, return!");
-    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (false).");
+    ROS_INFO("goal_set is empty, no further motion planning, remove this edge and return!");
+    ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END");
     
-    *found_gp = false;
+    remove_edge(e,pm_->tmm_);
     return true;
-  }
-  else
-  {
-    *found_gp = true;
   }
   
   // MOTION PLANNING ================================================================================================================================
@@ -187,7 +226,15 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
   }
   ROS_INFO_STREAM("n_attempt= " << n_attempt);
   
-  *found_mp = found;
+  // Reset the planning environment
+  reset_planning_env();
+  
+  // Calculate the cost of iterating over the goal set
+  // Because we only strive for 1 success, n_failure is always n_attempt-1
+  double iter_cost;
+  iter_cost = exp( (double)(n_attempt-1)/(double)(n_attempt) );
+  
+  *mp_found_ptr = found;
   if( !found ) // even after considering all goal poses in the goal_set
   {
     ROS_INFO_STREAM("No motion plan for " << goal_set.size() << " goals for e= " << get(edge_name,pm_->tmm_,e) << " in " << get(edge_jspace,pm_->tmm_,e));
@@ -203,35 +250,15 @@ plan(TMMEdge e,double* gp_time,bool* found_gp,bool* found_mp)
     put(edge_color,pm_->tmm_,e,std::string("green"));// geometrically validated and there exists, at least, one motion plan
   }
   
-  // Calculate the cost of iterating over the goal set
-  // Because we only strive for 1 success, n_failure is always n_attempt-1
-  double iter_cost;
-  iter_cost = exp( (double)(n_attempt-1)/(double)(n_attempt) );
-  
-  // Sanity check isNan
-  if( (cost.total()+iter_cost) != (cost.total()+iter_cost) )
-  {
-    ROS_ERROR_STREAM("iter_cost= " << iter_cost);
-    ROS_ERROR_STREAM("cost.process= " << cost.process);
-    ROS_ERROR_STREAM("cost.result= " << cost.result);
-    ROS_ERROR("nan detected in edge cost");
-    return false;
-  }
-  
-  // Reset the planning environment
-  reset_planning_env();
-  
   // Sum up + Put the best motion plan of this edge e and its geo. planning cost
   put( edge_plan,pm_->tmm_,e,plan );
   put( edge_planstr,pm_->tmm_,e,get_planstr(plan) );
   put( edge_weight,pm_->tmm_,e,cost.total()+iter_cost );
   
-  double mp_time;// refers to motion_planning + grasp planning time
-  mp_time = (ros::Time::now()-mp_begin).toSec();
+  *mp_time = (ros::Time::now()-mp_begin).toSec();
+  put( edge_mptime,pm_->tmm_,e,*mp_time );
 
-  put( edge_mptime,pm_->tmm_,e,mp_time );
-
-  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END (true).");  
+  ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= END");  
   return true;
 }
 //! Obtain samples as the search progresses, get samples from paths from (root,root+1, ..., v) to adjacent of v
@@ -302,36 +329,33 @@ get_samples_online(TMMVertex v,Data* samples)
   ROS_DEBUG_STREAM("num_edges(local_tmm)= " << num_edges(local_tmm));
   ROS_DEBUG_STREAM("num_edges(filtered_local_tmm)= " << num_edges(filtered_local_tmm));
 
-  // Extract training samples from hot_paths: all possible paths from tmm_root_ to the adjacent vertices of v, which are the targets of the just planned edges
+  // Extract training samples from hot_paths: all possible paths from tmm_root_ to the adjacent vertices of v
   std::vector< std::vector<PlannedTMMVertex> > predecessors_map(num_vertices(filtered_local_tmm));
   data_collector::BFSVisitor<PlannedTMM> vis(&predecessors_map);
-  
+
   boost::breadth_first_search(filtered_local_tmm,pm_->tmm_root_,visitor(vis));// Find predecessors_map
-    
-  graph_traits<PlannedTMM>::adjacency_iterator avi, avi_end;
-  for(tie(avi,avi_end)=adjacent_vertices(v,filtered_local_tmm); avi!=avi_end; ++avi )  
+
+  std::vector< std::vector<PlannedTMMEdge> > hot_paths;
+  data_collector::backtrack<PlannedTMM>(filtered_local_tmm,predecessors_map,v,&hot_paths);// Find all planned paths from root to the expanded vertex v
+       
+  graph_traits<PlannedTMM>::out_edge_iterator oei,oei_end;
+  for(tie(oei,oei_end)=out_edges(v,filtered_local_tmm); oei!=oei_end; ++oei )// Recall that filtered_local_tmm is _not_ a multigraph now  
   {
-    // Find hot_paths through backtracking using predecessors_map
-    std::vector< std::vector<PlannedTMMEdge> > hot_paths;
-    TMMVertex goal = *avi;
-  
-    data_collector::backtrack<PlannedTMM>(filtered_local_tmm,predecessors_map,goal,&hot_paths);
-  
     for(size_t i=0; i<hot_paths.size(); ++i)
     {
-      std::reverse(hot_paths.at(i).begin(),hot_paths.at(i).end());
-      
-      ROS_DEBUG_STREAM("hot_path th= " << i+1 << " of avi= " << get(vertex_name,filtered_local_tmm,*avi));
-      for(std::vector<TMMEdge>::const_iterator j=hot_paths.at(i).begin(); j!=hot_paths.at(i).end(); ++j)
-        ROS_DEBUG_STREAM("e(" << get(vertex_name,filtered_local_tmm,source(*j,filtered_local_tmm)) << "," << get(vertex_name,filtered_local_tmm,target(*j,filtered_local_tmm)) << "), ");
+      std::vector<PlannedTMMEdge> hot_path;
+      hot_path = hot_paths.at(i);
 
-      std::vector<boost::graph_traits<PlannedTMM>::edge_descriptor> path;
-      path = hot_paths.at(i);
+      std::reverse(hot_path.begin(),hot_path.end());// because it is resulted from a backtracking
 
+      // Append with this out-edge 
+      hot_path.push_back(*oei);
+
+      // Get samples
       data_collector::DataCollector<PlannedTMM> dc(METADATA_PATH,pm_->movable_obj_tidy_cfg_);
-      dc.get_samples(hot_paths.at(i),filtered_local_tmm,samples);
+      dc.get_samples(hot_path,filtered_local_tmm,samples);
     }
-  }// end of: for_each avi
+  }
 
   ROS_DEBUG_STREAM("get_samples_online(v= " << get(vertex_name,pm_->tmm_,v) << "): END");    
   return true;
@@ -814,13 +838,6 @@ put_heu(TMMVertex v, const double& h)
   put(vertex_heu,pm_->tmm_,v,h);
 }
 
-void
-remove_ungraspable_edge(TMMEdge e)
-{
-  ROS_DEBUG_STREAM("Remove e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]");
-  remove_edge(e,pm_->tmm_);
-}
-
 private:
 //! Obtain jstate subset from the whole joint-state of the robot 
 /*!
@@ -1133,16 +1150,18 @@ plan_motion(const sensor_msgs::JointState& start_state, const sensor_msgs::Joint
 
       benchmark_path_req.trajectory = filtered_trajectory;
 
-      if (benchmark_path_client.call(benchmark_path_req, benchmark_path_res))
+      if( !benchmark_path_client.call(benchmark_path_req, benchmark_path_res) )
       {
-        ROS_DEBUG("BenchmarkPath succeeded");
+        ROS_WARN("BenchmarkPath service failed, treat as if there is no motion plan");
+
+        *found = false;
+        cost->result = 0.;
+        cost->process = jspace_cost + planning_time + MOTION_PLANNING_FAILURE_PENALTY;
+      
+        return true;
       }
-      else
-      {
-        ROS_ERROR("BenchmarkPath service failed on %s",benchmark_path_client.getService().c_str());
-        return false;
-      }
-  
+      ROS_DEBUG("BenchmarkPath succeeded");
+      
       // Accumulate the cost 
       cost->result = benchmark_path_res.length;// + benchmark_path_res.smoothness + benchmark_path_res.clearance
       cost->process = jspace_cost + (planning_time + smoothing_time);// in the text, smoothing time is included within planning_time

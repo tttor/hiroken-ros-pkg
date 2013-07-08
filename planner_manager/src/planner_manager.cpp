@@ -13,7 +13,10 @@ PlannerManager::PlannerManager(ros::NodeHandle& nh):
   nh_(nh)
 {
   ros::service::waitForService("plan_grasp");
+  
   n_ctamp_attempt_ = 0;
+  n_ml_update_ = 0;
+  n_svr_training_data_ = 0;
   n_ml_update_ = 0;
   
   lwpr_model_ = new LWPR_Object(ml_util::LWPR_INPUT_DIM,ml_util::LWPR_OUTPUT_DIM);
@@ -107,7 +110,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
 
   // Initialize
   tmm_ = TaskMotionMultigraph();// renew the tmm_, necessary because there are multiple attempts in an episode
-  TaskMotionMultigraph ori_ucs_tmm;// only used in rerun modes for (a)inheriting (re-using) motion planning result from the baseline attempts and (b)computing true cost2go
+  ucs_tmm_ = TaskMotionMultigraph();// renew the ucs_tmm_, necessary because there are multiple attempts in an episode
     
   if(!rerun)
   {
@@ -154,64 +157,32 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   {
     put( edge_color,tmm_,*ei,std::string("black") );
     put( edge_weight,tmm_,*ei,std::numeric_limits<double>::max() );
-    put( edge_nograsppose,tmm_,*ei,true );
   }
 
   // Retrieve the UCS-planned TMM only if rerun (=benchmarked attempt)
   // Assume that the base directory for rerun contains UCS-planned TMM having a CTAMP solution  
   if(rerun)
   {
-    boost::dynamic_properties ori_ucs_tmm_dp;
+    boost::dynamic_properties ucs_tmm_dp;
     
-    ori_ucs_tmm_dp.property("vertex_id", get(vertex_name, ori_ucs_tmm));
+    ucs_tmm_dp.property("vertex_id", get(vertex_name, ucs_tmm_));
     
-    ori_ucs_tmm_dp.property( "label",get(edge_name, ori_ucs_tmm) );
-    ori_ucs_tmm_dp.property( "weight",get(edge_weight, ori_ucs_tmm) );  
-    ori_ucs_tmm_dp.property( "jspace",get(edge_jspace, ori_ucs_tmm) );
-    ori_ucs_tmm_dp.property( "color",get(edge_color, ori_ucs_tmm) );
-    ori_ucs_tmm_dp.property( "srcstate",get(edge_srcstate, ori_ucs_tmm) );  
-    ori_ucs_tmm_dp.property( "mptime",get(edge_mptime, ori_ucs_tmm) );  
-    ori_ucs_tmm_dp.property( "planstr",get(edge_planstr, ori_ucs_tmm) );
+    ucs_tmm_dp.property( "label",get(edge_name, ucs_tmm_) );
+    ucs_tmm_dp.property( "weight",get(edge_weight, ucs_tmm_) );  
+    ucs_tmm_dp.property( "jspace",get(edge_jspace, ucs_tmm_) );
+    ucs_tmm_dp.property( "color",get(edge_color, ucs_tmm_) );
+    ucs_tmm_dp.property( "srcstate",get(edge_srcstate, ucs_tmm_) );  
+    ucs_tmm_dp.property( "mptime",get(edge_mptime, ucs_tmm_) );  
+    ucs_tmm_dp.property( "planstr",get(edge_planstr, ucs_tmm_) );
 
-    std::ifstream ori_ucs_tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
-    if( !read_graphviz(ori_ucs_tmm_dot, ori_ucs_tmm, ori_ucs_tmm_dp, "vertex_id") )
+    std::ifstream ucs_tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
+    if( !read_graphviz(ucs_tmm_dot, ucs_tmm_, ucs_tmm_dp, "vertex_id") )
     {
-      ROS_ERROR("read_graphviz(ori_ucs_tmm_dot,...): Failed.");
+      ROS_ERROR("read_graphviz(ucs_tmm_dot,...): Failed.");
       return false;
     }
-
-    // Inherit for re-using motion planning result
-    graph_traits<TaskMotionMultigraph>::edge_iterator ei,ei_end;
-    
-    std::vector<TMMEdge> ori_ucs_tmm_edges;
-    for(tie(ei,ei_end)=edges(ori_ucs_tmm); ei!=ei_end; ++ei)
-      ori_ucs_tmm_edges.push_back(*ei);
-    
-    for(tie(ei,ei_end)=edges(tmm_); ei!=ei_end; ++ei)
-    {
-      std::vector<TMMEdge>::iterator it;
-      it = std::find_if(ori_ucs_tmm_edges.begin(),ori_ucs_tmm_edges.end(),FindEqualEdge(*ei,tmm_,ori_ucs_tmm));
-      
-      if(it != ori_ucs_tmm_edges.end())// found
-      {
-        // Copy edge property from ori_ucs_tmm to tmm_
-        // We donot copy 2 properties: edge_label and edge_jspace
-        put( edge_weight,tmm_,*ei,get(edge_weight,ori_ucs_tmm,*it) );
-        put( edge_color,tmm_,*ei,get(edge_color,ori_ucs_tmm,*it) );
-        put( edge_srcstate,tmm_,*ei,get(edge_srcstate,ori_ucs_tmm,*it) );
-        put( edge_mptime,tmm_,*ei,get(edge_mptime,ori_ucs_tmm,*it) );
-        put( edge_planstr,tmm_,*ei,get(edge_planstr,ori_ucs_tmm,*it) );
-        put( edge_plan,tmm_,*ei, utils::get_plan(get(edge_planstr,tmm_,*ei)) );
-        put( edge_nograsppose,tmm_,*ei,false );
-        
-        // Change from edge in solution path (blue) to green (geometrically-validated and has motion plan)
-        std::string color;
-        color = get(edge_color,tmm_,*ei);
-        if( !strcmp(color.c_str(),std::string("blue").c_str()) )
-          put( edge_color,tmm_,*ei,std::string("green") );
-      }
-    }    
-  }// if rerun
+    ROS_DEBUG("read_graphviz(ucs_tmm_dot,...): Succeeded");
+  }// if(rerun)
   
   // Mark the root and the goal vertex in the TMM
   boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
@@ -245,6 +216,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::vector<double> distances(num_vertices(tmm_));
   
   double total_gp_time = 0.;
+  double total_mp_time = 0.;
   size_t n_exp_op = 0;
 
   ros::Time search_begin = ros::Time::now();
@@ -281,7 +253,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         astar_search( tmm_
                     , tmm_root_
                     , AstarHeuristics<TaskMotionMultigraph,double,SVM_Object>(tmm_goal_,&gpm,&learner,search_heuristic_ml_mode,prep_data_,&n_ml_update_)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&n_exp_op,&n_ml_update_) )
+                    , visitor( AstarVisitor<TaskMotionMultigraph,SVM_Object>(tmm_goal_,&gpm,&learner,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&total_mp_time,&n_exp_op,&n_ml_update_) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -308,7 +280,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         astar_search( tmm_
                     , tmm_root_
                     , AstarHeuristics<TaskMotionMultigraph,double,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,ml_mode,prep_data_,&n_ml_update_)
-                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&n_exp_op,&n_ml_update_) )
+                    , visitor( AstarVisitor<TaskMotionMultigraph,LWPR_Object>(tmm_goal_,&gpm,lwpr_model_,&ml_data,ml_mode,ml_hot_path,&total_gp_time,&total_mp_time,&n_exp_op,&n_ml_update_) )
                     . predecessor_map(&predecessors[0])
                     . distance_map(&distances[0])
                     );
@@ -326,10 +298,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   {
     ROS_INFO("GOAL_FOUND.");
     
-    // Get elapsed time for planning that is represented by the search process, but excluding grasp planning time (because we do not care it for now)
+    // Get elapsed time for planning that is represented by the search process, but _excluding_ grasp planning time (because we do not care it for now) and motion planning time (because it is stored separately in edge_mptime)
     double search_time;
     search_time = (ros::Time::now()-search_begin).toSec();
     search_time -= total_gp_time;
+    search_time -= total_mp_time;
     
     cout << "CTAMP_SearchTime= " << search_time << endl;
     perf_log_out << "CTAMP_SearchTime=" << search_time << endl;
@@ -353,7 +326,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
         for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
         {
-          total_mp_time += get(edge_mptime,tmm_,*oei);
+          std::string color;
+          color = get(edge_color,tmm_,*oei);
+          
+          if( strcmp(color.c_str(),std::string("black").c_str()) )// if _not_ black
+            total_mp_time += get(edge_mptime,tmm_,*oei);
         }
       }
       else
@@ -433,7 +410,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     for(std::vector<TMMEdge>::iterator i=sol_path.begin(); i!=sol_path.end(); ++i)
     {
-      cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << endl;
+      cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << " --> " << get(edge_color,tmm_,*i) << endl;
       perf_log_out << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << ",";
       
       if( !strcmp(get(edge_color,tmm_,*i).c_str(),"red") )
@@ -497,7 +474,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     std::string tmp_data_path  = std::string(ml_hot_path+"/fit.out");// _must_ be always overwritten
     
     SVMModel old_svr_model;
-    if(n_ctamp_attempt_ > 0) // If not the first attemp (at least the model has been updated once)
+    if(n_ctamp_attempt_ > 0)// equivalent with if(n_ml_update_ > 0) with an assumption that every attempt is successfully followed by an ml update
     {
       old_svr_model = *svr_model_;
     }
@@ -538,6 +515,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
     
     svr_model_ = svm_train(&problem,&param);
+    ++n_ml_update_;
+    
 //    if( svm_save_model(model_path.c_str(),svr_model_) )
 //    {
 //      ROS_ERROR("Cannot save svm model.");
@@ -546,8 +525,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     svm_destroy_param(&param); free(problem.y); free(problem.x); free(x_space);
     
     // Benchmark: obtain prediction error with tr_data + put data into ml_data
-    // Note that the svm model used to predict is trained/updated using a bunch of data (samples obtained from this CTAMP instance), 
-    // instead of being trained one-by-one (which wil take long time)
+    // Note that the svm model used to predict is trained/updated using a bunch of data (samples obtained from this CTAMP instance), instead of being trained one-by-one (which wil take long time)
     if(n_ctamp_attempt_ > 0)
     {
       ROS_DEBUG_STREAM("Obtaining te_err anf tr_err for n_samples= " << utils::get_n_lines(delta_tr_data_path));
@@ -559,7 +537,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       FILE *output;
       SVMNode* x = (struct svm_node *) malloc( ml_util::SVR_MAX_N_ATTR*sizeof(struct svm_node));// for inputs 
       
-      // For te_err
+      // For te_err, note that we use old_svr_model
       input = fopen(delta_tr_data_path.c_str(),"r");// Use delta_tr_data
       if(input == NULL)
       {
@@ -581,7 +559,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       std::vector<double> y_fit_te;
       y_fit_te = ml_util::get_y_fit(tmp_data_path); 
       
-      // For tr_err
+      // For tr_err, note that we use the newly updated svr_model_
       input = fopen(delta_tr_data_path.c_str(),"r");// Use delta_tr_data
       if(input == NULL)
       {
@@ -603,11 +581,13 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       
       std::vector<double> y_fit_tr;
       y_fit_tr = ml_util::get_y_fit(tmp_data_path); 
-
+      
+      cerr << "old n_svr_training_data_= " << n_svr_training_data_ << endl;
+      
       // Put the content to variables to make it consistent with the one in ml_util::LWPR_ONLINE
       if( (y_fit_te.size()==y_true.size()) and (y_fit_tr.size()==y_true.size()) )
       {
-        n_data_ += y_true.size();
+        n_svr_training_data_ += y_true.size();
       }
       else
       {
@@ -618,6 +598,9 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         return false;
       }
       
+      cerr << "n_svr_training_data_= " << n_svr_training_data_ << endl;
+      cerr << "y_true.size()= " << y_true.size() << endl;
+      
       for(size_t i=0; i < y_true.size(); ++i)
       {
         std::vector<double> ml_datum;
@@ -626,7 +609,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         ml_datum.at(0) = y_fit_te.at(i);
         ml_datum.at(1) = y_fit_tr.at(i);
         ml_datum.at(2) = y_true.at(i);
-        ml_datum.at(3) = n_data_;// number of samples that are used to trained the SVR model so far.
+        ml_datum.at(3) = n_svr_training_data_;// number of samples that are used to trained the SVR model so far.
         
         ml_data.push_back(ml_datum);
       }
@@ -635,9 +618,9 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     // Remove deltas after every te_err and tr_err retrieval; clear after one ctamp attempt
     boost::filesystem::remove( boost::filesystem::path(delta_tr_data_path) );
     boost::filesystem::remove( boost::filesystem::path(delta_csv_tr_data_path) );
-  }
+  }// if(ml_mode==ml_util::SVR_OFFLINE)
   
-  // Logging of ML-related data
+  // Logging of ML-related data and heuristic-related data
   if(ml_mode==ml_util::SVR_OFFLINE or ml_mode==ml_util::LWPR_ONLINE)
   {
     // Write ml_data
@@ -652,7 +635,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       ml_log << i->at(0) << "," 
              << i->at(1) << "," 
              << i->at(2) << "," 
-             << i->at(3) << std::endl;
+             << i->at(3) << ","
+             << n_ctamp_attempt_+1 << std::endl;// n-th attempt when this data comes from, plus 1 because n_ctamp_attempt_ is incremented by one later at the end
     }
     ml_log.close();
     
@@ -687,7 +671,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     
     PlannedEdgeFilter<TMMEdgeColorMap> planned_edge_filter( get(edge_color, tmm_) );
     typedef filtered_graph< TaskMotionMultigraph, PlannedEdgeFilter<TMMEdgeColorMap> > UCSPlannedEdgeOnlyTMM;
-    UCSPlannedEdgeOnlyTMM ucs_tmm(ori_ucs_tmm,planned_edge_filter);// for now, we do not struggle doing planning for un-planned edge, instead we assume that those edges "truly, as the true value" have very high cost to the goal
+    UCSPlannedEdgeOnlyTMM filtered_ucs_tmm(ucs_tmm_,planned_edge_filter);// for now, we do not struggle doing planning for un-planned edge, instead we assume that those edges "truly, as the true value" have very high cost to the goal
     
     size_t n_hcmp = 0;// the number of (est-cost2go vs. true-cost2go) obtained from this attempt
     for(std::set<TMMVertex>::iterator i=expvert_plus_set.begin(); i!=expvert_plus_set.end(); ++i)
@@ -701,15 +685,15 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       // Obtain true_cost-to-go using the Djikstra
       double cost2go = 0.;// initialize with an invalid cost 
             
-      std::vector< graph_traits<UCSPlannedEdgeOnlyTMM>::vertex_descriptor > parents(num_vertices(ucs_tmm));
+      std::vector< graph_traits<UCSPlannedEdgeOnlyTMM>::vertex_descriptor > parents(num_vertices(filtered_ucs_tmm));
       typedef graph_traits<UCSPlannedEdgeOnlyTMM>::vertices_size_type size_type;
-      for(size_type p=0; p < num_vertices(ucs_tmm); ++p)
+      for(size_type p=0; p < num_vertices(filtered_ucs_tmm); ++p)
         parents.at(p) = p;
       
       graph_traits<UCSPlannedEdgeOnlyTMM>::vertex_descriptor dijkstra_src;
       dijkstra_src = *i;
       
-      dijkstra_shortest_paths( ucs_tmm,dijkstra_src,predecessor_map(&parents[0]) );
+      dijkstra_shortest_paths( filtered_ucs_tmm,dijkstra_src,predecessor_map(&parents[0]) );
       
       if(parents.at(tmm_goal_) != tmm_goal_)// then, there is a path in ucs-planned TMM from src to the goal
       {
@@ -721,12 +705,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         {
           double cheapest_cost = std::numeric_limits<double>::max();// of the several edges of (parent of hot_v)-->(hot_v), can not use boost::edge() due to multigraph
           graph_traits<UCSPlannedEdgeOnlyTMM>::out_edge_iterator oei,oei_end;
-          for(boost::tie(oei,oei_end) = out_edges(parents.at(hot_v),ucs_tmm); oei!=oei_end; ++oei)
+          for(boost::tie(oei,oei_end) = out_edges(parents.at(hot_v),filtered_ucs_tmm); oei!=oei_end; ++oei)
           {
-            if(target(*oei,ucs_tmm) == hot_v)
+            if(target(*oei,filtered_ucs_tmm) == hot_v)
             {
               double cost;
-              cost = get(edge_weight,ucs_tmm,*oei);
+              cost = get(edge_weight,filtered_ucs_tmm,*oei);
               
               if(cost < cheapest_cost) 
                 cheapest_cost = cost;
@@ -746,7 +730,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       }
       
       // Write
-      h_log << h << "," << cost2go /* << "," << get(vertex_name,ucs_tmm,*i) */ << std::endl;
+      h_log << h 
+            << "," << cost2go 
+            << ","<< n_ctamp_attempt_+1 // n-th attempt when this data comes from, plus 1 because n_ctamp_attempt_ is incremented by one later at the end
+            /* << "," << get(vertex_name,filtered_ucs_tmm,*i) */ 
+            << std::endl;
       ++n_hcmp;
     }// for each vertex in expvert_plus_set
     
@@ -799,7 +787,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
           double c_v_av;
           c_v_av = i->second;
           
-          h2_log << h_v << "," << h_av << "," << c_v_av /*<< "," << get(vertex_name,tmm_,*vi) << "," << get(vertex_name,tmm_,i->first) */ << std::endl;
+          h2_log << h_v 
+                 << "," << h_av 
+                 << "," << c_v_av 
+                 << ","<< n_ctamp_attempt_+1 // n-th attempt when this data comes from, plus 1 because n_ctamp_attempt_ is incremented by one later at the end
+                 /*<< "," << get(vertex_name,tmm_,*vi) << "," << get(vertex_name,tmm_,i->first) */ 
+                 << std::endl;
           ++n_hcmp2;
         }
       }

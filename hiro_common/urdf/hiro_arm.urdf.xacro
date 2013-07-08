@@ -3,7 +3,7 @@
   <!-- TODO Find out the exact value for below-->
   <xacro:property name="dist_to_wrist_pitch_mesh_boundary" value="-0.025" />
   
-  <xacro:macro name="arm" params="side reflect">
+  <xacro:macro name="arm" params="side reflect reflect2">
   	<joint name="joint_${side}shoulder_yaw" type="revolute">
       <parent link="link_chest_yaw"/>
       <child link="link_${side}shoulder_yaw"/>
@@ -120,7 +120,7 @@
       <child link="link_${side}wrist_yaw"/>
       <origin xyz="-0.02 0.0 -0.22" rpy="0 0 0"/> 
       <axis xyz="0 0 1"/>
-      <limit lower="${-195*rad_per_deg}" upper="${135*rad_per_deg}" effort="1000.0" velocity="0.5"/>
+      <limit lower="${(-195+reflect2*60)*rad_per_deg}" upper="${(135+reflect2*60)*rad_per_deg}" effort="1000.0" velocity="0.5"/>
       <!--safety_controller  soft_lower_limit="${-190*rad_per_deg}" soft_upper_limit="${130*rad_per_deg}" k_position="0" k_velocity="0" /-->
       <!-- rotorInertia	3.74e-03 -->
       <dynamics damping="0.0" friction="0.0"/>      
