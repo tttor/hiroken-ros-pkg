@@ -126,14 +126,15 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   // Utilize samples
   if((ml_mode_ == ml_util::SVR_OFFLINE)or(ml_mode_ == ml_util::NO_ML_BUT_COLLECTING_SAMPLES))// Store samples for offline (interleaved) training and for offline tuning
   {
-    // Write samples + the delta to a libsvmdata format: APPENDING
-    std::string libsvmdata_path = std::string(ml_hot_path_+"/tr_data.libsvmdata");;
+    // Write samples + the delta to a libsvmdata format and to a CSV format: APPENDING
+    // non-delta files are appended because multiple attempts and multiple vertex examinations
+    // delta files are appended because multiple vertex examinations, delta file is removed at the end of interleaved learning of each attempt
+    std::string libsvmdata_path = std::string(ml_hot_path_+"/tr_data.libsvmdata");
     std::string delta_libsvmdata_path = std::string(ml_hot_path_+"/delta_tr_data.libsvmdata");
     
     data_util::write_libsvm_data(samples,libsvmdata_path,std::ios::app);
     data_util::write_libsvm_data(samples,delta_libsvmdata_path,std::ios::app);
     
-    // Write samples + the delta to a CSV format: APPENDING
     std::string csv_path = std::string(ml_hot_path_+"/tr_data.csv");
     std::string delta_csv_path = std::string(ml_hot_path_+"/delta_tr_data.csv");
     
