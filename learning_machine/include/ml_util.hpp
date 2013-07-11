@@ -123,6 +123,38 @@ get_y_true(const std::string& data_path)
   return y_true;
 }
 
+std::vector<double>
+get_y_true_libsvmdata(const std::string& data_path)
+{
+  std::vector<double> y_true;
+  
+  std::ifstream sample_file(data_path.c_str());
+  if(sample_file.is_open())
+  {
+    while ( sample_file.good() )
+    {
+      std::string line;
+
+      std::getline(sample_file,line);
+      
+      // Parsing the libsvmdata, the output is at the first part
+      std::vector<std::string> line_parts;
+      boost::split( line_parts,line,boost::is_any_of(" ") );// yes, delimited by a space
+      
+     if(line.size() != 0)
+       y_true.push_back( boost::lexical_cast<double>(line_parts.front()) );
+    }
+    sample_file.close();
+  }
+  else
+  {
+   std::cout << "sample_file.is_open(): Failed" << std::endl;
+   return std::vector<double>();
+  }
+  
+  return y_true;
+}
+
 void
 convert_var2mat(mxArray* var,Eigen::MatrixXd* mat)
 {
