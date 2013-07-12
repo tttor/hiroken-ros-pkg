@@ -538,9 +538,22 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       ROS_ERROR("data_util::convert_csv2libsvmdata() FAILED");
       return false;
     }
-    
+
     std::vector<double> y_true;
     y_true = ml_util::get_y_true_libsvmdata(preprocessed_tr_data_path_2);
+    
+    // Sanity checks
+    if( (utils::get_n_lines(raw_tr_data_path) != utils::get_n_lines(preprocessed_tr_data_path)) 
+        or (utils::get_n_lines(raw_tr_data_path) != utils::get_n_lines(preprocessed_tr_data_path_2)) 
+        or (utils::get_n_lines(raw_tr_data_path) != y_true.size()) )
+    {
+      cerr << "utils::get_n_lines(raw_tr_data_path)= " << utils::get_n_lines(raw_tr_data_path) << endl;
+      cerr << "utils::get_n_lines(preprocessed_tr_data_path)= " << utils::get_n_lines(preprocessed_tr_data_path) << endl;
+      cerr << "utils::get_n_lines(preprocessed_tr_data_path_2)= " << utils::get_n_lines(preprocessed_tr_data_path_2) << endl;
+      cerr << "y_true.size()= " << y_true.size() << endl;
+      
+      return false;
+    }
     
     // Interleave SVR training, building the model from scratch will all stored data
     ROS_DEBUG("SVR training ...");
