@@ -746,7 +746,7 @@ main(int argc, char **argv)
         utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths);
           
         // Write          
-        utils::write_instance_path(instance_paths,base_data_path,n_obj,i+1);
+        utils::write_instance_path(instance_paths,"/home/vektor/rss-2013/data/with_v.4.3/tmp",n_obj,i+1);
       }
       break;
     }

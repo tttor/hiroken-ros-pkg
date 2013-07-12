@@ -180,7 +180,7 @@ read_problem(const char *filename,SVMNode* x_space,SVMProblem* prob,SVMParameter
 	return true;
 }
 
-void 
+double
 libsvm_predict(SVMModel* model,int predict_probability,int max_n_attr_,SVMNode*x,FILE *input, FILE *output)
 {
 	int correct = 0;
@@ -293,6 +293,8 @@ libsvm_predict(SVMModel* model,int predict_probability,int max_n_attr_,SVMNode*x
 			(double)correct/total*100,correct,total);
 	if(predict_probability)
 		free(prob_estimates);
+		
+	return error/total;
 }
 
 class SVM_Object

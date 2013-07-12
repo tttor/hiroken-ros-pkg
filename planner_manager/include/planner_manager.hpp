@@ -126,6 +126,7 @@ std::map<std::string, arm_navigation_msgs::CollisionObject> unmovable_obj_cfg_;
 //! Keeps the number of samples that have been used to trained a SVR model
 size_t n_svr_training_data_;
 
+//! The number of planning attempts that _have_ been performed successfully so far
 size_t n_ctamp_attempt_;
 
 //! Number of ml model updates/trains
