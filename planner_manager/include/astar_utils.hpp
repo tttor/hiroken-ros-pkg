@@ -129,11 +129,13 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
     // Write samples + the delta to a libsvmdata format and to a CSV format: APPENDING
     // non-delta files are appended because multiple attempts and multiple vertex examinations
     // delta files are appended because multiple vertex examinations, delta file is removed at the end of interleaved learning of each attempt
-    std::string libsvmdata_path = std::string(ml_hot_path_+"/tr_data.libsvmdata");
-    std::string delta_libsvmdata_path = std::string(ml_hot_path_+"/delta_tr_data.libsvmdata");
     
-    data_util::write_libsvm_data(samples,libsvmdata_path,std::ios::app);
-    data_util::write_libsvm_data(samples,delta_libsvmdata_path,std::ios::app);
+    // COMMENTED because these libsvmdata files will be overwritten by the prepocessed version when doing interleaved training later
+//    std::string libsvmdata_path = std::string(ml_hot_path_+"/tr_data.libsvmdata");
+//    std::string delta_libsvmdata_path = std::string(ml_hot_path_+"/delta_tr_data.libsvmdata");
+//    
+//    data_util::write_libsvm_data(samples,libsvmdata_path,std::ios::app);
+//    data_util::write_libsvm_data(samples,delta_libsvmdata_path,std::ios::app);
     
     std::string csv_path = std::string(ml_hot_path_+"/tr_data.csv");
     std::string delta_csv_path = std::string(ml_hot_path_+"/delta_tr_data.csv");
@@ -146,7 +148,7 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
     cerr << "LWPR_ONLINE: training with " << samples.size() << " samples: BEGIN" << endl;
     for(Data::const_iterator i=samples.begin(); i!=samples.end(); ++i)
     {
-      cout << ".";
+      cout << ".";// for progress animation only
       
       std::vector<double> x;
       x = i->first;// input
@@ -172,14 +174,16 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       
       // Keep ml-related data 
       std::vector<double> ml_datum;
-      ml_datum.push_back(y_fit_test.at(0));// 0 
-      ml_datum.push_back(y_fit.at(0));// 1
-      ml_datum.push_back(y.at(0));// 2
-      ml_datum.push_back(learner_->nData());// 3
+      ml_datum.resize(4);
+      
+      ml_datum.at(0) = y_fit_test.at(0);
+      ml_datum.at(1) = y_fit.at(0);
+      ml_datum.at(2) = y.at(0);
+      ml_datum.at(3) = learner_->nData();
       
       ml_data_->push_back(ml_datum);
     }
-    cerr << endl;
+    cerr << endl;// for progress animation only
     
     cerr << "LWPR_ONLINE: training with " << samples.size() << " samples: END" << endl;
   }
