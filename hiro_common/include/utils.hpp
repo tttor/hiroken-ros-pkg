@@ -450,7 +450,7 @@ get_n_lines(const std::string& path)
 {
   using namespace std;
   
-  const int SZ = 1024 * 1024;
+  const int SZ = 32768 * 32768;// TODO how to know if the buffer is overflowed
   std::vector <char> buff( SZ );
   
   ifstream ifs(path.c_str());

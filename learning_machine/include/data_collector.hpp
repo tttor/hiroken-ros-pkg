@@ -63,7 +63,7 @@ get_sample(const std::vector<typename boost::graph_traits<LocalGraph>::edge_desc
     return false;
   }
   
-  data->insert( std::make_pair(in,out) );
+  data->push_back( std::make_pair(in,out) );
   
   return true;
 }
