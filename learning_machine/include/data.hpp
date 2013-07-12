@@ -7,11 +7,11 @@
 #include <boost/algorithm/string.hpp>
 #include <fstream>
 
+//TODO put these typedefs into the data_util namespace
 typedef double Output;// which is the true geometric cost
 typedef std::vector<double> Input;// which contains feature-values, whose names are specified in the metadata
 typedef std::map<std::string, double> RawInput;// which consists of features-name--feature-value pairs, for sparse data
-typedef std::map<Input, Output> Data;// inforce unique data only, in particular unique key(=Input)
-typedef std::set<Input> InputOnlyData;// inforce unique data only, in particular unique key(=Input)
+typedef std::vector< std::pair<Input, Output> >Data;
 
 namespace data_util
 {
@@ -115,16 +115,6 @@ write_libsvm_data(const Data& data,const std::string& data_out_path,std::ios_bas
   return true; 
 }
 
-//! For testing/predicting purpose where the output y is unknown
-bool
-write_libsvm_data(const Input& in,const std::string& data_out_path,std::ios_base::openmode mode = std::ios_base::out)
-{
-  Data data;
-  data[in] = 0.;// arbitrary_y;
-
-  return write_libsvm_data(data,data_out_path,mode);
-}
-
 //! Write to a csv file
 /*!
   Accept only datatype= Data 
@@ -155,12 +145,13 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
   
   Data data;
   size_t n_line = utils::get_n_lines(csv_path);
-//  cerr << "n_line= " << n_line << endl;
+  cerr << "init n_line= " << n_line << endl;
+  
+  size_t n_push = 0.;
   
   ifstream csv(csv_path.c_str());
   if (csv.is_open())
   {
-    size_t n_duplicate = 0;
     for(size_t i=0; i<n_line; ++i)
     {
       string line;
@@ -189,6 +180,7 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
         catch(std::exception const&  ex)
         {
           std::cerr << ex.what() << std::endl;
+          cerr << "line= " << line << endl;
           all_in_okay = false;
           break;
         }
@@ -205,16 +197,14 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
       catch(std::exception const&  ex)
       {
         std::cerr << ex.what() << std::endl;
+        cerr << "line= " << line << endl;
         continue;
       }
       
       // Wrap up
-      bool unique;
-      unique = data.insert( make_pair(in,out) ).second;
-      
-      if(!unique) ++n_duplicate;
+      data.push_back( make_pair(in,out) );
+      ++n_push;
     }
-//    cerr << "n_duplicate= " << n_duplicate << endl;
     csv.close();
   }
   else
@@ -222,7 +212,8 @@ convert_csv2libsvmdata(const std::string& csv_path,const std::string& libsvmdata
     cerr << "Cannot open: " << csv_path << endl;
     return false;
   }
-
+  
+  cerr << "n_push= " << n_push << endl;
   cerr << "convert_csv2libsvmdata : END (with write_libsvm_data(data,libsvmdata_path))" << endl;   
   return write_libsvm_data(data,libsvmdata_path);
 }

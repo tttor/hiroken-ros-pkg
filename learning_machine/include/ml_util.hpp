@@ -4,6 +4,7 @@
 #include <boost/algorithm/string.hpp>
 #include <Eigen/Dense>
 #include "engine.h"
+#include "data.hpp"
 
 namespace ml_util
 {
@@ -41,6 +42,37 @@ enum
   SVR_OFFLINE,// in a batch mode, training is interleaved in between search 
   LWPR_ONLINE// in an online mode, the model is updated during search
 } MLMode;
+
+double
+get_mean(const std::vector<double>& data)
+{
+  double total = 0.;
+  
+  for(size_t i=0; i<data.size(); ++i)
+  {
+    total += data.at(i);
+  }
+  
+  return (total/data.size());
+}
+
+double
+get_var(const std::vector<double>& data)
+{
+  double mu;
+  mu = get_mean(data);
+  
+  double sum = 0.;
+  for(size_t i=0; i<data.size(); ++i)
+  {
+    sum += pow(data.at(i)-mu,2);
+  }
+  
+  if(data.size() > 1)
+    return (sum/(data.size()-1));
+  else
+    return (sum/data.size());
+}
 
 struct PrepData
 {
@@ -91,6 +123,42 @@ get_y_fit(const std::string& fitting_data_path)
   return est_y;
 }
 
+std::vector<Input>
+get_X(const std::string& data_path)
+{
+  std::vector<Input> X;
+  
+  std::ifstream sample_file(data_path.c_str());
+  if(sample_file.is_open())
+  {
+    while ( sample_file.good() )
+    {
+      std::string line;
+      std::getline(sample_file,line);
+      
+      if(line.size() != 0)
+      {
+        // Parsing the csv, the input feature vector values are from all but the last element
+        std::vector<std::string> line_parts;
+        boost::split( line_parts,line,boost::is_any_of(",") );
+      
+        Input x;
+        for(size_t i=0; i<line_parts.size()-1; ++i)// excluding the last part: the output
+          x.push_back( boost::lexical_cast<double>(line_parts.at(i)) );
+        
+        X.push_back(x);
+      }
+    }
+    sample_file.close();
+  }
+  else
+  {
+    std::cout << "sample_file.is_open(): Failed on " << data_path << std::endl;
+  }
+  
+  return X;
+}
+
 std::vector<double>
 get_y_true(const std::string& data_path)
 {
@@ -102,21 +170,56 @@ get_y_true(const std::string& data_path)
     while ( sample_file.good() )
     {
       std::string line;
-
       std::getline(sample_file,line);
       
-      // Parsing the csv, the output is at the last element
-      std::vector<std::string> line_parts;
-      boost::split( line_parts,line,boost::is_any_of(",") );
+      if(line.size() != 0)
+      {
+        // Parsing the csv, the output is at the last element
+        std::vector<std::string> line_parts;
+        boost::split( line_parts,line,boost::is_any_of(",") );
+        
+        y_true.push_back( boost::lexical_cast<double>(line_parts.back()) );
+      }
       
-     if(line.size() != 0)
-       y_true.push_back( boost::lexical_cast<double>(line_parts.back()) );
     }
     sample_file.close();
   }
   else
   {
-   std::cout << "sample_file.is_open(): Failed" << std::endl;
+   std::cout << "sample_file.is_open(): Failed on " << data_path << std::endl;
+   return std::vector<double>();
+  }
+  
+  return y_true;
+}
+
+std::vector<double>
+get_y_true_libsvmdata(const std::string& data_path)
+{
+  std::vector<double> y_true;
+  
+  std::ifstream sample_file(data_path.c_str());
+  if(sample_file.is_open())
+  {
+    while ( sample_file.good() )
+    {
+      std::string line;
+      std::getline(sample_file,line);
+      
+      if(line.size() != 0)
+      {
+        // Parsing the libsvmdata, the output is at the first part
+        std::vector<std::string> line_parts;
+        boost::split( line_parts,line,boost::is_any_of(" ") );// yes, delimited by a space
+
+        y_true.push_back( boost::lexical_cast<double>(line_parts.front()) );
+      }
+    }
+    sample_file.close();
+  }
+  else
+  {
+   std::cout << "sample_file.is_open(): Failed on " << data_path << std::endl;
    return std::vector<double>();
   }
   
@@ -151,6 +254,42 @@ convert_var2vec(mxArray* var,Eigen::VectorXd* vec)
   }
   
   *vec = Eigen::Map<Eigen::VectorXd>(val_arr,mxGetNumberOfElements(var));
+}
+
+bool
+preprocess(const std::vector<Input>& X,const PrepData& prep_data, std::vector<Input>* preprocessed_X)
+{
+  for(size_t i=0; i < X.size(); ++i)
+  {
+    Input x;
+    x = X.at(i);
+    
+    // All below should mimic the proprocess_data() routine implemented in matlab
+    double* x_ptr = &x[0];
+    Eigen::Map<Eigen::VectorXd> tmp_x(x_ptr,x.size());
+    
+    // Centering; PCA needs centered_x
+    Eigen::VectorXd centered_x;
+    centered_x = tmp_x - prep_data.mu_X;
+    
+    // Project to new space
+    Eigen::VectorXd new_x;
+    new_x = centered_x.transpose() * prep_data.T;
+    
+    // Reduce dim
+    Eigen::VectorXd lodim_x;
+    lodim_x = new_x.head(prep_data.lo_dim);
+    
+    // Convert back to std::vector
+    x.clear();
+    x.resize(lodim_x.size());
+    for(size_t i=0; i<lodim_x.size(); ++i)
+      x.at(i) = lodim_x(i);
+      
+    preprocessed_X->push_back(x);
+  }
+  
+  return true;
 }
 
 bool
