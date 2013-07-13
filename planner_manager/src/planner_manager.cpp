@@ -473,6 +473,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     std::string tmp_data_path  = std::string(ml_hot_path+"/fit.out");// _must_ be always overwritten, contains fitting values of the SVR
     
     // Obtain testing err, iff the model is already trained/updated, at least, once  
+    // Note that the testing data must be preprocessed with the same params used to trained the model
     std::vector<double> y_te_true;
     std::vector<double> y_te_fit;
     
@@ -555,7 +556,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       return false;
     }
     
-    // Interleave SVR training, building the model from scratch will all stored data
+    // Interleave SVR training, building the model from scratch will all stored data in tr_data.csv
     ROS_DEBUG("SVR training ...");
     
     SVMParameter param;
@@ -622,11 +623,11 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     nMSE = MSE/var;
     
     // Put the content to ml_data variable, to be as similiar as possible with the one in ml_util::LWPR_ONLINE
-    // The number of data follow the size of y_te_true, if it is not empty, otherwise n data = 1
+    // The number of data follow the size of y_te_true if it is not empty, otherwise n data = 1
     std::vector<double> ml_datum;
-    ml_datum.resize(6);// Elements: see below; yes, all but only testing data are duplicated
+    ml_datum.resize(6);// Elements: see below; yes, all but testing data are duplicated
     
-    size_t n_raw_svr_training_data;
+    size_t n_raw_svr_training_data;// must be equal to n_svr_training_data_ because preprocess does not remove duplicates
     n_raw_svr_training_data = utils::get_n_lines(raw_tr_data_path);
       
     if( y_te_true.empty() )
@@ -634,7 +635,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       ml_datum.at(0) = -1.0;// an invalid value for y_te_fit
       ml_datum.at(1) = nMSE;
       ml_datum.at(2) = -1.0;// an invalid value for y_te_true
-      ml_datum.at(3) = n_svr_training_data_;// number of samples that are used to trained the SVR model so far.
+      ml_datum.at(3) = n_svr_training_data_;
       ml_datum.at(4) = MSE;
       ml_datum.at(5) = n_raw_svr_training_data;
       
@@ -647,7 +648,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         ml_datum.at(0) = y_te_fit.at(i);
         ml_datum.at(1) = nMSE;
         ml_datum.at(2) = y_te_true.at(i);
-        ml_datum.at(3) = n_svr_training_data_;// number of samples that are used to trained the SVR model so far.
+        ml_datum.at(3) = n_svr_training_data_;
         ml_datum.at(4) = MSE;
         ml_datum.at(5) = n_raw_svr_training_data;
         
