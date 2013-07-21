@@ -826,7 +826,7 @@ main(int argc, char **argv)
     }
     case 12:
     // For prj-6. Run pick-and-place with 1 movable object with one arm with one joint-space set
-    // USAGE: $ roslaunch hiro_common prj-6.launch n_run:=? suffix:=?
+    // USAGE: $ roslaunch hiro_common prj-6.launch n_run:=1 suffix:=20130721.test
     {
       n_obj = 1;
       
