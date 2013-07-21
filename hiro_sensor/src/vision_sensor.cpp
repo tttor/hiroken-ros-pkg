@@ -101,6 +101,9 @@ see_srv_handle(hiro_sensor::See::Request& req, hiro_sensor::See::Response& res)
     return false;
   }
   
+  // Clear obj_cfg_ for the next run
+  obj_cfg_.clear();
+  
   return true;
 }
 
