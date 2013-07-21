@@ -17,6 +17,7 @@
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_real.hpp>
 #include <boost/random/uniform_int.hpp>
+#include <boost/random/normal_distribution.hpp>
 
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -31,9 +32,6 @@ static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set
 
 // TODO wrap this data in a header
 // Based on observation in Jul 1, 2012
-static const double TABLE_HEIGHT = 0.835;
-static const double TABLE_RADIUS = 0.600;
-static const double TABLE_THICKNESS = 0.050;
 static const double DIST_TO_WALL_BEHIND = -0.540;
 
 static const double VASE_R = 0.075;
@@ -46,7 +44,7 @@ static const size_t UPRIGHT = 0;
 static const size_t PIXEL_PER_M = 500; // means that 1m is equal to <PIXEL_PER_M> pixels
 static const double DEG_PER_RAD = 57.2957795; // 1 radian = 57.2957795 degree
 
-static boost::mt19937 g_cc_rng( static_cast<unsigned int>(std::time(0)) );
+static utils::RandomNumberGenerator g_cc_rng( static_cast<unsigned int>(std::time(0)) );
 
 class VisionSensor
 {
@@ -156,8 +154,8 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
   
   table_shape.type = arm_navigation_msgs::Shape::CYLINDER;
   table_shape.dimensions.resize(2);
-  table_shape.dimensions[0] = TABLE_RADIUS;
-  table_shape.dimensions[1] = TABLE_THICKNESS;
+  table_shape.dimensions[0] = utils::TABLE_RADIUS;
+  table_shape.dimensions[1] = utils::TABLE_THICKNESS;
   
   table.shapes.push_back(table_shape);
       
@@ -165,7 +163,7 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
   
   table_pose.position.x = 0.;
   table_pose.position.y = 0.;
-  table_pose.position.z = TABLE_HEIGHT;
+  table_pose.position.z = utils::TABLE_HEIGHT;
   table_pose.orientation.x = 0;
   table_pose.orientation.y = 0;
   table_pose.orientation.z = 0;
@@ -187,8 +185,8 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
 //  wall_shape.type = arm_navigation_msgs::Shape::BOX;
 //  wall_shape.dimensions.resize(3);
 //  wall_shape.dimensions[0] = 0.100;// size_x
-//  wall_shape.dimensions[1] = TABLE_RADIUS*2;// size_y
-//  wall_shape.dimensions[2] = (TABLE_HEIGHT*2) + TABLE_THICKNESS;// size_z
+//  wall_shape.dimensions[1] = utils::TABLE_RADIUS*2;// size_y
+//  wall_shape.dimensions[2] = (utils::TABLE_HEIGHT*2) + utils::TABLE_THICKNESS;// size_z
 //  
 //  geometry_msgs::Pose wall_pose;
 //  
@@ -233,42 +231,60 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
     else
     {
       // Randomize the shape
-      const double r_min = 0.030;
-      const double r_max = 0.085;
-      boost::uniform_real<double> uni_real_dist_r(r_min,r_max);
-      
-      r = uni_real_dist_r(g_cc_rng);
-
-      const double h_min = 0.200;
-      const double h_max = 0.500;
-      boost::uniform_real<double> uni_real_dist_h(h_min,h_max);
-      
-      h = uni_real_dist_h(g_cc_rng);
+//      const double r_min = 0.030;
+//      const double r_max = 0.085;
+//      boost::uniform_real<double> uni_real_dist_r(r_min,r_max);
+//      r = uni_real_dist_r(g_cc_rng);
+//      boost::normal_distribution<> normal_dist_r(VASE_R,0.150);
+//      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > r_gen(g_cc_rng,normal_dist_r);
+//      r = r_gen();
+      r = VASE_R;
+    
+//      const double h_min = 0.200;
+//      const double h_max = 0.500;
+//      boost::uniform_real<double> uni_real_dist_h(h_min,h_max);
+//      h = uni_real_dist_h(g_cc_rng);
+//      boost::normal_distribution<> normal_dist_h(VASE_H,0.150);
+//      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > h_gen(g_cc_rng,normal_dist_h);
+//      h = h_gen();
+      h = VASE_H;
       
       // Randomize the position: x, y
-      const double x_max = TABLE_RADIUS;// Play safe!
-      const double x_min = -1 * x_max;
-      const double y_max = x_max;
-      const double y_min = x_min;
-      boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
-      boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
+//      const double x_max = utils::TABLE_RADIUS;// Play safe!
+//      const double x_min = -1 * x_max;
+//      const double y_max = x_max;
+//      const double y_min = x_min;
+//      boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
+//      boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
+
+//      // FOR CLUSTER 1, comment another
+//      boost::normal_distribution<> normal_dist_x(VASE_X,0.150);
+//      boost::normal_distribution<> normal_dist_y(VASE_Y,0.150);
+      // FOR CLUSTER 2, comment another
+      boost::normal_distribution<> normal_dist_x(0.000,0.150);
+      boost::normal_distribution<> normal_dist_y(-0.350,0.150);
       
+      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(g_cc_rng,normal_dist_x);
+      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(g_cc_rng,normal_dist_y);
+                           
       while( true and ros::ok() )
       {
-        x = uni_real_dist_x(g_cc_rng);
-        y = uni_real_dist_y(g_cc_rng);
+//        x = uni_real_dist_x(g_cc_rng);
+//        y = uni_real_dist_y(g_cc_rng);
+        x = x_gen();
+        y = y_gen();
         
         double r_here;
         r_here = sqrt( pow(x,2)+pow(y,2) );
         
-        if( (r_here < (TABLE_RADIUS-utils::B_HEIGHT)) and !is_in_collision(x,y,0.,0.,r,h,&cc_img_) )
+        if( (r_here < (utils::TABLE_RADIUS-utils::B_HEIGHT)) and !is_in_collision(x,y,0.,0.,r,h,&cc_img_) )
           break;
         
         // TODO 3D collision check between the vase and the robot
       }
     }
     
-    z = (TABLE_THICKNESS/2)+(h/2);// because this vase is always UPRIGHT and frame_id = "/table"
+    z = (utils::TABLE_THICKNESS/2)+(h/2);// because this vase is always UPRIGHT and frame_id = "/table"
     
     // Spawn the object to the planning environment
     spawn_object( id, std::string("/table"),
@@ -320,27 +336,40 @@ set_movable_obj_cfg(const size_t& n)
     // Randomize the position.
     double z;
     if(pitch == 0.)
-     z = (TABLE_THICKNESS/2)+(utils::B_HEIGHT/2);
+     z = (utils::TABLE_THICKNESS/2)+(utils::B_HEIGHT/2);
     else
-     z = (TABLE_THICKNESS/2)+(utils::B_RADIUS);
+     z = (utils::TABLE_THICKNESS/2)+(utils::B_RADIUS);
     
-    const double x_max = TABLE_RADIUS;// Play safe!
-    const double x_min = -1 * x_max;
-    const double y_max = x_max;
-    const double y_min = x_min;
-    boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
-    boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
+//    const double x_max = utils::TABLE_RADIUS;// Play safe!
+//    const double x_min = -1 * x_max;
+//    const double y_max = x_max;
+//    const double y_min = x_min;
+//    boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
+//    boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
+
+//      // for CLUSTER.1, comment another
+//      boost::normal_distribution<> normal_dist_x(0.000,0.150);
+//      boost::normal_distribution<> normal_dist_y(-0.420,0.150);
+      // for CLUSTER.2, comment another
+      boost::normal_distribution<> normal_dist_x(0.420,0.150);
+      boost::normal_distribution<> normal_dist_y(0.000,0.150);
+      
+      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(g_cc_rng,normal_dist_x);
+      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(g_cc_rng,normal_dist_y);
     
     double x, y;
     while( true and ros::ok() )
     {
-      x = uni_real_dist_x(g_cc_rng);
-      y = uni_real_dist_y(g_cc_rng);
+//      x = uni_real_dist_x(g_cc_rng);
+//      y = uni_real_dist_y(g_cc_rng);
+      
+      x = x_gen();
+      y = y_gen();
       
       double r_here;
       r_here = sqrt( pow(x,2)+pow(y,2) );
       
-      if( (r_here < (TABLE_RADIUS-utils::B_HEIGHT)) and !is_in_collision(x,y,pitch,yaw,r,h,&cc_img_) )
+      if( (r_here < (utils::TABLE_RADIUS-utils::B_HEIGHT)) and !is_in_collision(x,y,pitch,yaw,r,h,&cc_img_) )
       {
         break;
       }
@@ -602,8 +631,8 @@ void
 init_cc_img()
 {
   // Set the base 2D img for 2D image collision checking using opencv
-  const size_t rows = (2*TABLE_RADIUS*PIXEL_PER_M); 
-  const size_t cols = (2*TABLE_RADIUS*PIXEL_PER_M);
+  const size_t rows = (2*utils::TABLE_RADIUS*PIXEL_PER_M); 
+  const size_t cols = (2*utils::TABLE_RADIUS*PIXEL_PER_M);
   
   cv::Mat img( rows, cols, CV_8UC1, cv::Scalar(255));// White image single channel 8 Unsigned
   cc_img_ = img;
@@ -622,7 +651,7 @@ init_cc_img()
   tbl_p.x = (rows/2); 
   tbl_p.y = (cols/2);
   
-  cv::circle( cc_img_, tbl_p, TABLE_RADIUS*PIXEL_PER_M, cv::Scalar(0), 1, CV_AA );
+  cv::circle( cc_img_, tbl_p, utils::TABLE_RADIUS*PIXEL_PER_M, cv::Scalar(0), 1, CV_AA );
 
 }
  

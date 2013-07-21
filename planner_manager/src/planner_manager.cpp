@@ -102,7 +102,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::string tidy_cfg_filename;
   if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
     ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead");
-  if ( !set_tidy_config() )
+  if ( !set_tidy_config(true) )
   {
     ROS_ERROR("Can not set the tidy_cfg!");
     return false;
@@ -927,22 +927,80 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   The tidy config is in a file named "tidy.cfg"
 */
 bool
-PlannerManager::set_tidy_config()
+PlannerManager::set_tidy_config(bool random)
 {
   utils::ObjCfg tidy_cfg;
 
   std::string  data_path= ".";
   if( !ros::param::get("/data_path", data_path) )
     ROS_WARN("Can not get /data_path, use the default value instead");
-    
-  if( !utils::read_obj_cfg(std::string(data_path+"/tidy.cfg"),&tidy_cfg) )
+  
+  if(random)// WARN: Only one object for now
   {
-    ROS_ERROR("Can not find the tidy*.cfg file.");
-    return false;
+    arm_navigation_msgs::CollisionObject object;
+    arm_navigation_msgs::Shape object_shape;
+    geometry_msgs::Pose object_pose;
+    
+    object.id = "CAN1";
+    object.operation.operation = arm_navigation_msgs::CollisionObjectOperation::ADD;
+    object.header.frame_id = "/table";
+    
+    object_pose.position.z = (utils::TABLE_THICKNESS/2)+(utils::B_HEIGHT/2);    
+    
+    // Randomize positions 
+//    // for CLUSTER.1, comment another
+//    boost::normal_distribution<> normal_dist_x(0.000,0.150);
+//    boost::normal_distribution<> normal_dist_y(0.420,0.150);
+    // for CLUSTER.2, comment another
+    boost::normal_distribution<> normal_dist_x(-0.420,0.150);
+    boost::normal_distribution<> normal_dist_y(0.000,0.150);
+
+    boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(utils::g_rng,normal_dist_x);    
+    boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(utils::g_rng,normal_dist_y);
+    double x, y;
+    while( true and ros::ok() )
+    {
+      x = x_gen();
+      y = y_gen();
+      
+      double r_here;
+      r_here = sqrt( pow(x,2)+pow(y,2) );
+      
+      if(r_here < (utils::TABLE_RADIUS-utils::B_RADIUS))
+        break;
+    }
+
+    object_pose.position.x = x;
+    object_pose.position.y = y;
+
+    object_pose.orientation.x = 0.000;
+    object_pose.orientation.y = 0.000;
+    object_pose.orientation.z = 0.000;
+    object_pose.orientation.w = 1.000;
+    
+    object_shape.type = arm_navigation_msgs::Shape::CYLINDER;// TODO make it flexible if necessary
+    object_shape.dimensions.resize(2);
+    object_shape.dimensions[0] = utils::B_RADIUS;
+    object_shape.dimensions[1] = utils::B_HEIGHT;
+    
+    object.shapes.push_back(object_shape);
+    object.poses.push_back(object_pose);
+
+    tidy_cfg.push_back(object);
+  }
+  else
+  {
+    if( !utils::read_obj_cfg(std::string(data_path+"/tidy.cfg"),&tidy_cfg) )
+    {
+      ROS_ERROR("Can not find the tidy*.cfg file.");
+      return false;
+    }
   }
   
   for(utils::ObjCfg::iterator i=tidy_cfg.begin(); i!=tidy_cfg.end(); ++i)
     movable_obj_tidy_cfg_[i->id] = *i; 
+    
+  utils::write_obj_cfg( tidy_cfg,std::string(data_path+"/tidy.cfg") );
   
   return true;
 }
