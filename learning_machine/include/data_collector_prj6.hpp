@@ -166,7 +166,7 @@ get_fval(const TaskMotionMultigraph& sol_tmm,Input* in)
     header = comps.at(0);
     comps.erase( comps.begin() );
     
-    if( !strcmp(header.c_str(),std::string("movable_obj_pose").c_str()) )// WARN: till fixed, this include OBSTACLE/unmovable object, e.g. VASE1
+    if( !strcmp(header.c_str(),std::string("obj_pose").c_str()) )
     {
       std::string id = std::string( comps.at(0)+".i" );// initial pose
       comps.erase( comps.begin() );
@@ -224,7 +224,7 @@ get_fval(const TaskMotionMultigraph& sol_tmm,Input* in)
     header = comps.at(0);
     comps.erase( comps.begin() );
     
-    if( !strcmp(header.c_str(),std::string("movable_obj_pose").c_str()) )// WARN: till fixed, this include OBSTACLE/unmovable object
+    if( !strcmp(header.c_str(),std::string("obj_pose").c_str()) )
     {
       std::string id = std::string( comps.at(0)+".f" );// initial pose
       comps.erase( comps.begin() );

@@ -250,7 +250,7 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
 //      boost::normal_distribution<> normal_dist_h(VASE_H,0.150);
 //      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > h_gen(g_cc_rng,normal_dist_h);
 //      h = h_gen();
-      h = VASE_H;
+      h = VASE_H*0.75;
       
       // Randomize the position: x, y
 //      const double x_max = utils::TABLE_RADIUS;// Play safe!
@@ -261,11 +261,11 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
 //      boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
 
 //      // FOR CLUSTER 1, comment another
-//      boost::normal_distribution<> normal_dist_x(VASE_X,0.150);
-//      boost::normal_distribution<> normal_dist_y(VASE_Y,0.150);
+//      boost::normal_distribution<> normal_dist_x(VASE_X,0.070);
+//      boost::normal_distribution<> normal_dist_y(VASE_Y,0.070);
       // FOR CLUSTER 2, comment another
-      boost::normal_distribution<> normal_dist_x(0.000,0.150);
-      boost::normal_distribution<> normal_dist_y(-0.350,0.150);
+      boost::normal_distribution<> normal_dist_x(0.000,0.070);
+      boost::normal_distribution<> normal_dist_y(-0.350,0.070);
       
       boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(g_cc_rng,normal_dist_x);
       boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(g_cc_rng,normal_dist_y);
@@ -351,11 +351,11 @@ set_movable_obj_cfg(const size_t& n)
 //    boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
 
 //      // for CLUSTER.1, comment another
-//      boost::normal_distribution<> normal_dist_x(0.000,0.150);
-//      boost::normal_distribution<> normal_dist_y(-0.420,0.150);
+//      boost::normal_distribution<> normal_dist_x(0.000,0.070);
+//      boost::normal_distribution<> normal_dist_y(-0.420,0.070);
       // for CLUSTER.2, comment another
-      boost::normal_distribution<> normal_dist_x(0.420,0.150);
-      boost::normal_distribution<> normal_dist_y(0.000,0.150);
+      boost::normal_distribution<> normal_dist_x(0.420,0.070);
+      boost::normal_distribution<> normal_dist_y(0.000,0.070);
       
       boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(g_cc_rng,normal_dist_x);
       boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(g_cc_rng,normal_dist_y);

@@ -949,11 +949,11 @@ PlannerManager::set_tidy_config(bool random)
     
     // Randomize positions 
 //    // for CLUSTER.1, comment another
-//    boost::normal_distribution<> normal_dist_x(0.000,0.150);
-//    boost::normal_distribution<> normal_dist_y(0.420,0.150);
+//    boost::normal_distribution<> normal_dist_x(0.000,0.070);
+//    boost::normal_distribution<> normal_dist_y(0.420,0.070);
     // for CLUSTER.2, comment another
-    boost::normal_distribution<> normal_dist_x(-0.420,0.150);
-    boost::normal_distribution<> normal_dist_y(0.000,0.150);
+    boost::normal_distribution<> normal_dist_x(-0.420,0.070);
+    boost::normal_distribution<> normal_dist_y(0.000,0.070);
 
     boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(utils::g_rng,normal_dist_x);    
     boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(utils::g_rng,normal_dist_y);
@@ -966,7 +966,7 @@ PlannerManager::set_tidy_config(bool random)
       double r_here;
       r_here = sqrt( pow(x,2)+pow(y,2) );
       
-      if(r_here < (utils::TABLE_RADIUS-utils::B_RADIUS))
+      if(r_here < (utils::TABLE_RADIUS-utils::B_HEIGHT))
         break;
     }
 
