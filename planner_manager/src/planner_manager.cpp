@@ -966,7 +966,7 @@ PlannerManager::set_tidy_config(bool random)
       double r_here;
       r_here = sqrt( pow(x,2)+pow(y,2) );
       
-      if(r_here < (utils::TABLE_RADIUS-utils::B_RADIUS))
+      if(r_here < (utils::TABLE_RADIUS-utils::B_HEIGHT))
         break;
     }
 
