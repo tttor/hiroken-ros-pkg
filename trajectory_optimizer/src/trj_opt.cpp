@@ -30,8 +30,7 @@ get_data(const std::string baseline_dir_path,const std::string& metadata_path,co
   // Collect data from all sol_tmm paths  
   dc_prj6::DataCollector dc(metadata_path);
   
-//  for(size_t i=0; i<sol_tmm_paths.size(); ++i)
-  for(size_t i=0; i<1; ++i)
+  for(size_t i=0; i<sol_tmm_paths.size(); ++i)
   {
     std::cerr << "Extracting on ith= " << i+1 << " of " << sol_tmm_paths.size() << " path= " << sol_tmm_paths.at(i) << endl;
     // Read the sol.tmm
