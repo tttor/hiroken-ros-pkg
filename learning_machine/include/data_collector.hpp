@@ -259,7 +259,7 @@ get_geo_fval(const std::vector<typename boost::graph_traits<LocalGraph>::edge_de
     header = comps.at(0);
     comps.erase( comps.begin() );
     
-    if( !strcmp(header.c_str(),std::string("movable_obj_pose").c_str()) )
+    if( !strcmp(header.c_str(),std::string("obj_pose").c_str()) )
     {
       std::string id = comps.at(0);
       comps.erase( comps.begin() );
