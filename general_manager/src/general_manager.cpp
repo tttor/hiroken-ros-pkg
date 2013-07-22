@@ -333,7 +333,9 @@ main(int argc, char **argv)
 
       break;
     }
-    case 2:// SENSE-ACT with any existing manipulation plan in the base_data_path
+    case 2:
+    // SENSE-ACT with any existing manipulation plan in the base_data_path
+    // USAGE: $ roslaunch hiro_common prj-6.launch mode:=2 path:=/home/vektor/prj6/data/hot/run.20130720.a.1
     {
       gm.sense(std::string(base_data_path+"/messy.cfg"));
       gm.act();
@@ -824,23 +826,22 @@ main(int argc, char **argv)
     }
     case 12:
     // For prj-6. Run pick-and-place with 1 movable object with one arm with one joint-space set
-    // USAGE: $ roslaunch hiro_common prj-6.launch n_run:=? suffix:=?
+    // USAGE: $ roslaunch hiro_common prj-6.launch n_run:=1 suffix:=20130721.test
     {
       n_obj = 1;
       
       for(size_t j=0; j<(size_t)n_run; ++j)
       {
         std::string data_path;
-        data_path = base_data_path + suffix_data_path + "." +  boost::lexical_cast<std::string>(j);
+        data_path = base_data_path + "/" + suffix_data_path + "." +  boost::lexical_cast<std::string>(j+1);
         ros::param::set("/data_path",data_path);
+        cerr << "data_path= " << data_path << endl;
         
         boost::filesystem::create_directories(data_path);
         
-        boost::filesystem::copy_file( std::string(base_data_path+tidy_cfg_filename),std::string(data_path+"/tidy.cfg"),boost::filesystem::copy_option::overwrite_if_exists );
-        
         // Sense!
         bool randomized_vase = true;
-        size_t n_vase = 2;
+        size_t n_vase = 1;
         gm.sense(n_obj,randomized_vase,n_vase);
         
         // Plan, rerun=false
@@ -851,9 +852,9 @@ main(int argc, char **argv)
         std::vector<trajectory_msgs::JointTrajectory> ctamp_sol;
         std::vector<double> ctamp_log;// Keep data from an CTAMP attempts: (0)n_samples at the end of search, (1) # cost-to-go vs. est. cost-to-go
         
-        if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )// Informed search, with the (planned) TMM under base_path
+        if( !gm.plan(mode,rerun,ml_hot_path,log_path,&ctamp_sol,&ctamp_log) )
         {
-          ROS_ERROR_STREAM( "gm.plan(...): failed on epsth=" << j+1  );
+          ROS_ERROR_STREAM( "gm.plan(...): failed on runth=" << j+1  );
           break;
         }
         

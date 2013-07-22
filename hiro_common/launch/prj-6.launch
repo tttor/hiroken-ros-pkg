@@ -4,7 +4,7 @@
 
   <arg name="joint_gui" default="False" />
 
-  <arg name="path" default="/home/vektor/6.tpctran/data" />
+  <arg name="path" default="/home/vektor/prj6/data/hot" />
     <param name="base_data_path" value="$(arg path)"/>
     <param name="data_path" value="$(arg path)"/>
 

@@ -93,7 +93,7 @@ bool
 plan(const size_t& ml_mode,const bool& rerun,const std::string& ml_hot_path,const std::string& log_path,std::vector<trajectory_msgs::JointTrajectory>* ctamp_sol,std::vector<double>* ctamp_log);
 
 bool
-set_tidy_config();
+set_tidy_config(bool random=false);
 
 double
 get_cost2go(const TMMVertex& start,const TMMVertex& goal,const TaskMotionMultigraph& tmm);

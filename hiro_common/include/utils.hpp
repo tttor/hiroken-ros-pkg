@@ -16,6 +16,7 @@
 #include <boost/random/mersenne_twister.hpp>
 #include <boost/random/uniform_int.hpp>
 #include <boost/random/variate_generator.hpp>
+#include <boost/random/normal_distribution.hpp>
 
 namespace utils
 {
@@ -27,10 +28,14 @@ static const double B_RADIUS = 0.065/2.;
 static const double B_HEIGHT = 0.123;
 static const double C_RADIUS = 0.065/2.;
 static const double C_HEIGHT = 0.167;
+static const double TABLE_THICKNESS = 0.050;
+static const double TABLE_RADIUS = 0.600;
+static const double TABLE_HEIGHT = 0.835;
 
 static boost::mt19937 g_rng( std::time(0) );
 
 typedef std::vector<arm_navigation_msgs::CollisionObject> ObjCfg;
+typedef boost::mt19937 RandomNumberGenerator;
 
 trajectory_msgs::JointTrajectory
 get_plan(const std::string& planstr)
