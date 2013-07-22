@@ -616,7 +616,7 @@ get_planning_env_str(const TMMVertex& v)
   
   for(std::vector<arm_navigation_msgs::CollisionObject>::const_iterator i=wstate.begin(); i!=wstate.end(); ++i)
   {
-    state_str += std::string("movable_obj_pose,");// as a header
+    state_str += std::string("obj_pose,");// as a header
     state_str += i->id + ",";
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).position.x) + ",";
     state_str += boost::lexical_cast<std::string>(i->poses.at(0).position.y) + ",";
