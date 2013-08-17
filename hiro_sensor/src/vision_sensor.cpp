@@ -55,6 +55,8 @@ VisionSensor(ros::NodeHandle nh)
   collision_space_pub_ = nh.advertise<arm_navigation_msgs::CollisionObject>("collision_object", 10);
   ros::Duration(2.0).sleep();// This delay is so critical, otherwise the first published object can not be added in the collision_space by the environment_server
   
+  vis_marker_pub_ = nh_.advertise<visualization_msgs::Marker>("visualization_marker", 1);
+  
   ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
   set_planning_scene_diff_client_ = nh.serviceClient<arm_navigation_msgs::SetPlanningSceneDiff> (SET_PLANNING_SCENE_DIFF_NAME);
   
@@ -125,8 +127,12 @@ run()
       object_tf_bc_.sendTransform( tf::StampedTransform(transform, ros::Time::now(), iter->second.header.frame_id, iter->first) );
     }
     
+    for(size_t i=0; i < vis_markers_.size(); ++i)
+    {
+      vis_marker_pub_.publish(vis_markers_.at(i));
+    }
+      
     ros::spinOnce();
-    
     tf_bc_rate.sleep();
   } 
 }
@@ -175,6 +181,7 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
   table.poses.push_back(table_pose);
   
   spawn_object(table,&obj_cfg_);
+  visualize_cylinder_object(table,0.0,0.0,1.0);
 //  //-------------------------------------------------------------------------------------- The wall behind
 //  arm_navigation_msgs::CollisionObject wall;
 //  
@@ -295,6 +302,11 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
                   x, y, z, 
                   q.x(), q.y(), q.z(), q.w(),
                   &obj_cfg_ );
+    visualize_cylinder_object(id, std::string("/table"),
+                              r, h, 
+                              x, y, z, 
+                              q.x(), q.y(), q.z(), q.w(),
+                              1.0,0.5,0.0);
     
     if(!randomized) break;// only one vase can be spawned if not randomized
   }// end of: FOR each ordered VASE
@@ -657,13 +669,97 @@ init_cc_img()
   cv::circle( cc_img_, tbl_p, utils::TABLE_RADIUS*PIXEL_PER_M, cv::Scalar(0), 1, CV_AA );
 
 }
+
+//! What this does is register an object to vis_markers_
+bool
+visualize_cylinder_object(const std::string& id, const std::string& frame_id,
+                          const double& radius, const double& height,
+                          const double& x, const double& y, const double& z,
+                          const double& qx, const double& qy, const double& qz, const double& qw,
+                          double r,double g,double b)
+{
+  visualization_msgs::Marker marker;
+  
+  marker.header.frame_id = frame_id;
+  marker.header.stamp = ros::Time::now();
+  marker.ns = id;
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::CYLINDER;
+  marker.action = visualization_msgs::Marker::ADD;
+
+  marker.pose.position.x = x;
+  marker.pose.position.y = y;
+  marker.pose.position.z = z;
+  marker.pose.orientation.x = qx;
+  marker.pose.orientation.y = qy;
+  marker.pose.orientation.z = qz;
+  marker.pose.orientation.w = qw;
+
+  marker.scale.x = radius * 2;
+  marker.scale.y = radius * 2;
+  marker.scale.z = height;
+
+  marker.color.r = r;
+  marker.color.g = g;
+  marker.color.b = b;
+  marker.color.a = 1.0;
+
+  marker.lifetime = ros::Duration();
+
+  // Register
+  vis_markers_.push_back(marker);
  
+  return true;
+}
+
+//! What this does is register an object to vis_markers_
+bool
+visualize_cylinder_object(arm_navigation_msgs::CollisionObject object,double r,double g,double b)
+{
+  visualization_msgs::Marker marker;
+  
+  marker.header.frame_id = object.header.frame_id;
+  marker.header.stamp = ros::Time::now();
+  marker.ns = object.id;
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::CYLINDER;
+  marker.action = visualization_msgs::Marker::ADD;
+
+  marker.pose.position.x = object.poses.at(0).position.x;
+  marker.pose.position.y = object.poses.at(0).position.y;
+  marker.pose.position.z = object.poses.at(0).position.z;
+  marker.pose.orientation.x = object.poses.at(0).orientation.x;
+  marker.pose.orientation.y = object.poses.at(0).orientation.y;
+  marker.pose.orientation.z = object.poses.at(0).orientation.z;
+  marker.pose.orientation.w = object.poses.at(0).orientation.w;
+
+  marker.scale.x = object.shapes.at(0).dimensions.at(0) * 2;
+  marker.scale.y = object.shapes.at(0).dimensions.at(0) * 2;
+  marker.scale.z = object.shapes.at(0).dimensions.at(1);
+
+  marker.color.r = r;
+  marker.color.g = g;
+  marker.color.b = b;
+  marker.color.a = 1.0;
+
+  marker.lifetime = ros::Duration();
+
+  // Register
+  vis_markers_.push_back(marker);
+ 
+  return true;
+}
+
+//!
 ros::NodeHandle nh_;
 
 //! Modified in sense_movable_object(),...
 std::map<std::string,geometry_msgs::PoseStamped> movable_obj_pose_map_;
 
+//!
 ros::Publisher collision_space_pub_;
+
+//!
 tf::TransformBroadcaster object_tf_bc_;// Must be outside the  while() loop
 
 ros::ServiceClient set_planning_scene_diff_client_;
@@ -673,6 +769,13 @@ utils::ObjCfg obj_cfg_;
 
 //! Keeps an image used for collision checking
 cv::Mat cc_img_;
+
+//! For visualize objects, for being published together with tf
+std::vector<visualization_msgs::Marker> vis_markers_;
+
+//!
+ros::Publisher vis_marker_pub_;
+
 };// enf of: class VisionSensor
 
 int 
