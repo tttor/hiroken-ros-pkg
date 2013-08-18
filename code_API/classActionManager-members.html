@@ -53,6 +53,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
       <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
       <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
     </ul>
   </div>
@@ -65,14 +66,12 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 This is the complete list of members for <a class="el" href="classActionManager.html">ActionManager</a>, including all inherited members.<table>
   <tr class="memlist"><td><a class="el" href="classActionManager.html#a137aa1dc31dff3a20aa8ce11a94f33e7">ActionManager</a>(ros::NodeHandle nh)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classActionManager.html#a338034f50bd9e2aaea131340ae1a41b5">att_collision_object_pub_</a></td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [private]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classActionManager.html#a46d6673a200ec61d2b14b9722c0e8a07">commit_grasp</a>(const std::string &amp;obj_id)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline, private]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classActionManager.html#ab65e58e3abe6995fe12bf04f6fa02706">commit_grasp</a>(const std::string &amp;obj_id, const std::string &amp;rbt_id)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline, private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classActionManager.html#a8fc561b57a337e8ed690e9d86b70a728">commit_motion</a>(const trajectory_msgs::JointTrajectory &amp;plan)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline, private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classActionManager.html#a5642c1a344c5be8373ad0f6bedecaeff">commit_srv_handle</a>(action_manager::Commit::Request &amp;req, action_manager::Commit::Response &amp;res)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classActionManager.html#af75537b504dfabf93e9ed88e35002c31">commit_ungrasp</a>(const std::string &amp;obj_id)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline, private]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classActionManager.html#a5c06ddd3af12607bc5ca5b3e0f03d2e0">data_path_</a></td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [private]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classActionManager.html#aa1a63c1c574d751d1aa77d96cd76d0d8">commit_ungrasp</a>(const std::string &amp;obj_id, const std::string &amp;rbt_id)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline, private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classActionManager.html#a8a4ac9fb202c792da1f9dd75a20c1d84">discover_vertex</a>(typename boost::graph_traits&lt; Graph &gt;::vertex_descriptor v, Graph &amp;g)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classActionManager.html#a38ec013f3ce662b74c1bc202a6d5b415">examine_edge</a>(typename boost::graph_traits&lt; Graph &gt;::edge_descriptor e, Graph &amp;g)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classActionManager.html#a17751b3426251b46793a3f699ae6b3a7">get_plan</a>(const std::string &amp;planstr)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline, private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classActionManager.html#a9130262ba4dbe2e600a23c6cc2d0e459">go2home</a>()</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline, private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classActionManager.html#a381c39444142a98786383838e18afc8a">go2home_srv_handle</a>(action_manager::Go2Home::Request &amp;req, action_manager::Go2Home::Response &amp;res)</td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [inline]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classActionManager.html#ac3f63b69dd3576d63288a4bfb7da8f2e">motion_plan_pub_</a></td><td><a class="el" href="classActionManager.html">ActionManager</a></td><td><code> [private]</code></td></tr>
@@ -86,7 +85,7 @@ This is the complete list of members for <a class="el" href="classActionManager.
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Defines</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Enumerator</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(8)"><span class="SelectionMark">&#160;</span>Defines</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -95,7 +94,7 @@ This is the complete list of members for <a class="el" href="classActionManager.
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Sun Aug 18 2013 12:24:25 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>

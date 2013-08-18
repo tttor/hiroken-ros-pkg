@@ -50,13 +50,17 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
   // This is because lower-dimensional motion planning is likely (not always) to have lower cost; to speed up the planning as well
   // For that, we have to iterate over all adjacent vertices, then sort edges of v->av
   // In this step,we also remove edges that does not have valid un/grasp pose as goal pose for motion planning
-  size_t n_avi = 0;// For multigraph, n_avi = n_out-edges. Note this make an excessive call to gpm_->plan as we iterate over avi
+  //For multigraph, n_avi = n_out-edges. Therefore, we have to make this avi_set at first.
+  std::set<typename Graph::vertex_descriptor> avi_set;
   
-  typename graph_traits<Graph>::adjacency_iterator avi, avi_end;
-  for(tie(avi,avi_end)=adjacent_vertices(v,g); avi!=avi_end; ++avi)  
+  typename graph_traits<Graph>::adjacency_iterator avi2, avi2_end;
+  for(tie(avi2,avi2_end)=adjacent_vertices(v,g); avi2!=avi2_end; ++avi2)
   {
-    ++n_avi;
-      
+    avi_set.insert(*avi2);
+  }
+
+  for(typename std::set<typename Graph::vertex_descriptor>::iterator avi=avi_set.begin(); avi!=avi_set.end(); ++avi)
+  {
     // Identify edges that connect v and its adjacent 
     // Note: because this is multigraph, we can not simply use boost::edge(u,v,g).first
     std::vector<typename Graph::edge_descriptor> conn_edges;// conn_ for connecting
@@ -113,7 +117,6 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
       if(found_mp) break;
     }// for all conn_edges
   }// for all avi
-  cout << get(vertex_name,g,v) << " has n_avi= " << n_avi << endl;
   
   // Update jstates of adjacent vertex av of this vertex v to the cheapest existing-just-planned edge
   gpm_->set_av_jstates(v); 

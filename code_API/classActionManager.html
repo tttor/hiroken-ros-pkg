@@ -53,6 +53,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
       <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
       <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
     </ul>
   </div>
@@ -81,14 +82,13 @@ Public Member Functions</h2></td></tr>
 <tr><td colspan="2"><h2><a name="pri-methods"></a>
 Private Member Functions</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#a9130262ba4dbe2e600a23c6cc2d0e459">go2home</a> ()</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">trajectory_msgs::JointTrajectory&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#a17751b3426251b46793a3f699ae6b3a7">get_plan</a> (const std::string &amp;planstr)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#a0c8418a125c349e8d463403e1d8db22a">read_sol</a> (TaskMotionMultigraph *sol_tmm, TMMVertex *sol_tmm_root)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#a8fc561b57a337e8ed690e9d86b70a728">commit_motion</a> (const trajectory_msgs::JointTrajectory &amp;plan)</td></tr>
 <tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Commit a motion plan.  <a href="#a8fc561b57a337e8ed690e9d86b70a728"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#a46d6673a200ec61d2b14b9722c0e8a07">commit_grasp</a> (const std::string &amp;obj_id)</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Commit the grasp.  <a href="#a46d6673a200ec61d2b14b9722c0e8a07"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#af75537b504dfabf93e9ed88e35002c31">commit_ungrasp</a> (const std::string &amp;obj_id)</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Commit the ungrasp.  <a href="#af75537b504dfabf93e9ed88e35002c31"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#ab65e58e3abe6995fe12bf04f6fa02706">commit_grasp</a> (const std::string &amp;obj_id, const std::string &amp;rbt_id)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Commit the grasp.  <a href="#ab65e58e3abe6995fe12bf04f6fa02706"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#aa1a63c1c574d751d1aa77d96cd76d0d8">commit_ungrasp</a> (const std::string &amp;obj_id, const std::string &amp;rbt_id)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Commit the ungrasp.  <a href="#aa1a63c1c574d751d1aa77d96cd76d0d8"></a><br/></td></tr>
 <tr><td colspan="2"><h2><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::NodeHandle&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#a1bb615518cc757968314819a85e895b3">nh_</a></td></tr>
@@ -99,7 +99,6 @@ Private Attributes</h2></td></tr>
 <tr><td class="mdescLeft">&#160;</td><td class="mdescRight">A publisher for attached collision objects.  <a href="#a338034f50bd9e2aaea131340ae1a41b5"></a><br/></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::ServiceClient&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#a61a71142efd4dcf3298025fdc841261d">set_planning_scene_diff_client_</a></td></tr>
 <tr><td class="mdescLeft">&#160;</td><td class="mdescRight">A client that is used at several places.  <a href="#a61a71142efd4dcf3298025fdc841261d"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#a5c06ddd3af12607bc5ca5b3e0f03d2e0">data_path_</a></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classActionManager.html#a1014f365f33a761185c638ba18cf95f1">online_</a></td></tr>
 </table>
 <hr/><h2>Constructor &amp; Destructor Documentation</h2>
@@ -121,7 +120,7 @@ Private Attributes</h2></td></tr>
 </div>
 </div>
 <hr/><h2>Member Function Documentation</h2>
-<a class="anchor" id="a46d6673a200ec61d2b14b9722c0e8a07"></a><!-- doxytag: member="ActionManager::commit_grasp" ref="a46d6673a200ec61d2b14b9722c0e8a07" args="(const std::string &amp;obj_id)" -->
+<a class="anchor" id="ab65e58e3abe6995fe12bf04f6fa02706"></a><!-- doxytag: member="ActionManager::commit_grasp" ref="ab65e58e3abe6995fe12bf04f6fa02706" args="(const std::string &amp;obj_id, const std::string &amp;rbt_id)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
@@ -129,8 +128,18 @@ Private Attributes</h2></td></tr>
           <td class="memname">bool ActionManager::commit_grasp </td>
           <td>(</td>
           <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>obj_id</em></td><td>)</td>
-          <td><code> [inline, private]</code></td>
+          <td class="paramname"><em>obj_id</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>rbt_id</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
@@ -202,7 +211,7 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="af75537b504dfabf93e9ed88e35002c31"></a><!-- doxytag: member="ActionManager::commit_ungrasp" ref="af75537b504dfabf93e9ed88e35002c31" args="(const std::string &amp;obj_id)" -->
+<a class="anchor" id="aa1a63c1c574d751d1aa77d96cd76d0d8"></a><!-- doxytag: member="ActionManager::commit_ungrasp" ref="aa1a63c1c574d751d1aa77d96cd76d0d8" args="(const std::string &amp;obj_id, const std::string &amp;rbt_id)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
@@ -210,8 +219,18 @@ Private Attributes</h2></td></tr>
           <td class="memname">bool ActionManager::commit_ungrasp </td>
           <td>(</td>
           <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>obj_id</em></td><td>)</td>
-          <td><code> [inline, private]</code></td>
+          <td class="paramname"><em>obj_id</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>rbt_id</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
@@ -280,23 +299,6 @@ template&lt;class Graph &gt; </div>
           <td></td>
           <td>)</td>
           <td></td><td><code> [inline]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="a17751b3426251b46793a3f699ae6b3a7"></a><!-- doxytag: member="ActionManager::get_plan" ref="a17751b3426251b46793a3f699ae6b3a7" args="(const std::string &amp;planstr)" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">trajectory_msgs::JointTrajectory ActionManager::get_plan </td>
-          <td>(</td>
-          <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>planstr</em></td><td>)</td>
-          <td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
@@ -391,19 +393,6 @@ template&lt;class Graph &gt; </div>
 
 </div>
 </div>
-<a class="anchor" id="a5c06ddd3af12607bc5ca5b3e0f03d2e0"></a><!-- doxytag: member="ActionManager::data_path_" ref="a5c06ddd3af12607bc5ca5b3e0f03d2e0" args="" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">std::string <a class="el" href="classActionManager.html#a5c06ddd3af12607bc5ca5b3e0f03d2e0">ActionManager::data_path_</a><code> [private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
 <a class="anchor" id="ac3f63b69dd3576d63288a4bfb7da8f2e"></a><!-- doxytag: member="ActionManager::motion_plan_pub_" ref="ac3f63b69dd3576d63288a4bfb7da8f2e" args="" -->
 <div class="memitem">
 <div class="memproto">
@@ -474,7 +463,7 @@ template&lt;class Graph &gt; </div>
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Defines</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Enumerator</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(8)"><span class="SelectionMark">&#160;</span>Defines</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -483,7 +472,7 @@ template&lt;class Graph &gt; </div>
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Sun Aug 18 2013 12:24:25 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>

@@ -53,6 +53,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
       <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
       <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
     </ul>
   </div>
@@ -63,11 +64,12 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div>
 <div class="contents">
 This is the complete list of members for <a class="el" href="classLearningMachine.html">LearningMachine</a>, including all inherited members.<table>
-  <tr class="memlist"><td><a class="el" href="classLearningMachine.html#a8075ec172035d03bd6813cf34b229425">get_feature_names</a>()</td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [inline, private]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classLearningMachine.html#a44b7c8330d2e55d669c941c6697dd4ba">get_samples</a>(const std::vector&lt; std::string &gt; &amp;tmm_paths)</td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [inline, private]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classLearningMachine.html#a07266cc604c0ebade30b280912d06981">create_metadata</a>(const size_t &amp;n_obj)</td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [inline, private]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classLearningMachine.html#a71a36b75a4a3ece655d0dc131a5c823e">create_metadata_srv_handle</a>(learning_machine::CreateMetadata::Request &amp;req, learning_machine::CreateMetadata::Response &amp;res)</td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [inline]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classLearningMachine.html#affc2c1ecd784eb49f43ef68d6bcdbcc8">data_path_</a></td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [private]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classLearningMachine.html#af048f29e68554842c788c437026c39fb">get_samples</a>(const std::vector&lt; std::string &gt; &amp;tmm_paths)</td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [inline, private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classLearningMachine.html#a5e08afe65c44e010b724e5606198e6ee">LearningMachine</a>(ros::NodeHandle nh)</td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [inline]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classLearningMachine.html#a9eb191b14265180b5310ed7de05512d7">nh_</a></td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [private]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classLearningMachine.html#af32c092e9069ac16e001ad25563ffb00">test_srv_handle</a>()</td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [inline]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classLearningMachine.html#a1d37f84cbf8109377145bccb6e9ddf91">tr_data_</a></td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classLearningMachine.html#a2d9f6496e308c6924c2c2ffdeb8aa3ed">train_srv_handle</a>(learning_machine::Train::Request &amp;req, learning_machine::Train::Response &amp;res)</td><td><a class="el" href="classLearningMachine.html">LearningMachine</a></td><td><code> [inline]</code></td></tr>
 </table></div>
@@ -76,7 +78,7 @@ This is the complete list of members for <a class="el" href="classLearningMachin
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Defines</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Enumerator</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(8)"><span class="SelectionMark">&#160;</span>Defines</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -85,7 +87,7 @@ This is the complete list of members for <a class="el" href="classLearningMachin
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Sun Aug 18 2013 12:24:25 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>
