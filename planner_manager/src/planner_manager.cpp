@@ -102,7 +102,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::string tidy_cfg_filename;
   if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
     ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead");
-  if ( !set_tidy_config(true) )
+    
+  if ( !set_tidy_config() )
   {
     ROS_ERROR("Can not set the tidy_cfg!");
     return false;
