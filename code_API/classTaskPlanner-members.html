@@ -53,6 +53,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
       <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
       <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
     </ul>
   </div>
@@ -63,13 +64,13 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 </div>
 <div class="contents">
 This is the complete list of members for <a class="el" href="classTaskPlanner.html">TaskPlanner</a>, including all inherited members.<table>
-  <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#abe8bcd1571aad27f65ed8ccfa870c1ac">convert_tg_tmm</a>(const TaskGraph &amp;tg)</td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [inline, private]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#a0a5d8517b77c12d82711b9d8531a0885">create_metadata</a>(const TaskMotionMultigraph &amp;tmm, const size_t &amp;n)</td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [inline, private]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#ac98ff591c09453756126b18faa88878c">data_path_</a></td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [private]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#a12cf2c29ed65f519144d50dc62a4421e">convert_tg2tmm</a>(const TaskGraph &amp;tg)</td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [inline, private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#a106e148d746e01f2215dc3cbaca5cbd0">handle_plan_task_srv</a>(task_planner::PlanTask::Request &amp;req, task_planner::PlanTask::Response &amp;res)</td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [inline]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#a6d348d8ad226ae548fa36ec10ff8b2d5">infer</a>(const std::vector&lt; Action &gt;::iterator &amp;i, const std::vector&lt; Action &gt;::iterator &amp;pre_i, const std::vector&lt; Action &gt;::iterator &amp;post_i, std::vector&lt; std::string &gt; *released_objects)</td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [inline, private]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#a94833dfcc9e109f7be1aef09905decc1">infer</a>(const std::vector&lt; Action &gt;::iterator &amp;i, const std::vector&lt; Action &gt;::iterator &amp;pre_i, const std::vector&lt; Action &gt;::iterator &amp;post_i, const size_t &amp;n_obj, std::vector&lt; std::string &gt; *released_objects)</td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [inline, private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#acab447958b971169731920c73f089884">nh_</a></td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [private]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#a5ba3a11a30674b9d6889c8c4eeab826e">plan</a>(const std::vector&lt; arm_navigation_msgs::CollisionObject &gt; &amp;objs)</td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [inline]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#a9ec8cc3639e1307745d5cb9c6f97b890">plan</a>(const size_t &amp;n_obj)</td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [inline]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#ac40d45bb9b0870f57d010efa272bac72">rbt_jspaces_map_</a></td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [private]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#a87faffbb559b0e97aa6ec345375df044">task_planner_path_</a></td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#a2d01433e4ba3d76110fcc6489db3bcb4">TaskPlanner</a>(ros::NodeHandle &amp;nh)</td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [inline]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classTaskPlanner.html#a551378501f7a1e6304c207c25b2400db">~TaskPlanner</a>()</td><td><a class="el" href="classTaskPlanner.html">TaskPlanner</a></td><td><code> [inline]</code></td></tr>
 </table></div>
@@ -78,7 +79,7 @@ This is the complete list of members for <a class="el" href="classTaskPlanner.ht
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Defines</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Enumerator</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(8)"><span class="SelectionMark">&#160;</span>Defines</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -87,7 +88,7 @@ This is the complete list of members for <a class="el" href="classTaskPlanner.ht
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Sun Aug 18 2013 12:24:25 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>

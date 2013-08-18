@@ -53,6 +53,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
       <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
       <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
     </ul>
   </div>
@@ -75,23 +76,42 @@ Public Member Functions</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#ab6b05ff359adab95ab040913629f2972">~VisionSensor</a> ()</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a8911f424209c3b03d3c87ba821cc61c7">see_srv_handle</a> (hiro_sensor::See::Request &amp;req, hiro_sensor::See::Response &amp;res)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#af8e48524311eb7e64922a618eae4ace9">run</a> ()</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">This is publishing the tf for objects at forever till the ros is dead of this node is shut down.  <a href="#af8e48524311eb7e64922a618eae4ace9"></a><br/></td></tr>
 <tr><td colspan="2"><h2><a name="pri-methods"></a>
 Private Member Functions</h2></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a2427efdebea2f3894ba6d1393dbefe4b">see_static_cfg</a> ()</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#afde9ef76887c7600b132925829bc4f55">sense_movable_object</a> (const std::string &amp;object_id, const double &amp;radius, const double &amp;height, const double &amp;x, const double &amp;y, const double &amp;z, const double &amp;qx=0., const double &amp;qy=0., const double &amp;qz=0., const double &amp;qw=1.)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a6ea194fee6ab004fde0c9733c0c9b448">is_in_collision</a> (cv::Mat *img, const double &amp;x, const double &amp;y, const size_t &amp;pitch_sym, const double &amp;yaw)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a2544c1d188dbca4903f43542278bafe4">see_messy_cfg</a> (const size_t &amp;n, bool random=true)</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate messy configs.  <a href="#a2544c1d188dbca4903f43542278bafe4"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a3321c06d2ce0700acf555aae4b06738a">see_messy_cfg_tb</a> (const size_t &amp;n)</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Generate a messy config for test bed.  <a href="#a3321c06d2ce0700acf555aae4b06738a"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a46481561095bd819490358c32770a556">set_unmovable_obj_cfg</a> (const size_t &amp;n, const bool &amp;randomized)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Set unmovable objs.  <a href="#a46481561095bd819490358c32770a556"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a80122c0a7e0de815efb402a7a9a35267">set_movable_obj_cfg</a> (const size_t &amp;n)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">set_movable_obj_cfg  <a href="#a80122c0a7e0de815efb402a7a9a35267"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a1ae175e3a7b9b152fc9257f4a799913e">set_obj_cfg</a> (const std::string &amp;path)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Set both movable and unmovable object config from a given path.  <a href="#a1ae175e3a7b9b152fc9257f4a799913e"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a09dd98d1708055f39de7ca63dc6f0e0c">spawn_object</a> (const std::string &amp;id, const std::string &amp;frame, const double &amp;radius, const double &amp;height, const double &amp;<a class="el" href="svm-predict_8c.html#a9a5b72a4065074cac5da07efb80a1e79">x</a>, const double &amp;y, const double &amp;z, const double &amp;qx, const double &amp;qy, const double &amp;qz, const double &amp;qw, utils::ObjCfg *obj_cfg)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Spawn an (movable and or unmovable) object into the planning scene.  <a href="#a09dd98d1708055f39de7ca63dc6f0e0c"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a0fcf55ab6684844b94a1e5729247b52a">spawn_object</a> (arm_navigation_msgs::CollisionObject object, utils::ObjCfg *obj_cfg)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a6cff15712660e7f60a19b392f9679226">is_in_collision</a> (const double &amp;<a class="el" href="svm-predict_8c.html#a9a5b72a4065074cac5da07efb80a1e79">x</a>, const double &amp;y, const double &amp;pitch, const double &amp;yaw, const double &amp;r, const double &amp;h, cv::Mat *img)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a65867a7ff3d794ebe03b1d9c5d00b2fd">init_cc_img</a> ()</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight"><a class="el" href="classVisionSensor.html#a65867a7ff3d794ebe03b1d9c5d00b2fd" title="init_cc_img();">init_cc_img()</a>;  <a href="#a65867a7ff3d794ebe03b1d9c5d00b2fd"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a4b2eadb400d1a8916bb68af27d678c9f">visualize_cylinder_object</a> (const std::string &amp;id, const std::string &amp;frame_id, const double &amp;radius, const double &amp;height, const double &amp;<a class="el" href="svm-predict_8c.html#a9a5b72a4065074cac5da07efb80a1e79">x</a>, const double &amp;y, const double &amp;z, const double &amp;qx, const double &amp;qy, const double &amp;qz, const double &amp;qw, double r, double g, double b)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">What this does is register an object to vis_markers_.  <a href="#a4b2eadb400d1a8916bb68af27d678c9f"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a2cfe941acb089fce522115ab227c328e">visualize_cylinder_object</a> (arm_navigation_msgs::CollisionObject object, double r, double g, double b)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">What this does is register an object to vis_markers_.  <a href="#a2cfe941acb089fce522115ab227c328e"></a><br/></td></tr>
 <tr><td colspan="2"><h2><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::NodeHandle&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a76db427bdc9f2c5d9f92850292cde290">nh_</a></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, <br class="typebreak"/>
-geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a7ee342821c6e79aa72e21eb71419c3b7">sensed_objects_</a></td></tr>
+geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a1ddd8756376b7ee296de5a3ea672fa5f">movable_obj_pose_map_</a></td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Modified in sense_movable_object(),...  <a href="#a1ddd8756376b7ee296de5a3ea672fa5f"></a><br/></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::Publisher&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a9bcd85046a4a8de82af691711e2baf1b">collision_space_pub_</a></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">tf::TransformBroadcaster&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#afdf443b636e8322b53c0da365c137a0c">object_tf_bc_</a></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::ServiceClient&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#ae9477872e85160f04880b0d800a2e9fc">set_planning_scene_diff_client_</a></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">utils::ObjCfg&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a116d463698845da4cddf1ea8209e2dd6">obj_cfg_</a></td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Keeps all sense objects including both movable and unmovable objects.  <a href="#a116d463698845da4cddf1ea8209e2dd6"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">cv::Mat&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#afd141a777ded73c2dc98e4f76c3aa0f2">cc_img_</a></td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Keeps an image used for collision checking.  <a href="#afd141a777ded73c2dc98e4f76c3aa0f2"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">std::vector<br class="typebreak"/>
+&lt; visualization_msgs::Marker &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#a2d77a1777a23a13acd4518f19b035538">vis_markers_</a></td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">For visualize objects, for being published together with tf.  <a href="#a2d77a1777a23a13acd4518f19b035538"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">ros::Publisher&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classVisionSensor.html#ad88573f256bbc87ec2fe322136d4115c">vis_marker_pub_</a></td></tr>
 </table>
 <hr/><h2>Constructor &amp; Destructor Documentation</h2>
 <a class="anchor" id="a68bb72ecbc34907bbc5307e3ebc430bd"></a><!-- doxytag: member="VisionSensor::VisionSensor" ref="a68bb72ecbc34907bbc5307e3ebc430bd" args="(ros::NodeHandle nh)" -->
@@ -128,19 +148,33 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
 </div>
 </div>
 <hr/><h2>Member Function Documentation</h2>
-<a class="anchor" id="a6ea194fee6ab004fde0c9733c0c9b448"></a><!-- doxytag: member="VisionSensor::is_in_collision" ref="a6ea194fee6ab004fde0c9733c0c9b448" args="(cv::Mat *img, const double &amp;x, const double &amp;y, const size_t &amp;pitch_sym, const double &amp;yaw)" -->
+<a class="anchor" id="a65867a7ff3d794ebe03b1d9c5d00b2fd"></a><!-- doxytag: member="VisionSensor::init_cc_img" ref="a65867a7ff3d794ebe03b1d9c5d00b2fd" args="()" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void VisionSensor::init_cc_img </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td><code> [inline, private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p><a class="el" href="classVisionSensor.html#a65867a7ff3d794ebe03b1d9c5d00b2fd" title="init_cc_img();">init_cc_img()</a>; </p>
+<p>how to make sure that no object is in collision with the others ? Workaround: use opencv, check in 2D, the projection of objects</p>
+<p>This sets cc_img_ </p>
+
+</div>
+</div>
+<a class="anchor" id="a6cff15712660e7f60a19b392f9679226"></a><!-- doxytag: member="VisionSensor::is_in_collision" ref="a6cff15712660e7f60a19b392f9679226" args="(const double &amp;x, const double &amp;y, const double &amp;pitch, const double &amp;yaw, const double &amp;r, const double &amp;h, cv::Mat *img)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">bool VisionSensor::is_in_collision </td>
           <td>(</td>
-          <td class="paramtype">cv::Mat *&#160;</td>
-          <td class="paramname"><em>img</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
           <td class="paramtype">const double &amp;&#160;</td>
           <td class="paramname"><em>x</em>, </td>
         </tr>
@@ -153,14 +187,32 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const size_t &amp;&#160;</td>
-          <td class="paramname"><em>pitch_sym</em>, </td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>pitch</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const double &amp;&#160;</td>
-          <td class="paramname"><em>yaw</em>&#160;</td>
+          <td class="paramname"><em>yaw</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>r</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>h</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">cv::Mat *&#160;</td>
+          <td class="paramname"><em>img</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -187,55 +239,7 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
 </div>
 <div class="memdoc">
 
-</div>
-</div>
-<a class="anchor" id="a2544c1d188dbca4903f43542278bafe4"></a><!-- doxytag: member="VisionSensor::see_messy_cfg" ref="a2544c1d188dbca4903f43542278bafe4" args="(const size_t &amp;n, bool random=true)" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void VisionSensor::see_messy_cfg </td>
-          <td>(</td>
-          <td class="paramtype">const size_t &amp;&#160;</td>
-          <td class="paramname"><em>n</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">bool&#160;</td>
-          <td class="paramname"><em>random</em> = <code>true</code>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-<p>Generate messy configs. </p>
-<p>Assume that all objects are cylindrical: radius and height. Assume that orientation can be divided into 2 main groups: standing up-right and lying-down, for the latter there is an infiniti number of possible orientation. </p>
-
-</div>
-</div>
-<a class="anchor" id="a3321c06d2ce0700acf555aae4b06738a"></a><!-- doxytag: member="VisionSensor::see_messy_cfg_tb" ref="a3321c06d2ce0700acf555aae4b06738a" args="(const size_t &amp;n)" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void VisionSensor::see_messy_cfg_tb </td>
-          <td>(</td>
-          <td class="paramtype">const size_t &amp;&#160;</td>
-          <td class="paramname"><em>n</em></td><td>)</td>
-          <td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-<p>Generate a messy config for test bed. </p>
-<p>More ... </p>
+<p>This is publishing the tf for objects at forever till the ros is dead of this node is shut down. </p>
 
 </div>
 </div>
@@ -266,15 +270,103 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
 
 </div>
 </div>
-<a class="anchor" id="a2427efdebea2f3894ba6d1393dbefe4b"></a><!-- doxytag: member="VisionSensor::see_static_cfg" ref="a2427efdebea2f3894ba6d1393dbefe4b" args="()" -->
+<a class="anchor" id="a80122c0a7e0de815efb402a7a9a35267"></a><!-- doxytag: member="VisionSensor::set_movable_obj_cfg" ref="a80122c0a7e0de815efb402a7a9a35267" args="(const size_t &amp;n)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">bool VisionSensor::see_static_cfg </td>
+          <td class="memname">bool VisionSensor::set_movable_obj_cfg </td>
           <td>(</td>
-          <td class="paramname"></td><td>)</td>
+          <td class="paramtype">const size_t &amp;&#160;</td>
+          <td class="paramname"><em>n</em></td><td>)</td>
           <td><code> [inline, private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>set_movable_obj_cfg </p>
+<p>Assume that all objects are cylindrical: radius and height. Assume that orientation can be divided into 2 main groups: standing up-right and lying-down, for the latter there is an infiniti number of possible orientation. </p>
+
+</div>
+</div>
+<a class="anchor" id="a1ae175e3a7b9b152fc9257f4a799913e"></a><!-- doxytag: member="VisionSensor::set_obj_cfg" ref="a1ae175e3a7b9b152fc9257f4a799913e" args="(const std::string &amp;path)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool VisionSensor::set_obj_cfg </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>path</em></td><td>)</td>
+          <td><code> [inline, private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Set both movable and unmovable object config from a given path. </p>
+<p>More ... </p>
+
+</div>
+</div>
+<a class="anchor" id="a46481561095bd819490358c32770a556"></a><!-- doxytag: member="VisionSensor::set_unmovable_obj_cfg" ref="a46481561095bd819490358c32770a556" args="(const size_t &amp;n, const bool &amp;randomized)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool VisionSensor::set_unmovable_obj_cfg </td>
+          <td>(</td>
+          <td class="paramtype">const size_t &amp;&#160;</td>
+          <td class="paramname"><em>n</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const bool &amp;&#160;</td>
+          <td class="paramname"><em>randomized</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline, private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Set unmovable objs. </p>
+<p>Unmovable objects are objects whose poses are fixed during planning, e.g. table, vase, wall, ... On most cases, they act as (unmovable) obstacles.</p>
+<p>Notice that some unmovable object configurations vary from one instance to another, e.g. vase objects</p>
+<dl><dt><b>Parameters:</b></dt><dd>
+  <table class="params">
+    <tr><td class="paramname">n</td><td>number of vases </td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<a class="anchor" id="a0fcf55ab6684844b94a1e5729247b52a"></a><!-- doxytag: member="VisionSensor::spawn_object" ref="a0fcf55ab6684844b94a1e5729247b52a" args="(arm_navigation_msgs::CollisionObject object, utils::ObjCfg *obj_cfg)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool VisionSensor::spawn_object </td>
+          <td>(</td>
+          <td class="paramtype">arm_navigation_msgs::CollisionObject&#160;</td>
+          <td class="paramname"><em>object</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">utils::ObjCfg *&#160;</td>
+          <td class="paramname"><em>obj_cfg</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
@@ -282,15 +374,21 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
 
 </div>
 </div>
-<a class="anchor" id="afde9ef76887c7600b132925829bc4f55"></a><!-- doxytag: member="VisionSensor::sense_movable_object" ref="afde9ef76887c7600b132925829bc4f55" args="(const std::string &amp;object_id, const double &amp;radius, const double &amp;height, const double &amp;x, const double &amp;y, const double &amp;z, const double &amp;qx=0., const double &amp;qy=0., const double &amp;qz=0., const double &amp;qw=1.)" -->
+<a class="anchor" id="a09dd98d1708055f39de7ca63dc6f0e0c"></a><!-- doxytag: member="VisionSensor::spawn_object" ref="a09dd98d1708055f39de7ca63dc6f0e0c" args="(const std::string &amp;id, const std::string &amp;frame, const double &amp;radius, const double &amp;height, const double &amp;x, const double &amp;y, const double &amp;z, const double &amp;qx, const double &amp;qy, const double &amp;qz, const double &amp;qw, utils::ObjCfg *obj_cfg)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">bool VisionSensor::sense_movable_object </td>
+          <td class="memname">bool VisionSensor::spawn_object </td>
           <td>(</td>
           <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>object_id</em>, </td>
+          <td class="paramname"><em>id</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>frame</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
@@ -326,25 +424,31 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const double &amp;&#160;</td>
-          <td class="paramname"><em>qx</em> = <code>0.</code>, </td>
+          <td class="paramname"><em>qx</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const double &amp;&#160;</td>
-          <td class="paramname"><em>qy</em> = <code>0.</code>, </td>
+          <td class="paramname"><em>qy</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const double &amp;&#160;</td>
-          <td class="paramname"><em>qz</em> = <code>0.</code>, </td>
+          <td class="paramname"><em>qz</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const double &amp;&#160;</td>
-          <td class="paramname"><em>qw</em> = <code>1.</code>&#160;</td>
+          <td class="paramname"><em>qw</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">utils::ObjCfg *&#160;</td>
+          <td class="paramname"><em>obj_cfg</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -355,9 +459,169 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
 </div>
 <div class="memdoc">
 
+<p>Spawn an (movable and or unmovable) object into the planning scene. </p>
+<p>For movable objects, some registration for tf is also carried out. </p>
+
+</div>
+</div>
+<a class="anchor" id="a2cfe941acb089fce522115ab227c328e"></a><!-- doxytag: member="VisionSensor::visualize_cylinder_object" ref="a2cfe941acb089fce522115ab227c328e" args="(arm_navigation_msgs::CollisionObject object, double r, double g, double b)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool VisionSensor::visualize_cylinder_object </td>
+          <td>(</td>
+          <td class="paramtype">arm_navigation_msgs::CollisionObject&#160;</td>
+          <td class="paramname"><em>object</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">double&#160;</td>
+          <td class="paramname"><em>r</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">double&#160;</td>
+          <td class="paramname"><em>g</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">double&#160;</td>
+          <td class="paramname"><em>b</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline, private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>What this does is register an object to vis_markers_. </p>
+
+</div>
+</div>
+<a class="anchor" id="a4b2eadb400d1a8916bb68af27d678c9f"></a><!-- doxytag: member="VisionSensor::visualize_cylinder_object" ref="a4b2eadb400d1a8916bb68af27d678c9f" args="(const std::string &amp;id, const std::string &amp;frame_id, const double &amp;radius, const double &amp;height, const double &amp;x, const double &amp;y, const double &amp;z, const double &amp;qx, const double &amp;qy, const double &amp;qz, const double &amp;qw, double r, double g, double b)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool VisionSensor::visualize_cylinder_object </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>id</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>frame_id</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>radius</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>height</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>x</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>y</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>z</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>qx</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>qy</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>qz</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const double &amp;&#160;</td>
+          <td class="paramname"><em>qw</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">double&#160;</td>
+          <td class="paramname"><em>r</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">double&#160;</td>
+          <td class="paramname"><em>g</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">double&#160;</td>
+          <td class="paramname"><em>b</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline, private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>What this does is register an object to vis_markers_. </p>
+
 </div>
 </div>
 <hr/><h2>Member Data Documentation</h2>
+<a class="anchor" id="afd141a777ded73c2dc98e4f76c3aa0f2"></a><!-- doxytag: member="VisionSensor::cc_img_" ref="afd141a777ded73c2dc98e4f76c3aa0f2" args="" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">cv::Mat <a class="el" href="classVisionSensor.html#afd141a777ded73c2dc98e4f76c3aa0f2">VisionSensor::cc_img_</a><code> [private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Keeps an image used for collision checking. </p>
+
+</div>
+</div>
 <a class="anchor" id="a9bcd85046a4a8de82af691711e2baf1b"></a><!-- doxytag: member="VisionSensor::collision_space_pub_" ref="a9bcd85046a4a8de82af691711e2baf1b" args="" -->
 <div class="memitem">
 <div class="memproto">
@@ -368,6 +632,21 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
       </table>
 </div>
 <div class="memdoc">
+
+</div>
+</div>
+<a class="anchor" id="a1ddd8756376b7ee296de5a3ea672fa5f"></a><!-- doxytag: member="VisionSensor::movable_obj_pose_map_" ref="a1ddd8756376b7ee296de5a3ea672fa5f" args="" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::map&lt;std::string,geometry_msgs::PoseStamped&gt; <a class="el" href="classVisionSensor.html#a1ddd8756376b7ee296de5a3ea672fa5f">VisionSensor::movable_obj_pose_map_</a><code> [private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Modified in sense_movable_object(),... </p>
 
 </div>
 </div>
@@ -384,25 +663,27 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
 
 </div>
 </div>
+<a class="anchor" id="a116d463698845da4cddf1ea8209e2dd6"></a><!-- doxytag: member="VisionSensor::obj_cfg_" ref="a116d463698845da4cddf1ea8209e2dd6" args="" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">utils::ObjCfg <a class="el" href="classVisionSensor.html#a116d463698845da4cddf1ea8209e2dd6">VisionSensor::obj_cfg_</a><code> [private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Keeps all sense objects including both movable and unmovable objects. </p>
+
+</div>
+</div>
 <a class="anchor" id="afdf443b636e8322b53c0da365c137a0c"></a><!-- doxytag: member="VisionSensor::object_tf_bc_" ref="afdf443b636e8322b53c0da365c137a0c" args="" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">tf::TransformBroadcaster <a class="el" href="classVisionSensor.html#afdf443b636e8322b53c0da365c137a0c">VisionSensor::object_tf_bc_</a><code> [private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="a7ee342821c6e79aa72e21eb71419c3b7"></a><!-- doxytag: member="VisionSensor::sensed_objects_" ref="a7ee342821c6e79aa72e21eb71419c3b7" args="" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">std::map&lt;std::string,geometry_msgs::PoseStamped&gt; <a class="el" href="classVisionSensor.html#a7ee342821c6e79aa72e21eb71419c3b7">VisionSensor::sensed_objects_</a><code> [private]</code></td>
         </tr>
       </table>
 </div>
@@ -423,6 +704,34 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
 
 </div>
 </div>
+<a class="anchor" id="ad88573f256bbc87ec2fe322136d4115c"></a><!-- doxytag: member="VisionSensor::vis_marker_pub_" ref="ad88573f256bbc87ec2fe322136d4115c" args="" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">ros::Publisher <a class="el" href="classVisionSensor.html#ad88573f256bbc87ec2fe322136d4115c">VisionSensor::vis_marker_pub_</a><code> [private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+</div>
+</div>
+<a class="anchor" id="a2d77a1777a23a13acd4518f19b035538"></a><!-- doxytag: member="VisionSensor::vis_markers_" ref="a2d77a1777a23a13acd4518f19b035538" args="" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::vector&lt;visualization_msgs::Marker&gt; <a class="el" href="classVisionSensor.html#a2d77a1777a23a13acd4518f19b035538">VisionSensor::vis_markers_</a><code> [private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>For visualize objects, for being published together with tf. </p>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>hiro_sensor/src/<a class="el" href="vision__sensor_8cpp.html">vision_sensor.cpp</a></li>
 </ul>
@@ -432,7 +741,7 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Defines</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Enumerator</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(8)"><span class="SelectionMark">&#160;</span>Defines</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -441,7 +750,7 @@ geometry_msgs::PoseStamped &gt;&#160;</td><td class="memItemRight" valign="botto
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Sun Aug 18 2013 12:24:25 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>

@@ -53,6 +53,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
       <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
       <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
     </ul>
   </div>
@@ -72,18 +73,20 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 Public Member Functions</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#ab67393764ae8389a665145a5badd02ac">GeneralManager</a> (ros::NodeHandle &amp;nh)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#a34e2082a2c3ae25fbcababa29c5c56f0">~GeneralManager</a> ()</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#aca4574975434df2c94fcd3c3bbfdce39">sense</a> (const size_t &amp;n, const bool &amp;random)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#ac687bce7d6120aed02e27712fcade6e4">plan</a> ()</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#a8caaa0791aaf650e18c57bcfada86ed4">sense</a> (const std::string &amp;path)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Sense with a built messy cfgs.  <a href="#a8caaa0791aaf650e18c57bcfada86ed4"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#ae15bb29e5d572c28c9c50ea05c48d6d7">sense</a> (const size_t &amp;n_movable_object, const bool &amp;randomized_vase=false, const size_t &amp;n_vase=1)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">sense with expected n_movable_object  <a href="#ae15bb29e5d572c28c9c50ea05c48d6d7"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#a51b48049c89c4dc8d85f06ba1a868a78">plan</a> (const ml_util::MLMode &amp;ml_mode, const bool rerun=false, const std::string &amp;ml_hot_path=std::string(&quot;&quot;), const std::string &amp;log_path=std::string(&quot;&quot;), std::vector&lt; trajectory_msgs::JointTrajectory &gt; *ctamp_sol=0, std::vector&lt; double &gt; *ctamp_log=0)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Brief.  <a href="#a51b48049c89c4dc8d85f06ba1a868a78"></a><br/></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#ac9763951c8e233d1d52d3167f0606720">act</a> ()</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#abdcc8543bc015b179726bff747a3b891">train</a> (const std::vector&lt; std::string &gt; &amp;tmm_paths)</td></tr>
 <tr><td colspan="2"><h2><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::NodeHandle&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#ac634e9f7b83b6664411f814fe8bafff0">nh_</a></td></tr>
 <tr><td class="mdescLeft">&#160;</td><td class="mdescRight">A ROS node handler.  <a href="#ac634e9f7b83b6664411f814fe8bafff0"></a><br/></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#a36edd3a8a968968796c4d5835f632b47">online_</a></td></tr>
 <tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Whether this is simulation or a real physical robot.  <a href="#a36edd3a8a968968796c4d5835f632b47"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">std::vector<br class="typebreak"/>
-&lt; trajectory_msgs::JointTrajectory &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classGeneralManager.html#aaf18572bfa09d7d5453b770b6310099f">man_plan_</a></td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">The resulted manipulation plan is stored here.  <a href="#aaf18572bfa09d7d5453b770b6310099f"></a><br/></td></tr>
 </table>
 <hr/><h2>Constructor &amp; Destructor Documentation</h2>
 <a class="anchor" id="ab67393764ae8389a665145a5badd02ac"></a><!-- doxytag: member="GeneralManager::GeneralManager" ref="ab67393764ae8389a665145a5badd02ac" args="(ros::NodeHandle &amp;nh)" -->
@@ -136,37 +139,45 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="ac687bce7d6120aed02e27712fcade6e4"></a><!-- doxytag: member="GeneralManager::plan" ref="ac687bce7d6120aed02e27712fcade6e4" args="()" -->
+<a class="anchor" id="a51b48049c89c4dc8d85f06ba1a868a78"></a><!-- doxytag: member="GeneralManager::plan" ref="a51b48049c89c4dc8d85f06ba1a868a78" args="(const ml_util::MLMode &amp;ml_mode, const bool rerun=false, const std::string &amp;ml_hot_path=std::string(&quot;&quot;), const std::string &amp;log_path=std::string(&quot;&quot;), std::vector&lt; trajectory_msgs::JointTrajectory &gt; *ctamp_sol=0, std::vector&lt; double &gt; *ctamp_log=0)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">bool GeneralManager::plan </td>
           <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td><code> [inline]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="aca4574975434df2c94fcd3c3bbfdce39"></a><!-- doxytag: member="GeneralManager::sense" ref="aca4574975434df2c94fcd3c3bbfdce39" args="(const size_t &amp;n, const bool &amp;random)" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">bool GeneralManager::sense </td>
-          <td>(</td>
-          <td class="paramtype">const size_t &amp;&#160;</td>
-          <td class="paramname"><em>n</em>, </td>
+          <td class="paramtype">const ml_util::MLMode &amp;&#160;</td>
+          <td class="paramname"><em>ml_mode</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const bool &amp;&#160;</td>
-          <td class="paramname"><em>random</em>&#160;</td>
+          <td class="paramtype">const bool&#160;</td>
+          <td class="paramname"><em>rerun</em> = <code>false</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>ml_hot_path</em> = <code>std::string(&quot;&quot;)</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>log_path</em> = <code>std::string(&quot;&quot;)</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::vector&lt; trajectory_msgs::JointTrajectory &gt; *&#160;</td>
+          <td class="paramname"><em>ctamp_sol</em> = <code>0</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::vector&lt; double &gt; *&#160;</td>
+          <td class="paramname"><em>ctamp_log</em> = <code>0</code>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -177,25 +188,83 @@ Private Attributes</h2></td></tr>
 </div>
 <div class="memdoc">
 
+<p>Brief. </p>
+<p>For ml_util::MLMode refer to ml_util.hpp </p>
+
 </div>
 </div>
-<hr/><h2>Member Data Documentation</h2>
-<a class="anchor" id="aaf18572bfa09d7d5453b770b6310099f"></a><!-- doxytag: member="GeneralManager::man_plan_" ref="aaf18572bfa09d7d5453b770b6310099f" args="" -->
+<a class="anchor" id="ae15bb29e5d572c28c9c50ea05c48d6d7"></a><!-- doxytag: member="GeneralManager::sense" ref="ae15bb29e5d572c28c9c50ea05c48d6d7" args="(const size_t &amp;n_movable_object, const bool &amp;randomized_vase=false, const size_t &amp;n_vase=1)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">std::vector&lt;trajectory_msgs::JointTrajectory&gt; <a class="el" href="classGeneralManager.html#aaf18572bfa09d7d5453b770b6310099f">GeneralManager::man_plan_</a><code> [private]</code></td>
+          <td class="memname">bool GeneralManager::sense </td>
+          <td>(</td>
+          <td class="paramtype">const size_t &amp;&#160;</td>
+          <td class="paramname"><em>n_movable_object</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const bool &amp;&#160;</td>
+          <td class="paramname"><em>randomized_vase</em> = <code>false</code>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const size_t &amp;&#160;</td>
+          <td class="paramname"><em>n_vase</em> = <code>1</code>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline]</code></td>
         </tr>
       </table>
 </div>
 <div class="memdoc">
 
-<p>The resulted manipulation plan is stored here. </p>
-<p>It is basically a sequence of Transfer and Transit path along with its geometric (joint_state) level implementation. </p>
+<p>sense with expected n_movable_object </p>
 
 </div>
 </div>
+<a class="anchor" id="a8caaa0791aaf650e18c57bcfada86ed4"></a><!-- doxytag: member="GeneralManager::sense" ref="a8caaa0791aaf650e18c57bcfada86ed4" args="(const std::string &amp;path)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool GeneralManager::sense </td>
+          <td>(</td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>path</em></td><td>)</td>
+          <td><code> [inline]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+<p>Sense with a built messy cfgs. </p>
+
+</div>
+</div>
+<a class="anchor" id="abdcc8543bc015b179726bff747a3b891"></a><!-- doxytag: member="GeneralManager::train" ref="abdcc8543bc015b179726bff747a3b891" args="(const std::vector&lt; std::string &gt; &amp;tmm_paths)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool GeneralManager::train </td>
+          <td>(</td>
+          <td class="paramtype">const std::vector&lt; std::string &gt; &amp;&#160;</td>
+          <td class="paramname"><em>tmm_paths</em></td><td>)</td>
+          <td><code> [inline]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+</div>
+</div>
+<hr/><h2>Member Data Documentation</h2>
 <a class="anchor" id="ac634e9f7b83b6664411f814fe8bafff0"></a><!-- doxytag: member="GeneralManager::nh_" ref="ac634e9f7b83b6664411f814fe8bafff0" args="" -->
 <div class="memitem">
 <div class="memproto">
@@ -237,7 +306,7 @@ Private Attributes</h2></td></tr>
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Defines</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Enumerator</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(8)"><span class="SelectionMark">&#160;</span>Defines</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -246,7 +315,7 @@ Private Attributes</h2></td></tr>
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Sun Aug 18 2013 12:24:25 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>
