@@ -28,6 +28,9 @@
 
 #include "utils.hpp"
 
+// Define how randomness is generated, either UNIFORMLY_AT_RANDOM or NORMALLY_AT_RANDOM iff it is set to do so;for being not-random, use the function arguments.
+#define UNIFORMLY_AT_RANDOM
+
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 
 // TODO wrap this data in a header
@@ -230,7 +233,7 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
     if( !randomized )
     {
       r = VASE_R;
-      h = VASE_H;
+      h = VASE_H;// may be multiplied by 0.75 for a safe height, not to collide with the robot home pose
       
       x = VASE_X;
       y = VASE_Y;
@@ -241,48 +244,50 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
     else
     {
       // Randomize the shape
-//      const double r_min = 0.030;
-//      const double r_max = 0.085;
-//      boost::uniform_real<double> uni_real_dist_r(r_min,r_max);
-//      r = uni_real_dist_r(g_cc_rng);
-//      boost::normal_distribution<> normal_dist_r(VASE_R,0.150);
-//      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > r_gen(g_cc_rng,normal_dist_r);
-//      r = r_gen();
-      r = VASE_R;
-    
-//      const double h_min = 0.200;
-//      const double h_max = 0.500;
-//      boost::uniform_real<double> uni_real_dist_h(h_min,h_max);
-//      h = uni_real_dist_h(g_cc_rng);
-//      boost::normal_distribution<> normal_dist_h(VASE_H,0.150);
-//      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > h_gen(g_cc_rng,normal_dist_h);
-//      h = h_gen();
-      h = VASE_H*0.75;
+      #if defined(UNIFORMLY_AT_RANDOM)
+        const double r_min = 0.030;
+        const double r_max = 0.085;
+        boost::uniform_real<double> uni_real_dist_r(r_min,r_max);
+        r = uni_real_dist_r(g_cc_rng);
+        
+        const double h_min = 0.200;
+        const double h_max = 0.500;
+        boost::uniform_real<double> uni_real_dist_h(h_min,h_max);
+        h = uni_real_dist_h(g_cc_rng);
+      #elif defined(NORMALLY_AT_RANDOM)
+        boost::normal_distribution<> normal_dist_r(VASE_R,0.150);
+        boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > r_gen(g_cc_rng,normal_dist_r);
+        r = r_gen();
+  
+        boost::normal_distribution<> normal_dist_h(VASE_H,0.150);
+        boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > h_gen(g_cc_rng,normal_dist_h);
+        h = h_gen();
+      #endif
       
       // Randomize the position: x, y
-//      const double x_max = utils::TABLE_RADIUS;// Play safe!
-//      const double x_min = -1 * x_max;
-//      const double y_max = x_max;
-//      const double y_min = x_min;
-//      boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
-//      boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
-
-//      // FOR CLUSTER 1, comment another
-//      boost::normal_distribution<> normal_dist_x(VASE_X,0.070);
-//      boost::normal_distribution<> normal_dist_y(VASE_Y,0.070);
-      // FOR CLUSTER 2, comment another
-      boost::normal_distribution<> normal_dist_x(0.000,0.070);
-      boost::normal_distribution<> normal_dist_y(-0.350,0.070);
-      
-      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(g_cc_rng,normal_dist_x);
-      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(g_cc_rng,normal_dist_y);
-                           
+      #if defined(UNIFORMLY_AT_RANDOM)
+        const double x_max = utils::TABLE_RADIUS;// Play safe!
+        const double x_min = -1 * x_max;
+        const double y_max = x_max;
+        const double y_min = x_min;
+        boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
+        boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
+      #elif defined(NORMALLY_AT_RANDOM)
+        boost::normal_distribution<> normal_dist_x(0.000,0.070);
+        boost::normal_distribution<> normal_dist_y(-0.350,0.070);
+        boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(g_cc_rng,normal_dist_x);
+        boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(g_cc_rng,normal_dist_y);
+      #endif
+                          
       while( true and ros::ok() )
       {
-//        x = uni_real_dist_x(g_cc_rng);
-//        y = uni_real_dist_y(g_cc_rng);
-        x = x_gen();
-        y = y_gen();
+        #if defined(UNIFORMLY_AT_RANDOM)
+          x = uni_real_dist_x(g_cc_rng);
+          y = uni_real_dist_y(g_cc_rng);
+        #elif defined(NORMALLY_AT_RANDOM)
+          x = x_gen();
+          y = y_gen();
+        #endif
         
         double r_here;
         r_here = sqrt( pow(x,2)+pow(y,2) );
@@ -355,31 +360,30 @@ set_movable_obj_cfg(const size_t& n)
     else
      z = (utils::TABLE_THICKNESS/2)+(utils::B_RADIUS);
     
-//    const double x_max = utils::TABLE_RADIUS;// Play safe!
-//    const double x_min = -1 * x_max;
-//    const double y_max = x_max;
-//    const double y_min = x_min;
-//    boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
-//    boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
-
-//      // for CLUSTER.1, comment another
-//      boost::normal_distribution<> normal_dist_x(0.000,0.070);
-//      boost::normal_distribution<> normal_dist_y(-0.420,0.070);
-      // for CLUSTER.2, comment another
+    #if defined(UNIFORMLY_AT_RANDOM)
+      const double x_max = utils::TABLE_RADIUS;// Play safe!
+      const double x_min = -1 * x_max;
+      const double y_max = x_max;
+      const double y_min = x_min;
+      boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
+      boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
+    #elif defined(NORMALLY_AT_RANDOM)
       boost::normal_distribution<> normal_dist_x(0.420,0.070);
       boost::normal_distribution<> normal_dist_y(0.000,0.070);
-      
       boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(g_cc_rng,normal_dist_x);
       boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(g_cc_rng,normal_dist_y);
+    #endif
     
     double x, y;
     while( true and ros::ok() )
     {
-//      x = uni_real_dist_x(g_cc_rng);
-//      y = uni_real_dist_y(g_cc_rng);
-      
-      x = x_gen();
-      y = y_gen();
+      #if defined(UNIFORMLY_AT_RANDOM)
+        x = uni_real_dist_x(g_cc_rng);
+        y = uni_real_dist_y(g_cc_rng);
+      #elif defined(NORMALLY_AT_RANDOM)
+        x = x_gen();
+        y = y_gen();
+      #endif
       
       double r_here;
       r_here = sqrt( pow(x,2)+pow(y,2) );
