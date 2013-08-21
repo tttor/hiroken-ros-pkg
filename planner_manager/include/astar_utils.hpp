@@ -225,105 +225,111 @@ AstarHeuristics(typename GPMGraph::vertex_descriptor goal, GeometricPlannerManag
 CostType 
 operator()(Vertex v)
 {
+  const double epsilon = 0.1;// for initializing the heuristic; a small positive value because the edge cost is always positive
+  
   cerr << "Compute h(" << v << "): BEGIN" << endl;
-  double h = 0.;
+  double h = epsilon;
   
   if(v == goal_)
   {
     cerr << "(v==goal_) -> h = 0." << endl;
-    h = 0.;
+    h = 0.;// as of the rule, cost-to-go at the goal is absolutely zero
   }
-  else if((ml_mode_ == ml_util::NO_ML)or(ml_mode_ == ml_util::NO_ML_BUT_COLLECTING_SAMPLES))
+  else
   {
-    cerr << "(ml_mode_==NO_ML or NO_ML_BUT_COLLECTING_SAMPLES) -> h = 0." << endl;
-    h = 0.;
-  }
-  else if( (ml_mode_ == ml_util::SVR_OFFLINE) or (ml_mode_ == ml_util::LWPR_ONLINE) )
-  { 
-    if((*n_ml_update_) > 0)
+    if( (ml_mode_ == ml_util::NO_ML) or (ml_mode_ == ml_util::NO_ML_BUT_COLLECTING_SAMPLES) )
     {
-      // Extract feature x
-      Input x;
-      if( gpm_->get_fval(v,&x) )
+      cerr << "(ml_mode_==NO_ML or NO_ML_BUT_COLLECTING_SAMPLES) -> h = 0." << endl;
+      h = 0.;// use UCS, zeroed h
+    }
+    else if( (ml_mode_ == ml_util::SVR_OFFLINE) or (ml_mode_ == ml_util::LWPR_ONLINE) )
+    { 
+      if((*n_ml_update_) > 0)
       {
-        // Preprocess data if necessary
-        bool has_to_prep_data = false;
-        bool has_to_postp_data = false;
-        
-        if(ml_mode_ == ml_util::SVR_OFFLINE)
+        // Extract feature x
+        Input x;
+        if( gpm_->get_fval(v,&x) )
         {
-          has_to_prep_data = true;
-          has_to_postp_data = true;
-        }
+          // Preprocess data if necessary
+          bool has_to_prep_data = false;
+          bool has_to_postp_data = false;
           
-        if(has_to_prep_data)
-        {
-          // All below should mimic the proprocess_data() routine implemented in matlab
-          double* x_ptr = &x[0];
-          Eigen::Map<Eigen::VectorXd> tmp_x(x_ptr,x.size());
-          
-          // Centering; PCA needs centered_x
-          Eigen::VectorXd centered_x;
-          centered_x = tmp_x - prep_data_.mu_X;
-          
-          // Project to new space
-          Eigen::VectorXd new_x;
-          new_x = centered_x.transpose() * prep_data_.T;
-          
-          // Reduce dim
-          Eigen::VectorXd lodim_x;
-          lodim_x = new_x.head(prep_data_.lo_dim);
-          
-          // Convert back to std::vector
-          x.clear();
-          x.resize(lodim_x.size());
-          for(size_t i=0; i<lodim_x.size(); ++i)
-            x.at(i) = lodim_x(i);
-        }
-          
-        // Predict yp with the learning machine
-        std::vector<double> yp;
-        yp = learner_->predict(x);
-
-        // Assign
-        if( !yp.empty() )
-        {
-          if(has_to_postp_data)
+          if(ml_mode_ == ml_util::SVR_OFFLINE)
           {
-            yp.at(0) += prep_data_.mu_y(0);
+            has_to_prep_data = true;
+            has_to_postp_data = true;
           }
-          
-          // Scaling, its dual (scale-down) is in get_out() at file:data_collector.hpp
-          // TODO better if done together in postp_data()
-          const double scale_up = 10.;
-          h = yp.at(0) * scale_up;
+            
+          if(has_to_prep_data)
+          {
+            // All below should mimic the proprocess_data() routine implemented in matlab
+            double* x_ptr = &x[0];
+            Eigen::Map<Eigen::VectorXd> tmp_x(x_ptr,x.size());
+            
+            // Centering; PCA needs centered_x
+            Eigen::VectorXd centered_x;
+            centered_x = tmp_x - prep_data_.mu_X;
+            
+            // Project to new space
+            Eigen::VectorXd new_x;
+            new_x = centered_x.transpose() * prep_data_.T;
+            
+            // Reduce dim
+            Eigen::VectorXd lodim_x;
+            lodim_x = new_x.head(prep_data_.lo_dim);
+            
+            // Convert back to std::vector
+            x.clear();
+            x.resize(lodim_x.size());
+            for(size_t i=0; i<lodim_x.size(); ++i)
+              x.at(i) = lodim_x(i);
+          }
+            
+          // Predict yp with the learning machine
+          std::vector<double> yp;
+          yp = learner_->predict(x);
+
+          // Assign
+          if( !yp.empty() )
+          {
+            if(has_to_postp_data)
+            {
+              yp.at(0) += prep_data_.mu_y(0);
+            }
+            
+            // Scaling, its dual (scale-down) is in get_out() at file:data_collector.hpp
+            // TODO better if done together in postp_data()
+            const double scale_up = 10.;
+            yp.at(0) *= scale_up;
+            
+            if(yp.at(0) > 0.)// iff the value from the ML is positive as the edge cost is always positive
+            {
+              h = yp.at(0);
+            }
+            else
+            {
+              cerr << "yp.at(0) <= 0. -> h = epsilon" << endl;
+            }
+          }
+          else
+          {
+            cerr << "yp.empty() -> learner_->predict(x) FAILED -> h = epsilon" << endl;
+          }
         }
         else
         {
-          cerr << "yp.empty() -> learner_->predict(x) FAILED -> h = 0." << endl;
-          h = 0.;
+          cerr << "gpm_->get_fval(v,&x): FAILED -> h = epsilon" << endl;
         }
-      }
+      }// if((*n_ml_update_) > 0)
       else
       {
-        cerr << "gpm_->get_fval(v,&x): FAILED -> h = 0." << endl;
-        h = 0.;
+          cerr << "n_ml_update_= " << (*n_ml_update_) << " -> h = 0." << endl;
+          h = 0.;// as the learning machine not yet trained, then act as if UCS with zeroed h
       }
-    }// if((*n_ml_update_) > 0)
-    else
-    {
-        cerr << "n_ml_update_= " << (*n_ml_update_) << " -> h = 0." << endl;
-        h = 0.;
-    }
-  }// else if( (ml_mode_ == ml_util::SVR_OFFLINE) or (ml_mode_ == ml_util::LWPR_ONLINE) )
+    }// else if( (ml_mode_ == ml_util::SVR_OFFLINE) or (ml_mode_ == ml_util::LWPR_ONLINE) )
+  }// else if(v != goal_)
   
-  // Put in the main tmm!
-  if(h < 0.)// negative value
-  {
-    cerr << "h= " << h << " -> h = 0." << endl;
-    h = 0.;
-  } 
-  
+  // Put in the main tmm as a vertex property!
   cerr << "h(" << v << ")= " << h << endl;
   gpm_->put_heu(v,h);
   
