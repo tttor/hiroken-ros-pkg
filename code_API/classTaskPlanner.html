@@ -53,6 +53,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
       <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
       <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
     </ul>
   </div>
@@ -78,22 +79,22 @@ Public Member Functions</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#a551378501f7a1e6304c207c25b2400db">~TaskPlanner</a> ()</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#a106e148d746e01f2215dc3cbaca5cbd0">handle_plan_task_srv</a> (task_planner::PlanTask::Request &amp;req, task_planner::PlanTask::Response &amp;res)</td></tr>
 <tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Brief ...  <a href="#a106e148d746e01f2215dc3cbaca5cbd0"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#a5ba3a11a30674b9d6889c8c4eeab826e">plan</a> (const std::vector&lt; arm_navigation_msgs::CollisionObject &gt; &amp;objs)</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Brief ...  <a href="#a5ba3a11a30674b9d6889c8c4eeab826e"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#a9ec8cc3639e1307745d5cb9c6f97b890">plan</a> (const size_t &amp;n_obj)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Brief ...  <a href="#a9ec8cc3639e1307745d5cb9c6f97b890"></a><br/></td></tr>
 <tr><td colspan="2"><h2><a name="pri-methods"></a>
 Private Member Functions</h2></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#a0a5d8517b77c12d82711b9d8531a0885">create_metadata</a> (const TaskMotionMultigraph &amp;tmm, const size_t &amp;n)</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">A helper function.  <a href="#a0a5d8517b77c12d82711b9d8531a0885"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">TaskMotionMultigraph&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#abe8bcd1571aad27f65ed8ccfa870c1ac">convert_tg_tmm</a> (const TaskGraph &amp;tg)</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Convert a task_graph into a task motion multigraph.  <a href="#abe8bcd1571aad27f65ed8ccfa870c1ac"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">TaskMotionMultigraph&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#a12cf2c29ed65f519144d50dc62a4421e">convert_tg2tmm</a> (const TaskGraph &amp;tg)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Convert a task_graph into a task motion multigraph.  <a href="#a12cf2c29ed65f519144d50dc62a4421e"></a><br/></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">std::pair&lt; std::string, <br class="typebreak"/>
-std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#a6d348d8ad226ae548fa36ec10ff8b2d5">infer</a> (const std::vector&lt; <a class="el" href="structAction.html">Action</a> &gt;::iterator &amp;i, const std::vector&lt; <a class="el" href="structAction.html">Action</a> &gt;::iterator &amp;pre_i, const std::vector&lt; <a class="el" href="structAction.html">Action</a> &gt;::iterator &amp;post_i, std::vector&lt; std::string &gt; *released_objects)</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Infer the connectivity in plans from SHOP2 planner.  <a href="#a6d348d8ad226ae548fa36ec10ff8b2d5"></a><br/></td></tr>
+std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#a94833dfcc9e109f7be1aef09905decc1">infer</a> (const std::vector&lt; <a class="el" href="structAction.html">Action</a> &gt;::iterator &amp;i, const std::vector&lt; <a class="el" href="structAction.html">Action</a> &gt;::iterator &amp;pre_i, const std::vector&lt; <a class="el" href="structAction.html">Action</a> &gt;::iterator &amp;post_i, const size_t &amp;n_obj, std::vector&lt; std::string &gt; *released_objects)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Infer the connectivity in plans from SHOP2 planner.  <a href="#a94833dfcc9e109f7be1aef09905decc1"></a><br/></td></tr>
 <tr><td colspan="2"><h2><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::NodeHandle&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#acab447958b971169731920c73f089884">nh_</a></td></tr>
 <tr><td class="mdescLeft">&#160;</td><td class="mdescRight">A ROS node handler.  <a href="#acab447958b971169731920c73f089884"></a><br/></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#ac98ff591c09453756126b18faa88878c">data_path_</a></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#a87faffbb559b0e97aa6ec345375df044">task_planner_path_</a></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">std::map&lt; std::string, <br class="typebreak"/>
+std::set&lt; std::string &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classTaskPlanner.html#ac40d45bb9b0870f57d010efa272bac72">rbt_jspaces_map_</a></td></tr>
 </table>
 <hr/><a name="details" id="details"></a><h2>Detailed Description</h2>
 <div class="textblock"><p>A class that does task planning. </p>
@@ -134,12 +135,12 @@ Private Attributes</h2></td></tr>
 </div>
 </div>
 <hr/><h2>Member Function Documentation</h2>
-<a class="anchor" id="abe8bcd1571aad27f65ed8ccfa870c1ac"></a><!-- doxytag: member="TaskPlanner::convert_tg_tmm" ref="abe8bcd1571aad27f65ed8ccfa870c1ac" args="(const TaskGraph &amp;tg)" -->
+<a class="anchor" id="a12cf2c29ed65f519144d50dc62a4421e"></a><!-- doxytag: member="TaskPlanner::convert_tg2tmm" ref="a12cf2c29ed65f519144d50dc62a4421e" args="(const TaskGraph &amp;tg)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">TaskMotionMultigraph TaskPlanner::convert_tg_tmm </td>
+          <td class="memname">TaskMotionMultigraph TaskPlanner::convert_tg2tmm </td>
           <td>(</td>
           <td class="paramtype">const TaskGraph &amp;&#160;</td>
           <td class="paramname"><em>tg</em></td><td>)</td>
@@ -158,43 +159,6 @@ Private Attributes</h2></td></tr>
   </dd>
 </dl>
 <dl class="return"><dt><b>Returns:</b></dt><dd>the resulted tmm </dd></dl>
-
-</div>
-</div>
-<a class="anchor" id="a0a5d8517b77c12d82711b9d8531a0885"></a><!-- doxytag: member="TaskPlanner::create_metadata" ref="a0a5d8517b77c12d82711b9d8531a0885" args="(const TaskMotionMultigraph &amp;tmm, const size_t &amp;n)" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">void TaskPlanner::create_metadata </td>
-          <td>(</td>
-          <td class="paramtype">const TaskMotionMultigraph &amp;&#160;</td>
-          <td class="paramname"><em>tmm</em>, </td>
-        </tr>
-        <tr>
-          <td class="paramkey"></td>
-          <td></td>
-          <td class="paramtype">const size_t &amp;&#160;</td>
-          <td class="paramname"><em>n</em>&#160;</td>
-        </tr>
-        <tr>
-          <td></td>
-          <td>)</td>
-          <td></td><td><code> [inline, private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-<p>A helper function. </p>
-<p>Create metadata file that contains input-feature names. Should be rarely used.</p>
-<dl><dt><b>Parameters:</b></dt><dd>
-  <table class="params">
-    <tr><td class="paramname">tmm</td><td></td></tr>
-    <tr><td class="paramname">&amp;n</td><td>number of movable objects </td></tr>
-  </table>
-  </dd>
-</dl>
 
 </div>
 </div>
@@ -236,7 +200,7 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="a6d348d8ad226ae548fa36ec10ff8b2d5"></a><!-- doxytag: member="TaskPlanner::infer" ref="a6d348d8ad226ae548fa36ec10ff8b2d5" args="(const std::vector&lt; Action &gt;::iterator &amp;i, const std::vector&lt; Action &gt;::iterator &amp;pre_i, const std::vector&lt; Action &gt;::iterator &amp;post_i, std::vector&lt; std::string &gt; *released_objects)" -->
+<a class="anchor" id="a94833dfcc9e109f7be1aef09905decc1"></a><!-- doxytag: member="TaskPlanner::infer" ref="a94833dfcc9e109f7be1aef09905decc1" args="(const std::vector&lt; Action &gt;::iterator &amp;i, const std::vector&lt; Action &gt;::iterator &amp;pre_i, const std::vector&lt; Action &gt;::iterator &amp;post_i, const size_t &amp;n_obj, std::vector&lt; std::string &gt; *released_objects)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
@@ -261,6 +225,12 @@ Private Attributes</h2></td></tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
+          <td class="paramtype">const size_t &amp;&#160;</td>
+          <td class="paramname"><em>n_obj</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
           <td class="paramtype">std::vector&lt; std::string &gt; *&#160;</td>
           <td class="paramname"><em>released_objects</em>&#160;</td>
         </tr>
@@ -280,6 +250,7 @@ Private Attributes</h2></td></tr>
     <tr><td class="paramname">&amp;i</td><td>the iterator of an action </td></tr>
     <tr><td class="paramname">&amp;pre_i</td><td>the pre-iterator of an action </td></tr>
     <tr><td class="paramname">&amp;post_i</td><td>the post-iterator of an action </td></tr>
+    <tr><td class="paramname">&amp;n_obj</td><td>the number of involved objects, which is equal to the maximum number of released objects </td></tr>
     <tr><td class="paramname">*released_objects</td><td>a bookeeper variable storing which object has been released </td></tr>
   </table>
   </dd>
@@ -288,15 +259,15 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="a5ba3a11a30674b9d6889c8c4eeab826e"></a><!-- doxytag: member="TaskPlanner::plan" ref="a5ba3a11a30674b9d6889c8c4eeab826e" args="(const std::vector&lt; arm_navigation_msgs::CollisionObject &gt; &amp;objs)" -->
+<a class="anchor" id="a9ec8cc3639e1307745d5cb9c6f97b890"></a><!-- doxytag: member="TaskPlanner::plan" ref="a9ec8cc3639e1307745d5cb9c6f97b890" args="(const size_t &amp;n_obj)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
           <td class="memname">bool TaskPlanner::plan </td>
           <td>(</td>
-          <td class="paramtype">const std::vector&lt; arm_navigation_msgs::CollisionObject &gt; &amp;&#160;</td>
-          <td class="paramname"><em>objs</em></td><td>)</td>
+          <td class="paramtype">const size_t &amp;&#160;</td>
+          <td class="paramname"><em>n_obj</em></td><td>)</td>
           <td><code> [inline]</code></td>
         </tr>
       </table>
@@ -306,24 +277,14 @@ Private Attributes</h2></td></tr>
 <p>Brief ... </p>
 <p>This is the core function in the <a class="el" href="classTaskPlanner.html" title="A class that does task planning.">TaskPlanner</a> class. TODO Calling to HTN planner should be done here.</p>
 <p>For now, up to Oct 13, 2012, the communication with a CommonLisp-based HTN plannner is done via a file; hardcoded! In the same vein, the commomunication with the planner manager is also done via a file; hardcoded!.</p>
+<p>Note that the plan structure that is writtent in a plan file is different between single-arm and dual-arm, why? in that for dual-arm plans we donot have to: Remove the head "(" and the tail ")"; the most outer ones</p>
+<p>Note that intentionally, we make changes in the operator args list: FROM (!GRASP R CAN1 MESSY-SPOT) TO (!GRASP CAN1 MESSY-SPOT RARM)</p>
+<p>number of objects, which determines the planning horizon </p>
 <dl class="return"><dt><b>Returns:</b></dt><dd>whether successful </dd></dl>
 
 </div>
 </div>
 <hr/><h2>Member Data Documentation</h2>
-<a class="anchor" id="ac98ff591c09453756126b18faa88878c"></a><!-- doxytag: member="TaskPlanner::data_path_" ref="ac98ff591c09453756126b18faa88878c" args="" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">std::string <a class="el" href="classTaskPlanner.html#ac98ff591c09453756126b18faa88878c">TaskPlanner::data_path_</a><code> [private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
 <a class="anchor" id="acab447958b971169731920c73f089884"></a><!-- doxytag: member="TaskPlanner::nh_" ref="acab447958b971169731920c73f089884" args="" -->
 <div class="memitem">
 <div class="memproto">
@@ -340,6 +301,32 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
+<a class="anchor" id="ac40d45bb9b0870f57d010efa272bac72"></a><!-- doxytag: member="TaskPlanner::rbt_jspaces_map_" ref="ac40d45bb9b0870f57d010efa272bac72" args="" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::map&lt; std::string,std::set&lt;std::string&gt; &gt; <a class="el" href="classTaskPlanner.html#ac40d45bb9b0870f57d010efa272bac72">TaskPlanner::rbt_jspaces_map_</a><code> [private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+</div>
+</div>
+<a class="anchor" id="a87faffbb559b0e97aa6ec345375df044"></a><!-- doxytag: member="TaskPlanner::task_planner_path_" ref="a87faffbb559b0e97aa6ec345375df044" args="" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::string <a class="el" href="classTaskPlanner.html#a87faffbb559b0e97aa6ec345375df044">TaskPlanner::task_planner_path_</a><code> [private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>task_planner/src/<a class="el" href="task__planner_8cpp.html">task_planner.cpp</a></li>
 </ul>
@@ -349,7 +336,7 @@ Private Attributes</h2></td></tr>
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Defines</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Enumerator</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(8)"><span class="SelectionMark">&#160;</span>Defines</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -358,7 +345,7 @@ Private Attributes</h2></td></tr>
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Sun Aug 18 2013 12:24:25 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>

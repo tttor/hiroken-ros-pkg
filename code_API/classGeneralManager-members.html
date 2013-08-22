@@ -53,6 +53,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
       <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
       <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
     </ul>
   </div>
@@ -65,11 +66,12 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 This is the complete list of members for <a class="el" href="classGeneralManager.html">GeneralManager</a>, including all inherited members.<table>
   <tr class="memlist"><td><a class="el" href="classGeneralManager.html#ac9763951c8e233d1d52d3167f0606720">act</a>()</td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [inline]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classGeneralManager.html#ab67393764ae8389a665145a5badd02ac">GeneralManager</a>(ros::NodeHandle &amp;nh)</td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [inline]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classGeneralManager.html#aaf18572bfa09d7d5453b770b6310099f">man_plan_</a></td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classGeneralManager.html#ac634e9f7b83b6664411f814fe8bafff0">nh_</a></td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [private]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classGeneralManager.html#a36edd3a8a968968796c4d5835f632b47">online_</a></td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [private]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classGeneralManager.html#ac687bce7d6120aed02e27712fcade6e4">plan</a>()</td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [inline]</code></td></tr>
-  <tr class="memlist"><td><a class="el" href="classGeneralManager.html#aca4574975434df2c94fcd3c3bbfdce39">sense</a>(const size_t &amp;n, const bool &amp;random)</td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [inline]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classGeneralManager.html#a51b48049c89c4dc8d85f06ba1a868a78">plan</a>(const ml_util::MLMode &amp;ml_mode, const bool rerun=false, const std::string &amp;ml_hot_path=std::string(&quot;&quot;), const std::string &amp;log_path=std::string(&quot;&quot;), std::vector&lt; trajectory_msgs::JointTrajectory &gt; *ctamp_sol=0, std::vector&lt; double &gt; *ctamp_log=0)</td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [inline]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classGeneralManager.html#a8caaa0791aaf650e18c57bcfada86ed4">sense</a>(const std::string &amp;path)</td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [inline]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classGeneralManager.html#ae15bb29e5d572c28c9c50ea05c48d6d7">sense</a>(const size_t &amp;n_movable_object, const bool &amp;randomized_vase=false, const size_t &amp;n_vase=1)</td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [inline]</code></td></tr>
+  <tr class="memlist"><td><a class="el" href="classGeneralManager.html#abdcc8543bc015b179726bff747a3b891">train</a>(const std::vector&lt; std::string &gt; &amp;tmm_paths)</td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [inline]</code></td></tr>
   <tr class="memlist"><td><a class="el" href="classGeneralManager.html#a34e2082a2c3ae25fbcababa29c5c56f0">~GeneralManager</a>()</td><td><a class="el" href="classGeneralManager.html">GeneralManager</a></td><td><code> [inline]</code></td></tr>
 </table></div>
 <!-- window showing the filter options -->
@@ -77,7 +79,7 @@ This is the complete list of members for <a class="el" href="classGeneralManager
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Defines</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Enumerator</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(8)"><span class="SelectionMark">&#160;</span>Defines</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -86,7 +88,7 @@ This is the complete list of members for <a class="el" href="classGeneralManager
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Sun Aug 18 2013 12:24:25 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>

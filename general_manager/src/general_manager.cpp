@@ -284,6 +284,10 @@ main(int argc, char **argv)
   if( !ros::param::get("/messy_cfg_filename",messy_cfg_filename) )
     ROS_WARN("Can not get /messy_cfg_filename, use the default value instead"); 
 
+  std::string ml_offline_data_path;
+  if( !ros::param::get("/ml_offline_data_path",ml_offline_data_path) )
+    ROS_WARN("Can not get /ml_offline_data_path, use the default value instead"); 
+    
   std::vector<std::string> mode1011_instance_paths(n_run);// used in mode1011,mode10,mode11
   
   switch(mode)
@@ -674,7 +678,8 @@ main(int argc, char **argv)
     }
     case 13:
     // For collecting path samples offline from UCS-planned TMM
-    // Usage: $ roslaunch hiro_common a.launch  mode:=13 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline.tr n_obj:=1 n_run:=10
+    // Note: set the ml_offline_data_path parameter server appropriately
+    // Usage: $ roslaunch hiro_common a.launch  mode:=13 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline.tuning n_obj:=1 n_run:=10
     {
       // Init  
       std::string run_id;
@@ -730,10 +735,7 @@ main(int argc, char **argv)
       }// for each instance
       
       // Copy data from data from ml hot path to ml offline path then remove the hot ones
-      std::string ml_offline_data_dir = "/home/vektor/rss-2013/data/with_v.4.3/ml_offline_data/";
-      
-      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.libsvmdata"),std::string(ml_offline_data_dir + "tr_data." + boost::lexical_cast<string>(n_obj) + "M" + ".libsvmdata"),boost::filesystem::copy_option::overwrite_if_exists );// for tuning ml
-      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv"),std::string(ml_offline_data_dir + "tr_data." + boost::lexical_cast<string>(n_obj) + "M" +".csv"),boost::filesystem::copy_option::overwrite_if_exists );// for tuning ml
+      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv"),std::string(ml_offline_data_path + "data." + boost::lexical_cast<string>(n_obj) + "M" +".csv"),boost::filesystem::copy_option::overwrite_if_exists );// for tuning ml
       
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       
