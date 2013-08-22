@@ -102,7 +102,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::string tidy_cfg_filename;
   if( !ros::param::get("/tidy_cfg_filename",tidy_cfg_filename) )
     ROS_WARN("Can not get /tidy_cfg_filename, use the default value instead");
-  if ( !set_tidy_config(true) )
+    
+  if ( !set_tidy_config() )
   {
     ROS_ERROR("Can not set the tidy_cfg!");
     return false;
@@ -215,9 +216,14 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::vector<TMMVertex> predecessors(num_vertices(tmm_));
   std::vector<double> distances(num_vertices(tmm_));
   
-  double total_gp_time = 0.;
-  double total_mp_time = 0.;
-  size_t n_exp_op = 0;
+  double search_time = 0.;// initially is gross, but then becomes net
+  double total_gp_time = 0.;// recorded by the visitor, used to substract the gross search time
+  double total_mp_time = 0.;// recorded by the visitor, used to substract the gross search time,
+  
+  size_t n_exp_op = 0;// the number of vertex expansion operations
+  size_t n_exp_vert = 0;// the number of unique vertex expansion
+
+  std::vector<TMMEdge> sol_path;// i.e. the $p_s$
 
   ros::Time search_begin = ros::Time::now();
   try 
@@ -226,14 +232,14 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     {
       case ml_util::NO_ML:
       {
-        // use "as is" mode=ml_util::SVR_OFFLINE, 
-        //the learner is useless though, see astar_utils.hpp where the heuristic for this mode is always set to h=0
+        // use "as is" mode= ml_util::SVR_OFFLINE, 
+        // the learner is useless though, see astar_utils.hpp where the heuristic for this mode is always set to h= 0
         ROS_DEBUG("learner= ml_util::NO_ML but via learner= SVR");
       }
       case ml_util::NO_ML_BUT_COLLECTING_SAMPLES:
       {
-        // use "as is" mode=ml_util::SVR_OFFLINE, 
-        //the learner is useless though, see astar_utils.hpp where the heuristic for this mode is always set to h=0
+        // use "as is" mode= ml_util::SVR_OFFLINE, 
+        // the learner is useless though, see astar_utils.hpp where the heuristic for this mode is always set to h= 0
         ROS_DEBUG("learner= ml_util::NO_ML_BUT_COLLECTING_SAMPLES but via learner= SVR");
       }
       case ml_util::SVR_OFFLINE:
@@ -244,7 +250,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         if((ml_mode == ml_util::SVR_OFFLINE) and (n_ctamp_attempt_==0) )
           search_heuristic_ml_mode = ml_util::NO_ML;// for the first ctamp instance, use ml_util::NO_ML because there is no trained-SVR yet.
         else
-          search_heuristic_ml_mode = ml_mode;// 3 possible values of ml_mode: NO_ML and SVR_OFFLINE and NO_ML_BUT_COLLECTING_SAMPLES
+          search_heuristic_ml_mode = ml_mode;// 3 possible values of ml_mode (as we use two cases above w/o breaks): NO_ML and SVR_OFFLINE and NO_ML_BUT_COLLECTING_SAMPLES
         
         // SVR from libsvm
         SVM_Object learner(svr_model_,ml_util::SVR_MAX_N_ATTR);
@@ -298,64 +304,23 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   {
     ROS_INFO("GOAL_FOUND.");
     
-    // Get elapsed time for planning that is represented by the search process, but _excluding_ grasp planning time (because we do not care it for now) and motion planning time (because it is stored separately in edge_mptime)
-    double search_time;
+    // Get elapsed time for planning that is represented by the search process, 
+    // but _excluding_ grasp planning time (because we do not care it for now) and motion planning time (because it is stored separately in edge_mptime)
     search_time = (ros::Time::now()-search_begin).toSec();
     search_time -= total_gp_time;
     search_time -= total_mp_time;
     
-    cout << "CTAMP_SearchTime= " << search_time << endl;
-    perf_log_out << "CTAMP_SearchTime=" << search_time << endl;
-    perf_log.at(0) = search_time;
-    
     // Get #expanded vertices + total_mp_time
     // The total_mp_time is the sum of (so that TOTAL) motion planning time for each out-edges.
     // All time used by other processes in a vertex expansion is included in the search_time (which holds the overall time for search)
-    size_t n_exp_vert = 0;
     boost::graph_traits<TaskMotionMultigraph>::vertex_iterator vi, vi_end;
-
-    double total_mp_time = 0.;
-      
     for(boost::tie(vi,vi_end) = vertices(tmm_); vi!=vi_end; ++vi)
     {
-      if(get(vertex_color,tmm_,*vi)==color_traits<boost::default_color_type>::black())
+      if(get(vertex_color,tmm_,*vi) == color_traits<boost::default_color_type>::black())
       {
-        // Count #expanded vertices
         ++n_exp_vert;
-        
-        typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
-        for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
-        {
-          std::string color;
-          color = get(edge_color,tmm_,*oei);
-          
-          if( strcmp(color.c_str(),std::string("black").c_str()) )// if _not_ black
-            total_mp_time += get(edge_mptime,tmm_,*oei);
-        }
-      }
-      else
-      {
-        // Reset and Make-sure that for out-edges of unexpanded vertices, these values prevail
-        typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
-        for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
-        {
-          put(edge_color,tmm_,*oei,"black");
-          put(edge_weight,tmm_,*oei,std::numeric_limits<double>::max());
-        }
       }
     }
-    
-    cout << "total_mp_time= " << total_mp_time << endl;
-    perf_log_out << "total_mp_time=" << total_mp_time << endl;
-    perf_log.at(1) = total_mp_time;
-    
-    cout << "#ExpandedVertices= " << n_exp_vert << endl;
-    perf_log_out << "#ExpandedVertices=" << n_exp_vert << endl;
-    perf_log.at(2) = n_exp_vert;
-    
-    cout << "#Vertices= " << num_vertices(tmm_) << endl;
-    perf_log_out << "#Vertices=" << num_vertices(tmm_) << endl;
-    perf_log.at(3) = num_vertices(tmm_);
         
     // Convert from vector to list to enable push_front()
     std::list<TMMVertex> sol_path_vertex_list;
@@ -366,25 +331,14 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         break;
     }
     
-    // Build the solution path. Here the solution path may be cancelled if there is an edge that has no motion plan (edge_color=red).
-    std::vector<TMMEdge> sol_path;
-    bool recheck = true;// Optimistis that this is truly the solution path
+    // Build the solution path $p_s$
     std::list<TMMVertex>::iterator spvl_it = sol_path_vertex_list.begin();
 
     TMMVertex s;
     s = *spvl_it;
     
-    cout << "SolutionPath(v)=" << endl;
-    perf_log_out << "SolutionPath(v)=";
-    
-    cout << get(vertex_name, tmm_, *spvl_it) << endl;
-    perf_log_out << get(vertex_name, tmm_, *spvl_it) << ",";
-    
     for(++spvl_it; spvl_it != sol_path_vertex_list.end(); ++spvl_it)
     {
-      cout << get(vertex_name, tmm_, *spvl_it) << endl;
-      perf_log_out << get(vertex_name, tmm_, *spvl_it) << ",";
-      
       // Get the cheapest path among many due to parallelism/multigraph
       TMMEdge cheapest_e;
       double cheapest_w = std::numeric_limits<double>::max();
@@ -402,62 +356,77 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       sol_path.push_back(cheapest_e);
       s = *spvl_it;
     }
-    cout << endl;
-    perf_log_out << endl;
-    
-    cout << "SolutionPath(e)=" << endl;
-    perf_log_out << "SolutionPath(e)=";
-    
-    for(std::vector<TMMEdge>::iterator i=sol_path.begin(); i!=sol_path.end(); ++i)
+  }// End of: catch(FoundGoalSignal fgs) 
+  
+  // The confirmation step
+  std::vector<TMMEdge> copy_sol_path = sol_path;// the copy is for debugging purpose
+  
+  for(std::vector<TMMEdge>::iterator i=sol_path.begin(); i!=sol_path.end(); ++i)
+  {
+    if( get(edge_plan,tmm_,*i).points.empty() )
     {
-      cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << " --> " << get(edge_color,tmm_,*i) << endl;
-      perf_log_out << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << ",";
+      sol_path.clear();
+      ctamp_sol->clear();
       
-      if( !strcmp(get(edge_color,tmm_,*i).c_str(),"red") )
-      {
-        // TODO may re-do motion planning here for this edge
-      
-        recheck = false;
-      }
-      else if( !strcmp(get(edge_color,tmm_,*i).c_str(),"green") )
-      {
-        put( edge_color,tmm_,*i,std::string("blue") );
-        put( vertex_color,tmm_,source(*i,tmm_),color_traits<boost::default_color_type>::gray() );// for vertex in the solution path
-        put( vertex_color,tmm_,target(*i,tmm_),color_traits<boost::default_color_type>::gray() );// somewhat redundant indeed
-        
-        ctamp_sol->push_back( get(edge_plan,tmm_,*i) );
-      }
-    }
-    cout << endl;
-    perf_log_out << endl;
-    
-    // Confirming step
-    if(recheck)
-    {
-      cout << "SolPathCost= " << distances[tmm_goal_] << endl;
-      perf_log_out << "SolPathCost=" << distances[tmm_goal_] << endl;
-      perf_log.at(4) = distances[tmm_goal_];
-      perf_log.at(5) = sol_path.size() + 1;
+      break;
     }
     else
     {
-      // TODO bypass unimplementable edges, needs to replan the motion
+      put( edge_color,tmm_,*i,std::string("blue") );
+      put( vertex_color,tmm_,source(*i,tmm_),color_traits<boost::default_color_type>::gray() );// for vertex in the solution path
+      put( vertex_color,tmm_,target(*i,tmm_),color_traits<boost::default_color_type>::gray() );// somewhat redundant indeed
       
-      ctamp_sol->clear();
-      
-      cout << "SolPathCost= " << distances[tmm_goal_] << "(but zeroed because not passed)" << endl;
-      perf_log_out << "SolPathCost= " << distances[tmm_goal_] << "(but zeroed because not passed)" << endl;
-      perf_log.at(4) = 0.;// an invalid value, cost > 0
-      perf_log.at(5) = 0.;// an invalid value, |sol| > 0
+      ctamp_sol->push_back( get(edge_plan,tmm_,*i) );
     }
-    
-    // Write the number of expansion ops
-    perf_log.at(6) = n_exp_op;
-    perf_log.at(7) = distances[tmm_goal_];
-    perf_log.at(8) = sol_path.size() + 1;
-  }// End of: catch(FoundGoalSignal fgs) 
+  }
   
-  // Write perf_log
+  // Log the CTAMP process: search + confirmation
+  cout << "===CTAMP process log===" << endl;
+  
+  cout << "CTAMP_SearchTime= " << search_time << endl;
+  perf_log_out << "CTAMP_SearchTime=" << search_time << endl;
+  perf_log.at(0) = search_time;
+  
+  cout << "total_mp_time= " << total_mp_time << endl;
+  perf_log_out << "total_mp_time=" << total_mp_time << endl;
+  perf_log.at(1) = total_mp_time;
+  
+  cout << "#ExpandedVertices= " << n_exp_vert << endl;
+  perf_log_out << "#ExpandedVertices=" << n_exp_vert << endl;
+  perf_log.at(2) = n_exp_vert;
+  
+  cout << "#Vertices= " << num_vertices(tmm_) << endl;
+  perf_log_out << "#Vertices=" << num_vertices(tmm_) << endl;
+  perf_log.at(3) = num_vertices(tmm_);
+  
+  cout << "SolutionPath(e)=" << endl;
+  perf_log_out << "SolutionPath(e)=";
+  for(std::vector<TMMEdge>::iterator i=copy_sol_path.begin(); i!=copy_sol_path.end(); ++i)
+  {
+    cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << " --> " << get(edge_color,tmm_,*i) << endl;
+    perf_log_out << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << ",";
+  }
+  perf_log_out << endl;
+
+  perf_log.at(6) = n_exp_op;
+  perf_log.at(7) = distances[tmm_goal_];
+  perf_log.at(8) = sol_path.size() + 1;
+
+  if( sol_path.empty() )// did not pass the confirmation step
+  {
+    cout << "SolPathCost= " << distances[tmm_goal_] << "(but zeroed because not passed)" << endl;
+    perf_log_out << "SolPathCost= " << distances[tmm_goal_] << "(but zeroed because not passed)" << endl;
+    perf_log.at(4) = 0.;// an invalid value, cost > 0
+    perf_log.at(5) = 0.;// an invalid value, |sol| > 0  
+  }
+  else// passed the confirmation step
+  {
+    cout << "SolPathCost= " << distances[tmm_goal_] << endl;
+    perf_log_out << "SolPathCost=" << distances[tmm_goal_] << endl;
+    perf_log.at(4) = distances[tmm_goal_];
+    perf_log.at(5) = sol_path.size() + 1;
+  }
+          
   utils::write_csv(perf_log,std::string(data_path+"/perf.log.csv"));
   
   // Do interleaved training

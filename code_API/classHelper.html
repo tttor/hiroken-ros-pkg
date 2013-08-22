@@ -53,6 +53,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
       <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
       <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
     </ul>
   </div>
@@ -73,17 +74,21 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 Public Member Functions</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a48e818cca234809a30aa0ce832657d2a">Helper</a> (ros::NodeHandle nh)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#ad714e92b4bc40bee681e0713503c9b27">~Helper</a> ()</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a3a08d3b660ad67f6221f80b15425c4ae">motion_plan_cb</a> (const trajectory_msgs::JointTrajectory::ConstPtr &amp;msg)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">std::vector&lt; geometry_msgs::Point &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a601ffbf5dbc3906e6d09055ee269c9af">convert_to_cartesian</a> (const trajectory_msgs::JointTrajectory &amp;joint_trajectory)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#ae65ac7be5a5570cbd9f9278f3bde8dce">benchmark_path</a> (const std::vector&lt; geometry_msgs::Point &gt; &amp;path)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#af32d3b66b9d54140a629af811f4f4ab4">benchmark_path_srv_cb</a> (hiro_common::BenchmarkPath::Request &amp;req, hiro_common::BenchmarkPath::Response &amp;res)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a38c4b49de5e1ffc8be19c310ce450132">motion_plan_subs_cb</a> (const trajectory_msgs::JointTrajectory::ConstPtr &amp;msg)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a766ae04fab3dcf285813dedecba29f1b">benchmark_path_srv_handle</a> (hiro_common::BenchmarkPath::Request &amp;req, hiro_common::BenchmarkPath::Response &amp;res)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#ab37e94ff4251971ebcb7cfb81e4ba096">get_manipulability_srv_handle</a> (hiro_common::GetManipulability::Request &amp;req, hiro_common::GetManipulability::Response &amp;res)</td></tr>
 <tr><td colspan="2"><h2><a name="pri-methods"></a>
 Private Member Functions</h2></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">double&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a10d5f3a014d1349303f07c27387986a4">distance</a> (const geometry_msgs::Point &amp;point_1, const geometry_msgs::Point &amp;point_2)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">double&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a1402398e8d5948e85aead1d8b8b0c489">smoothness</a> (const std::vector&lt; geometry_msgs::Point &gt; &amp;path)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#afdab5691d325f4ae3bf2a568f5b93699">revertPlanningScene</a> ()</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a5ed01704000c0d2d3ab5e3630c4f6dad">visualizePlan</a> (const trajectory_msgs::JointTrajectory &amp;trajectory)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">kinematics_msgs::GetPositionFK::Response&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#ad654a026f4db90abc8b21df1d7a7f33e">solve_fk</a> (const trajectory_msgs::JointTrajectoryPoint &amp;point, const std::string &amp;jspace)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a80cc1cc3907ff0dba9af6c9800d859df">visualize_path</a> (const trajectory_msgs::JointTrajectory &amp;path)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Visualize the motion plan.  <a href="#a80cc1cc3907ff0dba9af6c9800d859df"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a77314b32155c5f45b0e0299419bea51f">convert_to_cartesian</a> (const trajectory_msgs::JointTrajectory &amp;joint_trajectory, const std::string &amp;ref_frame, std::vector&lt; <a class="el" href="workspace__analyzer_8cpp.html#aed11d1ad7642dfe64ec67054539335c2">geometry_msgs::Point</a> &gt; *cartesian_trajectory)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#ae65ac7be5a5570cbd9f9278f3bde8dce">benchmark_path</a> (const std::vector&lt; <a class="el" href="workspace__analyzer_8cpp.html#aed11d1ad7642dfe64ec67054539335c2">geometry_msgs::Point</a> &gt; &amp;path)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">double&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a10d5f3a014d1349303f07c27387986a4">distance</a> (const <a class="el" href="workspace__analyzer_8cpp.html#aed11d1ad7642dfe64ec67054539335c2">geometry_msgs::Point</a> &amp;point_1, const <a class="el" href="workspace__analyzer_8cpp.html#aed11d1ad7642dfe64ec67054539335c2">geometry_msgs::Point</a> &amp;point_2)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">double&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a1402398e8d5948e85aead1d8b8b0c489">smoothness</a> (const std::vector&lt; <a class="el" href="workspace__analyzer_8cpp.html#aed11d1ad7642dfe64ec67054539335c2">geometry_msgs::Point</a> &gt; &amp;path)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a0a950acdf04a7f1023a0bf0741d09900">visualize_motion_plan</a> (const trajectory_msgs::JointTrajectory &amp;trajectory)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">visualize motion plan with the whole body  <a href="#a0a950acdf04a7f1023a0bf0741d09900"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">kinematics_msgs::GetPositionFK::Response&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a521040cc55ed1522a7868c843cd4145f">solve_fk</a> (const trajectory_msgs::JointTrajectoryPoint &amp;<a class="el" href="structpoint.html">point</a>, const std::string &amp;jspace, const std::string &amp;ref_frame, const std::string &amp;target_link)</td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a9420e5f19498a1adf73b373f27c766c6">get_jspace</a> (std::vector&lt; std::string &gt; jnames)</td></tr>
 <tr><td colspan="2"><h2><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::NodeHandle&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#add1cde124606e3a359b67f679b0f07c5">nh_</a></td></tr>
@@ -91,9 +96,6 @@ Private Attributes</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::Publisher&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#ad5cd5d82cc44d642014df56b1576d0b0">filtered_path_marker_pub_</a></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::Publisher&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a496ed3a3756d18b6ff4a40c40ccc83d1">display_filtered_path_pub_</a></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::Publisher&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a7aab80b358ff0621d3332c0b31ddd73e">path_quality_pub_</a></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">ros::ServiceClient&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a67c1bafef8a3399d7836379fa9897750">set_planning_scene_diff_client_</a></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">planning_environment::CollisionModels *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#a86426a20853458e2ef7378b0eb79a457">collision_models_</a></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">planning_models::KinematicState *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classHelper.html#ac5bcf9338a624d766671248ab136a1c8">planning_scene_state_</a></td></tr>
 </table>
 <hr/><h2>Constructor &amp; Destructor Documentation</h2>
 <a class="anchor" id="a48e818cca234809a30aa0ce832657d2a"></a><!-- doxytag: member="Helper::Helper" ref="a48e818cca234809a30aa0ce832657d2a" args="(ros::NodeHandle nh)" -->
@@ -137,9 +139,9 @@ Private Attributes</h2></td></tr>
         <tr>
           <td class="memname">void Helper::benchmark_path </td>
           <td>(</td>
-          <td class="paramtype">const std::vector&lt; geometry_msgs::Point &gt; &amp;&#160;</td>
+          <td class="paramtype">const std::vector&lt; <a class="el" href="workspace__analyzer_8cpp.html#aed11d1ad7642dfe64ec67054539335c2">geometry_msgs::Point</a> &gt; &amp;&#160;</td>
           <td class="paramname"><em>path</em></td><td>)</td>
-          <td><code> [inline]</code></td>
+          <td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
@@ -147,12 +149,12 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="af32d3b66b9d54140a629af811f4f4ab4"></a><!-- doxytag: member="Helper::benchmark_path_srv_cb" ref="af32d3b66b9d54140a629af811f4f4ab4" args="(hiro_common::BenchmarkPath::Request &amp;req, hiro_common::BenchmarkPath::Response &amp;res)" -->
+<a class="anchor" id="a766ae04fab3dcf285813dedecba29f1b"></a><!-- doxytag: member="Helper::benchmark_path_srv_handle" ref="a766ae04fab3dcf285813dedecba29f1b" args="(hiro_common::BenchmarkPath::Request &amp;req, hiro_common::BenchmarkPath::Response &amp;res)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">bool Helper::benchmark_path_srv_cb </td>
+          <td class="memname">bool Helper::benchmark_path_srv_handle </td>
           <td>(</td>
           <td class="paramtype">hiro_common::BenchmarkPath::Request &amp;&#160;</td>
           <td class="paramname"><em>req</em>, </td>
@@ -174,16 +176,32 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="a601ffbf5dbc3906e6d09055ee269c9af"></a><!-- doxytag: member="Helper::convert_to_cartesian" ref="a601ffbf5dbc3906e6d09055ee269c9af" args="(const trajectory_msgs::JointTrajectory &amp;joint_trajectory)" -->
+<a class="anchor" id="a77314b32155c5f45b0e0299419bea51f"></a><!-- doxytag: member="Helper::convert_to_cartesian" ref="a77314b32155c5f45b0e0299419bea51f" args="(const trajectory_msgs::JointTrajectory &amp;joint_trajectory, const std::string &amp;ref_frame, std::vector&lt; geometry_msgs::Point &gt; *cartesian_trajectory)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">std::vector&lt;geometry_msgs::Point&gt; Helper::convert_to_cartesian </td>
+          <td class="memname">bool Helper::convert_to_cartesian </td>
           <td>(</td>
           <td class="paramtype">const trajectory_msgs::JointTrajectory &amp;&#160;</td>
-          <td class="paramname"><em>joint_trajectory</em></td><td>)</td>
-          <td><code> [inline]</code></td>
+          <td class="paramname"><em>joint_trajectory</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>ref_frame</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">std::vector&lt; <a class="el" href="workspace__analyzer_8cpp.html#aed11d1ad7642dfe64ec67054539335c2">geometry_msgs::Point</a> &gt; *&#160;</td>
+          <td class="paramname"><em>cartesian_trajectory</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
@@ -198,13 +216,13 @@ Private Attributes</h2></td></tr>
         <tr>
           <td class="memname">double Helper::distance </td>
           <td>(</td>
-          <td class="paramtype">const geometry_msgs::Point &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="workspace__analyzer_8cpp.html#aed11d1ad7642dfe64ec67054539335c2">geometry_msgs::Point</a> &amp;&#160;</td>
           <td class="paramname"><em>point_1</em>, </td>
         </tr>
         <tr>
           <td class="paramkey"></td>
           <td></td>
-          <td class="paramtype">const geometry_msgs::Point &amp;&#160;</td>
+          <td class="paramtype">const <a class="el" href="workspace__analyzer_8cpp.html#aed11d1ad7642dfe64ec67054539335c2">geometry_msgs::Point</a> &amp;&#160;</td>
           <td class="paramname"><em>point_2</em>&#160;</td>
         </tr>
         <tr>
@@ -218,16 +236,16 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="a3a08d3b660ad67f6221f80b15425c4ae"></a><!-- doxytag: member="Helper::motion_plan_cb" ref="a3a08d3b660ad67f6221f80b15425c4ae" args="(const trajectory_msgs::JointTrajectory::ConstPtr &amp;msg)" -->
+<a class="anchor" id="a9420e5f19498a1adf73b373f27c766c6"></a><!-- doxytag: member="Helper::get_jspace" ref="a9420e5f19498a1adf73b373f27c766c6" args="(std::vector&lt; std::string &gt; jnames)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void Helper::motion_plan_cb </td>
+          <td class="memname">std::string Helper::get_jspace </td>
           <td>(</td>
-          <td class="paramtype">const trajectory_msgs::JointTrajectory::ConstPtr &amp;&#160;</td>
-          <td class="paramname"><em>msg</em></td><td>)</td>
-          <td><code> [inline]</code></td>
+          <td class="paramtype">std::vector&lt; std::string &gt;&#160;</td>
+          <td class="paramname"><em>jnames</em></td><td>)</td>
+          <td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
@@ -235,15 +253,43 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="afdab5691d325f4ae3bf2a568f5b93699"></a><!-- doxytag: member="Helper::revertPlanningScene" ref="afdab5691d325f4ae3bf2a568f5b93699" args="()" -->
+<a class="anchor" id="ab37e94ff4251971ebcb7cfb81e4ba096"></a><!-- doxytag: member="Helper::get_manipulability_srv_handle" ref="ab37e94ff4251971ebcb7cfb81e4ba096" args="(hiro_common::GetManipulability::Request &amp;req, hiro_common::GetManipulability::Response &amp;res)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">bool Helper::revertPlanningScene </td>
+          <td class="memname">bool Helper::get_manipulability_srv_handle </td>
           <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td><code> [inline, private]</code></td>
+          <td class="paramtype">hiro_common::GetManipulability::Request &amp;&#160;</td>
+          <td class="paramname"><em>req</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">hiro_common::GetManipulability::Response &amp;&#160;</td>
+          <td class="paramname"><em>res</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+</div>
+</div>
+<a class="anchor" id="a38c4b49de5e1ffc8be19c310ce450132"></a><!-- doxytag: member="Helper::motion_plan_subs_cb" ref="a38c4b49de5e1ffc8be19c310ce450132" args="(const trajectory_msgs::JointTrajectory::ConstPtr &amp;msg)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void Helper::motion_plan_subs_cb </td>
+          <td>(</td>
+          <td class="paramtype">const trajectory_msgs::JointTrajectory::ConstPtr &amp;&#160;</td>
+          <td class="paramname"><em>msg</em></td><td>)</td>
+          <td><code> [inline]</code></td>
         </tr>
       </table>
 </div>
@@ -258,7 +304,7 @@ Private Attributes</h2></td></tr>
         <tr>
           <td class="memname">double Helper::smoothness </td>
           <td>(</td>
-          <td class="paramtype">const std::vector&lt; geometry_msgs::Point &gt; &amp;&#160;</td>
+          <td class="paramtype">const std::vector&lt; <a class="el" href="workspace__analyzer_8cpp.html#aed11d1ad7642dfe64ec67054539335c2">geometry_msgs::Point</a> &gt; &amp;&#160;</td>
           <td class="paramname"><em>path</em></td><td>)</td>
           <td><code> [inline, private]</code></td>
         </tr>
@@ -268,7 +314,7 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="ad654a026f4db90abc8b21df1d7a7f33e"></a><!-- doxytag: member="Helper::solve_fk" ref="ad654a026f4db90abc8b21df1d7a7f33e" args="(const trajectory_msgs::JointTrajectoryPoint &amp;point, const std::string &amp;jspace)" -->
+<a class="anchor" id="a521040cc55ed1522a7868c843cd4145f"></a><!-- doxytag: member="Helper::solve_fk" ref="a521040cc55ed1522a7868c843cd4145f" args="(const trajectory_msgs::JointTrajectoryPoint &amp;point, const std::string &amp;jspace, const std::string &amp;ref_frame, const std::string &amp;target_link)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
@@ -282,7 +328,19 @@ Private Attributes</h2></td></tr>
           <td class="paramkey"></td>
           <td></td>
           <td class="paramtype">const std::string &amp;&#160;</td>
-          <td class="paramname"><em>jspace</em>&#160;</td>
+          <td class="paramname"><em>jspace</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>ref_frame</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">const std::string &amp;&#160;</td>
+          <td class="paramname"><em>target_link</em>&#160;</td>
         </tr>
         <tr>
           <td></td>
@@ -295,12 +353,12 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="a5ed01704000c0d2d3ab5e3630c4f6dad"></a><!-- doxytag: member="Helper::visualizePlan" ref="a5ed01704000c0d2d3ab5e3630c4f6dad" args="(const trajectory_msgs::JointTrajectory &amp;trajectory)" -->
+<a class="anchor" id="a0a950acdf04a7f1023a0bf0741d09900"></a><!-- doxytag: member="Helper::visualize_motion_plan" ref="a0a950acdf04a7f1023a0bf0741d09900" args="(const trajectory_msgs::JointTrajectory &amp;trajectory)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void Helper::visualizePlan </td>
+          <td class="memname">void Helper::visualize_motion_plan </td>
           <td>(</td>
           <td class="paramtype">const trajectory_msgs::JointTrajectory &amp;&#160;</td>
           <td class="paramname"><em>trajectory</em></td><td>)</td>
@@ -310,22 +368,30 @@ Private Attributes</h2></td></tr>
 </div>
 <div class="memdoc">
 
+<p>visualize motion plan with the whole body </p>
+
 </div>
 </div>
-<hr/><h2>Member Data Documentation</h2>
-<a class="anchor" id="a86426a20853458e2ef7378b0eb79a457"></a><!-- doxytag: member="Helper::collision_models_" ref="a86426a20853458e2ef7378b0eb79a457" args="" -->
+<a class="anchor" id="a80cc1cc3907ff0dba9af6c9800d859df"></a><!-- doxytag: member="Helper::visualize_path" ref="a80cc1cc3907ff0dba9af6c9800d859df" args="(const trajectory_msgs::JointTrajectory &amp;path)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">planning_environment::CollisionModels* <a class="el" href="classHelper.html#a86426a20853458e2ef7378b0eb79a457">Helper::collision_models_</a><code> [private]</code></td>
+          <td class="memname">void Helper::visualize_path </td>
+          <td>(</td>
+          <td class="paramtype">const trajectory_msgs::JointTrajectory &amp;&#160;</td>
+          <td class="paramname"><em>path</em></td><td>)</td>
+          <td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
 <div class="memdoc">
 
+<p>Visualize the motion plan. </p>
+
 </div>
 </div>
+<hr/><h2>Member Data Documentation</h2>
 <a class="anchor" id="a496ed3a3756d18b6ff4a40c40ccc83d1"></a><!-- doxytag: member="Helper::display_filtered_path_pub_" ref="a496ed3a3756d18b6ff4a40c40ccc83d1" args="" -->
 <div class="memitem">
 <div class="memproto">
@@ -391,32 +457,6 @@ Private Attributes</h2></td></tr>
 
 </div>
 </div>
-<a class="anchor" id="ac5bcf9338a624d766671248ab136a1c8"></a><!-- doxytag: member="Helper::planning_scene_state_" ref="ac5bcf9338a624d766671248ab136a1c8" args="" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">planning_models::KinematicState* <a class="el" href="classHelper.html#ac5bcf9338a624d766671248ab136a1c8">Helper::planning_scene_state_</a><code> [private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
-<a class="anchor" id="a67c1bafef8a3399d7836379fa9897750"></a><!-- doxytag: member="Helper::set_planning_scene_diff_client_" ref="a67c1bafef8a3399d7836379fa9897750" args="" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">ros::ServiceClient <a class="el" href="classHelper.html#a67c1bafef8a3399d7836379fa9897750">Helper::set_planning_scene_diff_client_</a><code> [private]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
-
-</div>
-</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>hiro_common/src/<a class="el" href="helper_8cpp.html">helper.cpp</a></li>
 </ul>
@@ -426,7 +466,7 @@ Private Attributes</h2></td></tr>
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Defines</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Enumerator</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(8)"><span class="SelectionMark">&#160;</span>Defines</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -435,7 +475,7 @@ Private Attributes</h2></td></tr>
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Sun Aug 18 2013 12:24:25 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>

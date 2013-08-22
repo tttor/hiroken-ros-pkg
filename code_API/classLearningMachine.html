@@ -53,6 +53,7 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
     <ul class="tablist">
       <li><a href="annotated.html"><span>Class&#160;List</span></a></li>
       <li><a href="classes.html"><span>Class&#160;Index</span></a></li>
+      <li><a href="hierarchy.html"><span>Class&#160;Hierarchy</span></a></li>
       <li><a href="functions.html"><span>Class&#160;Members</span></a></li>
     </ul>
   </div>
@@ -73,17 +74,20 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 Public Member Functions</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#a5e08afe65c44e010b724e5606198e6ee">LearningMachine</a> (ros::NodeHandle nh)</td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#a2d9f6496e308c6924c2c2ffdeb8aa3ed">train_srv_handle</a> (learning_machine::Train::Request &amp;req, learning_machine::Train::Response &amp;res)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#af32c092e9069ac16e001ad25563ffb00">test_srv_handle</a> ()</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">This trains _offline_.  <a href="#a2d9f6496e308c6924c2c2ffdeb8aa3ed"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#a71a36b75a4a3ece655d0dc131a5c823e">create_metadata_srv_handle</a> (learning_machine::CreateMetadata::Request &amp;req, learning_machine::CreateMetadata::Response &amp;res)</td></tr>
 <tr><td colspan="2"><h2><a name="pri-methods"></a>
 Private Member Functions</h2></td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#a44b7c8330d2e55d669c941c6697dd4ba">get_samples</a> (const std::vector&lt; std::string &gt; &amp;tmm_paths)</td></tr>
-<tr><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::string &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#a8075ec172035d03bd6813cf34b229425">get_feature_names</a> ()</td></tr>
-<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">This gets the upper bound of input-feature size.  <a href="#a8075ec172035d03bd6813cf34b229425"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#a07266cc604c0ebade30b280912d06981">create_metadata</a> (const size_t &amp;n_obj)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">A helper function.  <a href="#a07266cc604c0ebade30b280912d06981"></a><br/></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">bool&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#af048f29e68554842c788c437026c39fb">get_samples</a> (const std::vector&lt; std::string &gt; &amp;tmm_paths)</td></tr>
+<tr><td class="mdescLeft">&#160;</td><td class="mdescRight">Bla bla..  <a href="#af048f29e68554842c788c437026c39fb"></a><br/></td></tr>
 <tr><td colspan="2"><h2><a name="pri-attribs"></a>
 Private Attributes</h2></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">ros::NodeHandle&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#a9eb191b14265180b5310ed7de05512d7">nh_</a></td></tr>
 <tr><td class="mdescLeft">&#160;</td><td class="mdescRight">A ROS node handler.  <a href="#a9eb191b14265180b5310ed7de05512d7"></a><br/></td></tr>
 <tr><td class="memItemLeft" align="right" valign="top">Data&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#a1d37f84cbf8109377145bccb6e9ddf91">tr_data_</a></td></tr>
+<tr><td class="memItemLeft" align="right" valign="top">std::string&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classLearningMachine.html#affc2c1ecd784eb49f43ef68d6bcdbcc8">data_path_</a></td></tr>
 </table>
 <hr/><h2>Constructor &amp; Destructor Documentation</h2>
 <a class="anchor" id="a5e08afe65c44e010b724e5606198e6ee"></a><!-- doxytag: member="LearningMachine::LearningMachine" ref="a5e08afe65c44e010b724e5606198e6ee" args="(ros::NodeHandle nh)" -->
@@ -104,31 +108,69 @@ Private Attributes</h2></td></tr>
 </div>
 </div>
 <hr/><h2>Member Function Documentation</h2>
-<a class="anchor" id="a8075ec172035d03bd6813cf34b229425"></a><!-- doxytag: member="LearningMachine::get_feature_names" ref="a8075ec172035d03bd6813cf34b229425" args="()" -->
+<a class="anchor" id="a07266cc604c0ebade30b280912d06981"></a><!-- doxytag: member="LearningMachine::create_metadata" ref="a07266cc604c0ebade30b280912d06981" args="(const size_t &amp;n_obj)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">std::vector&lt;std::string&gt; LearningMachine::get_feature_names </td>
+          <td class="memname">bool LearningMachine::create_metadata </td>
           <td>(</td>
-          <td class="paramname"></td><td>)</td>
+          <td class="paramtype">const size_t &amp;&#160;</td>
+          <td class="paramname"><em>n_obj</em></td><td>)</td>
           <td><code> [inline, private]</code></td>
         </tr>
       </table>
 </div>
 <div class="memdoc">
 
-<p>This gets the upper bound of input-feature size. </p>
-<p>More ... </p>
+<p>A helper function. </p>
+<p>Create metadata file that contains input-feature names a.k.a labels Should be rarely used.</p>
+<p>WARN: sync. with get_fval() on data_collector.hpp</p>
+<p>Labels are defined by the upper bound of planning horizon, here: 5obj.</p>
+<p>Labels are in this order: x^{g1} : robot joint states; x^{g2} : manipulability measure m of robot state x^{g3}: poses of movable objects x^{g5}: Cartesian distances (of center of mass) of movable objects' current and final positions</p>
+<p>x^{s1}: position of actions x^{s2}: length of the path x^{s3}: transit transfer centric and x^{s4}: right left arm centric</p>
+<dl><dt><b>Parameters:</b></dt><dd>
+  <table class="params">
+    <tr><td class="paramname">&amp;n_obj</td><td>number of movable objects </td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>
-<a class="anchor" id="a44b7c8330d2e55d669c941c6697dd4ba"></a><!-- doxytag: member="LearningMachine::get_samples" ref="a44b7c8330d2e55d669c941c6697dd4ba" args="(const std::vector&lt; std::string &gt; &amp;tmm_paths)" -->
+<a class="anchor" id="a71a36b75a4a3ece655d0dc131a5c823e"></a><!-- doxytag: member="LearningMachine::create_metadata_srv_handle" ref="a71a36b75a4a3ece655d0dc131a5c823e" args="(learning_machine::CreateMetadata::Request &amp;req, learning_machine::CreateMetadata::Response &amp;res)" -->
 <div class="memitem">
 <div class="memproto">
       <table class="memname">
         <tr>
-          <td class="memname">void LearningMachine::get_samples </td>
+          <td class="memname">bool LearningMachine::create_metadata_srv_handle </td>
+          <td>(</td>
+          <td class="paramtype">learning_machine::CreateMetadata::Request &amp;&#160;</td>
+          <td class="paramname"><em>req</em>, </td>
+        </tr>
+        <tr>
+          <td class="paramkey"></td>
+          <td></td>
+          <td class="paramtype">learning_machine::CreateMetadata::Response &amp;&#160;</td>
+          <td class="paramname"><em>res</em>&#160;</td>
+        </tr>
+        <tr>
+          <td></td>
+          <td>)</td>
+          <td></td><td><code> [inline]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+</div>
+</div>
+<a class="anchor" id="af048f29e68554842c788c437026c39fb"></a><!-- doxytag: member="LearningMachine::get_samples" ref="af048f29e68554842c788c437026c39fb" args="(const std::vector&lt; std::string &gt; &amp;tmm_paths)" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">bool LearningMachine::get_samples </td>
           <td>(</td>
           <td class="paramtype">const std::vector&lt; std::string &gt; &amp;&#160;</td>
           <td class="paramname"><em>tmm_paths</em></td><td>)</td>
@@ -138,21 +180,8 @@ Private Attributes</h2></td></tr>
 </div>
 <div class="memdoc">
 
-</div>
-</div>
-<a class="anchor" id="af32c092e9069ac16e001ad25563ffb00"></a><!-- doxytag: member="LearningMachine::test_srv_handle" ref="af32c092e9069ac16e001ad25563ffb00" args="()" -->
-<div class="memitem">
-<div class="memproto">
-      <table class="memname">
-        <tr>
-          <td class="memname">bool LearningMachine::test_srv_handle </td>
-          <td>(</td>
-          <td class="paramname"></td><td>)</td>
-          <td><code> [inline]</code></td>
-        </tr>
-      </table>
-</div>
-<div class="memdoc">
+<p>Bla bla.. </p>
+<p>requires data_collector.hpp </p>
 
 </div>
 </div>
@@ -181,9 +210,24 @@ Private Attributes</h2></td></tr>
 </div>
 <div class="memdoc">
 
+<p>This trains _offline_. </p>
+
 </div>
 </div>
 <hr/><h2>Member Data Documentation</h2>
+<a class="anchor" id="affc2c1ecd784eb49f43ef68d6bcdbcc8"></a><!-- doxytag: member="LearningMachine::data_path_" ref="affc2c1ecd784eb49f43ef68d6bcdbcc8" args="" -->
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">std::string <a class="el" href="classLearningMachine.html#affc2c1ecd784eb49f43ef68d6bcdbcc8">LearningMachine::data_path_</a><code> [private]</code></td>
+        </tr>
+      </table>
+</div>
+<div class="memdoc">
+
+</div>
+</div>
 <a class="anchor" id="a9eb191b14265180b5310ed7de05512d7"></a><!-- doxytag: member="LearningMachine::nh_" ref="a9eb191b14265180b5310ed7de05512d7" args="" -->
 <div class="memitem">
 <div class="memproto">
@@ -222,7 +266,7 @@ Private Attributes</h2></td></tr>
      onmouseover="return searchBox.OnSearchSelectShow()"
      onmouseout="return searchBox.OnSearchSelectHide()"
      onkeydown="return searchBox.OnSearchSelectKey(event)">
-<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Defines</a></div>
+<a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(0)"><span class="SelectionMark">&#160;</span>All</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(1)"><span class="SelectionMark">&#160;</span>Classes</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(2)"><span class="SelectionMark">&#160;</span>Namespaces</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(3)"><span class="SelectionMark">&#160;</span>Files</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(4)"><span class="SelectionMark">&#160;</span>Functions</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(5)"><span class="SelectionMark">&#160;</span>Variables</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(6)"><span class="SelectionMark">&#160;</span>Typedefs</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(7)"><span class="SelectionMark">&#160;</span>Enumerator</a><a class="SelectItem" href="javascript:void(0)" onclick="searchBox.OnSelectItem(8)"><span class="SelectionMark">&#160;</span>Defines</a></div>
 
 <!-- iframe showing the search results (closed by default) -->
 <div id="MSearchResultsWindow">
@@ -231,7 +275,7 @@ Private Attributes</h2></td></tr>
 </iframe>
 </div>
 
-<hr class="footer"/><address class="footer"><small>Generated on Wed Dec 12 2012 14:03:26 for ManipulationPlanner by&#160;
+<hr class="footer"/><address class="footer"><small>Generated on Sun Aug 18 2013 12:24:25 for ManipulationPlanner by&#160;
 <a href="http://www.doxygen.org/index.html">
 <img class="footer" src="doxygen.png" alt="doxygen"/></a> 1.7.4 </small></address>
 </body>

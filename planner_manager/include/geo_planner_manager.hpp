@@ -82,13 +82,16 @@ GeometricPlannerManager(PlannerManager* pm)
 bool
 plan(TMMEdge e,double* gp_time,double* mp_time,bool* mp_found_ptr)
 {
-  // Check whether this edge is already geometrically planned in the prev. run, in this case, the one used UCS
-  // Assume that time spent for this checking (includes finding matched edge, inheriting) can be ignored
+  // Check whether this edge is already geometrically planned, i.e...
+  // (a) in the prev. run, in this case, the one used UCS, or 
+  // (b) in the current run, but this time the source vertex is re-opened and in the previous opening the goal-pose set exists
+  
   graph_traits<TaskMotionMultigraph>::edge_iterator ucs_tmm_ei,ucs_tmm_ei_end;
   tie(ucs_tmm_ei,ucs_tmm_ei_end) = edges(pm_->ucs_tmm_);
   
-  if(ucs_tmm_ei != ucs_tmm_ei_end)// if this is rerun mode
+  if(ucs_tmm_ei != ucs_tmm_ei_end)// if case (a): this is rerun mode; otherwise the pm_->ucs_tmm_ is empty.
   {
+    // Assume that time spent for this checking (includes finding matched edge, inheriting) can be ignored
     graph_traits<TaskMotionMultigraph>::edge_iterator matched_edge_it;
     matched_edge_it = std::find_if( ucs_tmm_ei,ucs_tmm_ei_end,FindEqualEdge(e,pm_->tmm_,pm_->ucs_tmm_) );
     
@@ -143,8 +146,28 @@ plan(TMMEdge e,double* gp_time,double* mp_time,bool* mp_found_ptr)
       *mp_found_ptr = false;
       
       return true;
-    }// _not_ if(matched_edge_it != ucs_tmm_ei_end)// found
+    }
   }// if(ucs_tmm_ei != ucs_tmm_ei_end)// if this is rerun mode
+  else// case (b) due to re-opening a vertex
+  {
+    std::string this_edge_color;
+    this_edge_color = get(edge_color,pm_->tmm_,e);
+    
+    if( !strcmp(this_edge_color.c_str(),std::string("red").c_str()) )// been motion planned _but_ no plan found; we do not re-motion plan here
+    {
+      *mp_found_ptr = false;
+      return true;
+    }
+    else if( !strcmp(this_edge_color.c_str(),std::string("green").c_str()) )
+    {
+      *mp_found_ptr = true;
+      return true;
+    }
+    else
+    {
+      // do motion plan for this edge, i.e. just go ahead.
+    }
+  }
   
   ROS_DEBUG_STREAM("Geo. plan for e " << get(edge_name,pm_->tmm_,e) << "[" << get(edge_jspace,pm_->tmm_,e) << "]= BEGIN.");
   

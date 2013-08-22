@@ -28,6 +28,9 @@
 
 #include "utils.hpp"
 
+// Define how randomness is generated, either UNIFORMLY_AT_RANDOM or NORMALLY_AT_RANDOM iff it is set to do so;for being not-random, use the function arguments.
+#define UNIFORMLY_AT_RANDOM
+
 static const std::string SET_PLANNING_SCENE_DIFF_NAME = "/environment_server/set_planning_scene_diff";
 
 // TODO wrap this data in a header
@@ -54,6 +57,8 @@ VisionSensor(ros::NodeHandle nh)
 {
   collision_space_pub_ = nh.advertise<arm_navigation_msgs::CollisionObject>("collision_object", 10);
   ros::Duration(2.0).sleep();// This delay is so critical, otherwise the first published object can not be added in the collision_space by the environment_server
+  
+  vis_marker_pub_ = nh_.advertise<visualization_msgs::Marker>("visualization_marker", 1);
   
   ros::service::waitForService(SET_PLANNING_SCENE_DIFF_NAME);
   set_planning_scene_diff_client_ = nh.serviceClient<arm_navigation_msgs::SetPlanningSceneDiff> (SET_PLANNING_SCENE_DIFF_NAME);
@@ -125,8 +130,12 @@ run()
       object_tf_bc_.sendTransform( tf::StampedTransform(transform, ros::Time::now(), iter->second.header.frame_id, iter->first) );
     }
     
+    for(size_t i=0; i < vis_markers_.size(); ++i)
+    {
+      vis_marker_pub_.publish(vis_markers_.at(i));
+    }
+      
     ros::spinOnce();
-    
     tf_bc_rate.sleep();
   } 
 }
@@ -175,6 +184,7 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
   table.poses.push_back(table_pose);
   
   spawn_object(table,&obj_cfg_);
+  visualize_cylinder_object(table,0.0,0.0,1.0);
 //  //-------------------------------------------------------------------------------------- The wall behind
 //  arm_navigation_msgs::CollisionObject wall;
 //  
@@ -223,7 +233,7 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
     if( !randomized )
     {
       r = VASE_R;
-      h = VASE_H;
+      h = VASE_H;// may be multiplied by 0.75 for a safe height, not to collide with the robot home pose
       
       x = VASE_X;
       y = VASE_Y;
@@ -234,48 +244,50 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
     else
     {
       // Randomize the shape
-//      const double r_min = 0.030;
-//      const double r_max = 0.085;
-//      boost::uniform_real<double> uni_real_dist_r(r_min,r_max);
-//      r = uni_real_dist_r(g_cc_rng);
-//      boost::normal_distribution<> normal_dist_r(VASE_R,0.150);
-//      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > r_gen(g_cc_rng,normal_dist_r);
-//      r = r_gen();
-      r = VASE_R;
-    
-//      const double h_min = 0.200;
-//      const double h_max = 0.500;
-//      boost::uniform_real<double> uni_real_dist_h(h_min,h_max);
-//      h = uni_real_dist_h(g_cc_rng);
-//      boost::normal_distribution<> normal_dist_h(VASE_H,0.150);
-//      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > h_gen(g_cc_rng,normal_dist_h);
-//      h = h_gen();
-      h = VASE_H*0.75;
+      #if defined(UNIFORMLY_AT_RANDOM)
+        const double r_min = 0.030;
+        const double r_max = 0.085;
+        boost::uniform_real<double> uni_real_dist_r(r_min,r_max);
+        r = uni_real_dist_r(g_cc_rng);
+        
+        const double h_min = 0.200;
+        const double h_max = 0.500;
+        boost::uniform_real<double> uni_real_dist_h(h_min,h_max);
+        h = uni_real_dist_h(g_cc_rng);
+      #elif defined(NORMALLY_AT_RANDOM)
+        boost::normal_distribution<> normal_dist_r(VASE_R,0.150);
+        boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > r_gen(g_cc_rng,normal_dist_r);
+        r = r_gen();
+  
+        boost::normal_distribution<> normal_dist_h(VASE_H,0.150);
+        boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > h_gen(g_cc_rng,normal_dist_h);
+        h = h_gen();
+      #endif
       
       // Randomize the position: x, y
-//      const double x_max = utils::TABLE_RADIUS;// Play safe!
-//      const double x_min = -1 * x_max;
-//      const double y_max = x_max;
-//      const double y_min = x_min;
-//      boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
-//      boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
-
-//      // FOR CLUSTER 1, comment another
-//      boost::normal_distribution<> normal_dist_x(VASE_X,0.070);
-//      boost::normal_distribution<> normal_dist_y(VASE_Y,0.070);
-      // FOR CLUSTER 2, comment another
-      boost::normal_distribution<> normal_dist_x(0.000,0.070);
-      boost::normal_distribution<> normal_dist_y(-0.350,0.070);
-      
-      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(g_cc_rng,normal_dist_x);
-      boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(g_cc_rng,normal_dist_y);
-                           
+      #if defined(UNIFORMLY_AT_RANDOM)
+        const double x_max = utils::TABLE_RADIUS;// Play safe!
+        const double x_min = -1 * x_max;
+        const double y_max = x_max;
+        const double y_min = x_min;
+        boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
+        boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
+      #elif defined(NORMALLY_AT_RANDOM)
+        boost::normal_distribution<> normal_dist_x(0.000,0.070);
+        boost::normal_distribution<> normal_dist_y(-0.350,0.070);
+        boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(g_cc_rng,normal_dist_x);
+        boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(g_cc_rng,normal_dist_y);
+      #endif
+                          
       while( true and ros::ok() )
       {
-//        x = uni_real_dist_x(g_cc_rng);
-//        y = uni_real_dist_y(g_cc_rng);
-        x = x_gen();
-        y = y_gen();
+        #if defined(UNIFORMLY_AT_RANDOM)
+          x = uni_real_dist_x(g_cc_rng);
+          y = uni_real_dist_y(g_cc_rng);
+        #elif defined(NORMALLY_AT_RANDOM)
+          x = x_gen();
+          y = y_gen();
+        #endif
         
         double r_here;
         r_here = sqrt( pow(x,2)+pow(y,2) );
@@ -295,6 +307,11 @@ set_unmovable_obj_cfg(const size_t& n,const bool& randomized)
                   x, y, z, 
                   q.x(), q.y(), q.z(), q.w(),
                   &obj_cfg_ );
+    visualize_cylinder_object(id, std::string("/table"),
+                              r, h, 
+                              x, y, z, 
+                              q.x(), q.y(), q.z(), q.w(),
+                              1.0,0.5,0.0);
     
     if(!randomized) break;// only one vase can be spawned if not randomized
   }// end of: FOR each ordered VASE
@@ -343,31 +360,30 @@ set_movable_obj_cfg(const size_t& n)
     else
      z = (utils::TABLE_THICKNESS/2)+(utils::B_RADIUS);
     
-//    const double x_max = utils::TABLE_RADIUS;// Play safe!
-//    const double x_min = -1 * x_max;
-//    const double y_max = x_max;
-//    const double y_min = x_min;
-//    boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
-//    boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
-
-//      // for CLUSTER.1, comment another
-//      boost::normal_distribution<> normal_dist_x(0.000,0.070);
-//      boost::normal_distribution<> normal_dist_y(-0.420,0.070);
-      // for CLUSTER.2, comment another
+    #if defined(UNIFORMLY_AT_RANDOM)
+      const double x_max = utils::TABLE_RADIUS;// Play safe!
+      const double x_min = -1 * x_max;
+      const double y_max = x_max;
+      const double y_min = x_min;
+      boost::uniform_real<double> uni_real_dist_x(x_min, x_max);
+      boost::uniform_real<double> uni_real_dist_y(y_min, y_max);
+    #elif defined(NORMALLY_AT_RANDOM)
       boost::normal_distribution<> normal_dist_x(0.420,0.070);
       boost::normal_distribution<> normal_dist_y(0.000,0.070);
-      
       boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > x_gen(g_cc_rng,normal_dist_x);
       boost::variate_generator<utils::RandomNumberGenerator&, boost::normal_distribution<> > y_gen(g_cc_rng,normal_dist_y);
+    #endif
     
     double x, y;
     while( true and ros::ok() )
     {
-//      x = uni_real_dist_x(g_cc_rng);
-//      y = uni_real_dist_y(g_cc_rng);
-      
-      x = x_gen();
-      y = y_gen();
+      #if defined(UNIFORMLY_AT_RANDOM)
+        x = uni_real_dist_x(g_cc_rng);
+        y = uni_real_dist_y(g_cc_rng);
+      #elif defined(NORMALLY_AT_RANDOM)
+        x = x_gen();
+        y = y_gen();
+      #endif
       
       double r_here;
       r_here = sqrt( pow(x,2)+pow(y,2) );
@@ -657,13 +673,97 @@ init_cc_img()
   cv::circle( cc_img_, tbl_p, utils::TABLE_RADIUS*PIXEL_PER_M, cv::Scalar(0), 1, CV_AA );
 
 }
+
+//! What this does is register an object to vis_markers_
+bool
+visualize_cylinder_object(const std::string& id, const std::string& frame_id,
+                          const double& radius, const double& height,
+                          const double& x, const double& y, const double& z,
+                          const double& qx, const double& qy, const double& qz, const double& qw,
+                          double r,double g,double b)
+{
+  visualization_msgs::Marker marker;
+  
+  marker.header.frame_id = frame_id;
+  marker.header.stamp = ros::Time::now();
+  marker.ns = id;
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::CYLINDER;
+  marker.action = visualization_msgs::Marker::ADD;
+
+  marker.pose.position.x = x;
+  marker.pose.position.y = y;
+  marker.pose.position.z = z;
+  marker.pose.orientation.x = qx;
+  marker.pose.orientation.y = qy;
+  marker.pose.orientation.z = qz;
+  marker.pose.orientation.w = qw;
+
+  marker.scale.x = radius * 2;
+  marker.scale.y = radius * 2;
+  marker.scale.z = height;
+
+  marker.color.r = r;
+  marker.color.g = g;
+  marker.color.b = b;
+  marker.color.a = 1.0;
+
+  marker.lifetime = ros::Duration();
+
+  // Register
+  vis_markers_.push_back(marker);
  
+  return true;
+}
+
+//! What this does is register an object to vis_markers_
+bool
+visualize_cylinder_object(arm_navigation_msgs::CollisionObject object,double r,double g,double b)
+{
+  visualization_msgs::Marker marker;
+  
+  marker.header.frame_id = object.header.frame_id;
+  marker.header.stamp = ros::Time::now();
+  marker.ns = object.id;
+  marker.id = 0;
+  marker.type = visualization_msgs::Marker::CYLINDER;
+  marker.action = visualization_msgs::Marker::ADD;
+
+  marker.pose.position.x = object.poses.at(0).position.x;
+  marker.pose.position.y = object.poses.at(0).position.y;
+  marker.pose.position.z = object.poses.at(0).position.z;
+  marker.pose.orientation.x = object.poses.at(0).orientation.x;
+  marker.pose.orientation.y = object.poses.at(0).orientation.y;
+  marker.pose.orientation.z = object.poses.at(0).orientation.z;
+  marker.pose.orientation.w = object.poses.at(0).orientation.w;
+
+  marker.scale.x = object.shapes.at(0).dimensions.at(0) * 2;
+  marker.scale.y = object.shapes.at(0).dimensions.at(0) * 2;
+  marker.scale.z = object.shapes.at(0).dimensions.at(1);
+
+  marker.color.r = r;
+  marker.color.g = g;
+  marker.color.b = b;
+  marker.color.a = 1.0;
+
+  marker.lifetime = ros::Duration();
+
+  // Register
+  vis_markers_.push_back(marker);
+ 
+  return true;
+}
+
+//!
 ros::NodeHandle nh_;
 
 //! Modified in sense_movable_object(),...
 std::map<std::string,geometry_msgs::PoseStamped> movable_obj_pose_map_;
 
+//!
 ros::Publisher collision_space_pub_;
+
+//!
 tf::TransformBroadcaster object_tf_bc_;// Must be outside the  while() loop
 
 ros::ServiceClient set_planning_scene_diff_client_;
@@ -673,6 +773,13 @@ utils::ObjCfg obj_cfg_;
 
 //! Keeps an image used for collision checking
 cv::Mat cc_img_;
+
+//! For visualize objects, for being published together with tf
+std::vector<visualization_msgs::Marker> vis_markers_;
+
+//!
+ros::Publisher vis_marker_pub_;
+
 };// enf of: class VisionSensor
 
 int 
