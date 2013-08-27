@@ -495,7 +495,14 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         x[idx].index = -1;// index = -1 indicates the end of one vector
 
         // Predict
-        y_te_fit.push_back( svm_predict(old_svr_model,x) );
+        double y_fit;
+        y_fit = svm_predict(old_svr_model,x);
+        
+        // Post-process
+        y_fit += prep_data_.mu_y(0);
+        
+        //
+        y_te_fit.push_back( y_fit );
       }
     }//if(n_ml_update_ > 0)
     
