@@ -616,6 +616,8 @@ main(int argc, char **argv)
 
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       boost::filesystem::create_directories(ml_hot_path);
+      
+      std::string 
 
       // Run mode11 for several instances
       std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.6.2/mode11eps.log");
