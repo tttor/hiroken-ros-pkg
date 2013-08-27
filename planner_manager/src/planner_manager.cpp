@@ -175,6 +175,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     ucs_tmm_dp.property( "srcstate",get(edge_srcstate, ucs_tmm_) );  
     ucs_tmm_dp.property( "mptime",get(edge_mptime, ucs_tmm_) );  
     ucs_tmm_dp.property( "planstr",get(edge_planstr, ucs_tmm_) );
+    // Notice: the edge_plan property is not initialized.
 
     std::ifstream ucs_tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
     if( !read_graphviz(ucs_tmm_dot, ucs_tmm_, ucs_tmm_dp, "vertex_id") )
@@ -217,8 +218,8 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::vector<double> distances(num_vertices(tmm_));
   
   double search_time = 0.;// initially is gross, but then becomes net
-  double total_gp_time = 0.;// recorded by the visitor, used to substract the gross search time
-  double total_mp_time = 0.;// recorded by the visitor, used to substract the gross search time,
+  double total_gp_time = 0.;// recorded by the visitor during search (may be zero if in rerun modes), used to substract the gross search time
+  double total_mp_time = 0.;// recorded by the visitor during search (may be zero if in rerun modes), used to substract the gross search time,
   
   size_t n_exp_op = 0;// the number of vertex expansion operations
   size_t n_exp_vert = 0;// the number of unique vertex expansion
@@ -358,12 +359,12 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
   }// End of: catch(FoundGoalSignal fgs) 
   
-  // confirmation The step
+  // The confirmation step
   std::vector<TMMEdge> copy_sol_path = sol_path;// the copy is for debugging purpose
   
   for(std::vector<TMMEdge>::iterator i=sol_path.begin(); i!=sol_path.end(); ++i)
   {
-    if( get(edge_plan,tmm_,*i).points.empty() )
+    if( get(edge_planstr,tmm_,*i).size() == 0 )// Use edge_planstr, instead of edge_plan since in rerun modes, the latter does not hold any plan
     {
       sol_path.clear();
       ctamp_sol->clear();
@@ -401,7 +402,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   
   cout << "SolutionPath(e)=" << endl;
   perf_log_out << "SolutionPath(e)=";
-  for(std::vector<TMMEdge>::iterator i=copy_sol_path.begin(); i!=copy_sol_path.end(); ++i)
+  for(std::vector<TMMEdge>::iterator i=copy_sol_path.begin(); i!=copy_sol_path.end(); ++i)// NOTE: Using copy_sol_path, instead of sol_path
   {
     cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << " --> " << get(edge_color,tmm_,*i) << endl;
     perf_log_out << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << ",";
