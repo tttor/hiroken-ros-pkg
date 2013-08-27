@@ -492,6 +492,10 @@ main(int argc, char **argv)
 
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       boost::filesystem::create_directories(ml_hot_path);
+      
+      std::string offline_tr_data_path;
+      offline_tr_data_path = std::string( ml_offline_data_path+"for_simulating_lwpr_training"+run_id+".tr_data.csv" );
+      boost::filesystem::remove( boost::filesystem::path(offline_tr_data_path) );
            
       // Run mode10 for several CTAMP instances
       std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.6.2/mode10eps.log");
@@ -549,9 +553,7 @@ main(int argc, char **argv)
       // Closure
       utils::write_log(mode10eps_log,std::string(log_path+".log"));
       
-      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv")
-                                   ,std::string("/home/vektor/rss-2013/data/with_v.6.2/ml_offline_data/for_simulating_lwpr_training"+run_id+".tr_data.csv")
-                                   ,boost::filesystem::copy_option::overwrite_if_exists );
+      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv"),offline_tr_data_path,boost::filesystem::copy_option::overwrite_if_exists );
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       
       if(mode != 1011) 
@@ -616,7 +618,11 @@ main(int argc, char **argv)
 
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       boost::filesystem::create_directories(ml_hot_path);
-
+      
+      std::string offline_tr_data_path;
+      offline_tr_data_path = std::string( ml_offline_data_path+"for_simulating_e-svr_training"+run_id+".tr_data.csv" );
+      boost::filesystem::remove( boost::filesystem::path(offline_tr_data_path) );
+      
       // Run mode11 for several instances
       std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.6.2/mode11eps.log");
       if( !boost::filesystem::exists(boost::filesystem::path(log_dir_path)) )
@@ -672,9 +678,7 @@ main(int argc, char **argv)
       // Closure
       utils::write_log(mode11eps_log,std::string(log_path+".log"));
       
-      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv")
-                                   ,std::string("/home/vektor/rss-2013/data/with_v.6.2/ml_offline_data/for_simulating_e-svr_training"+run_id+".tr_data.csv")
-                                   ,boost::filesystem::copy_option::overwrite_if_exists );
+      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv"),offline_tr_data_path,boost::filesystem::copy_option::overwrite_if_exists );
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       
       break;
