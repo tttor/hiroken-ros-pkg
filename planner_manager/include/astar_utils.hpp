@@ -331,7 +331,7 @@ operator()(Vertex v)
           h = 0.;// as the learning machine not yet trained, then act as if UCS with zeroed h
       }
     }// else if( (ml_mode_ == ml_util::SVR_OFFLINE) or (ml_mode_ == ml_util::LWPR_ONLINE) )
-  }// else if(v != goal_)
+  }// else of if(v == goal_)
   
   // Put in the main tmm as a vertex property!
   cerr << "h(" << v << ")= " << h << endl;
