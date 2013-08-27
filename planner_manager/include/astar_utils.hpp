@@ -189,6 +189,10 @@ examine_vertex(typename Graph::vertex_descriptor v, Graph& g)
     cerr << endl;// for progress animation only
     
     cerr << "LWPR_ONLINE: training with " << samples.size() << " samples: END" << endl;
+    
+    // For debugging ML offline
+    std::string csv_path = std::string(ml_hot_path_+"/tr_data.csv");
+    data_util::write_csv_data(samples,csv_path,std::ios::app);
   }
 }
   

@@ -358,7 +358,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     }
   }// End of: catch(FoundGoalSignal fgs) 
   
-  // The confirmation step
+  // confirmation The step
   std::vector<TMMEdge> copy_sol_path = sol_path;// the copy is for debugging purpose
   
   for(std::vector<TMMEdge>::iterator i=sol_path.begin(); i!=sol_path.end(); ++i)
