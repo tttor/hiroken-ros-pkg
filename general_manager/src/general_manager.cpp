@@ -549,6 +549,9 @@ main(int argc, char **argv)
       // Closure
       utils::write_log(mode10eps_log,std::string(log_path+".log"));
       
+      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv")
+                                   ,std::string("/home/vektor/rss-2013/data/with_v.6.2/ml_offline_data/for_simulating_lwpr_training"+run_id+".tr_data.csv")
+                                   ,boost::filesystem::copy_option::overwrite_if_exists );
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       
       if(mode != 1011) 
