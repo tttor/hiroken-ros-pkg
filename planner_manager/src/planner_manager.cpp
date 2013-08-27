@@ -220,6 +220,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   double search_time = 0.;// initially is gross, but then becomes net
   double total_gp_time = 0.;// recorded by the visitor during search (may be zero if in rerun modes), used to substract the gross search time
   double total_mp_time = 0.;// recorded by the visitor during search (may be zero if in rerun modes), used to substract the gross search time,
+  double total_mp_time_2 = 0.;// will hold the value of edge_mptime, the value _must_ be equal to total_mp_time whenever not in rerun modes
   
   size_t n_exp_op = 0;// the number of vertex expansion operations
   size_t n_exp_vert = 0;// the number of unique vertex expansion
@@ -320,6 +321,16 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       if(get(vertex_color,tmm_,*vi) == color_traits<boost::default_color_type>::black())
       {
         ++n_exp_vert;
+        
+        typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+        for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
+        {
+          std::string color;
+          color = get(edge_color,tmm_,*oei);
+          
+          if( strcmp(color.c_str(),std::string("black").c_str()) )// if _not_ black
+            total_mp_time_2 += get(edge_mptime,tmm_,*oei);
+        }
       }
     }
         
@@ -388,9 +399,9 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   perf_log_out << "CTAMP_SearchTime=" << search_time << endl;
   perf_log.at(0) = search_time;
   
-  cout << "total_mp_time= " << total_mp_time << endl;
-  perf_log_out << "total_mp_time=" << total_mp_time << endl;
-  perf_log.at(1) = total_mp_time;
+  cout << "total_mp_time= " << total_mp_time_2 << endl;
+  perf_log_out << "total_mp_time=" << total_mp_time_2 << endl;
+  perf_log.at(1) = total_mp_time_2;
   
   cout << "#ExpandedVertices= " << n_exp_vert << endl;
   perf_log_out << "#ExpandedVertices=" << n_exp_vert << endl;
