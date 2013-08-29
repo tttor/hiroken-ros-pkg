@@ -6,11 +6,11 @@
 
   <arg name="joint_gui" default="False" />
 
-  <arg name="path" default="/home/vektor/rss-2013/data/with_v.6.1/baseline.hot" />
+  <arg name="path" default="/home/vektor/rss-2013/data/with_v.6.2/baseline.hot" />
     <param name="base_data_path" value="$(arg path)"/>
     <param name="data_path" value="$(arg path)"/>
 
-  <arg name="ml_offline_data_path" default="/home/vektor/rss-2013/data/with_v.6.1/ml_offline_data/" />
+  <arg name="ml_offline_data_path" default="/home/vektor/rss-2013/data/with_v.6.2/ml_offline_data/" />
     <param name="ml_offline_data_path" value="$(arg ml_offline_data_path)"/>
     
   <arg name="suffix" default="/run.test" />

@@ -439,7 +439,7 @@ main(int argc, char **argv)
 //    }
     case 1011:
       // Do mode10 and mode 11 subsequently with the same instance_paths order
-      // USAGE: $ roslaunch hiro_common a.launch  mode:=1011 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 n_run:=10 epsth:=1 
+      // USAGE: $ roslaunch hiro_common a.launch  mode:=1011 path:=/home/vektor/rss-2013/data/with_v.6.2/baseline n_obj:=1 n_run:=10 epsth:=1 
       if( !utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&mode1011_instance_paths) )
       {
         ROS_ERROR("utils::get_instance_paths() -> failed");
@@ -452,7 +452,7 @@ main(int argc, char **argv)
     // Run online LWPR that updates its model during search; Do one CTAMP attempt (rerun) on multiple instances.
     // WARNING: DO NOT run multiple mode10 simultaneously, critical resources are at /learning_machine/data/hot
     // Number of attempts is determined in the inst_paths file
-    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 epsth:=1 n_run:=2
+    // USAGE: $ roslaunch hiro_common a.launch  mode:=10 path:=/home/vektor/rss-2013/data/with_v.6.2/baseline n_obj:=1 epsth:=1 n_run:=2
     // \param path holds the parent directory under which CTAMP instances exist 
     // \param n_obj holds the instance type
     // \param epsth holds i-th episode with this mode
@@ -492,9 +492,13 @@ main(int argc, char **argv)
 
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       boost::filesystem::create_directories(ml_hot_path);
+      
+      std::string offline_tr_data_path;
+      offline_tr_data_path = std::string( ml_offline_data_path+"for_simulating_lwpr_training"+run_id+".tr_data.csv" );
+      boost::filesystem::remove( boost::filesystem::path(offline_tr_data_path) );
            
       // Run mode10 for several CTAMP instances
-      std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode10eps.log");
+      std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.6.2/mode10eps.log");
       if( !boost::filesystem::exists(boost::filesystem::path(log_dir_path)) )
         boost::filesystem::create_directories(log_dir_path);
         
@@ -549,6 +553,7 @@ main(int argc, char **argv)
       // Closure
       utils::write_log(mode10eps_log,std::string(log_path+".log"));
       
+      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv"),offline_tr_data_path,boost::filesystem::copy_option::overwrite_if_exists );
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       
       if(mode != 1011) 
@@ -576,7 +581,7 @@ main(int argc, char **argv)
     // Run offline SVR in a batchmode, the model is updated in between search, interleave training and testing; Do runs on multiple instances.
     // Number of attempts is determined in the inst_paths file
     // WARNING: DO NOT run multiple mode11 simultaneously, critical resources are at /learning_machine/data/hot
-    // USAGE:$ roslaunch hiro_common a.launch  mode:=11 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=1 epsth:=1 n_run:=2
+    // USAGE:$ roslaunch hiro_common a.launch  mode:=11 path:=/home/vektor/rss-2013/data/with_v.6.2/baseline n_obj:=1 epsth:=1 n_run:=2
     {
       // Init  
       std::string run_id;
@@ -613,9 +618,13 @@ main(int argc, char **argv)
 
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       boost::filesystem::create_directories(ml_hot_path);
-
+      
+      std::string offline_tr_data_path;
+      offline_tr_data_path = std::string( ml_offline_data_path+"for_simulating_e-svr_training"+run_id+".tr_data.csv" );
+      boost::filesystem::remove( boost::filesystem::path(offline_tr_data_path) );
+      
       // Run mode11 for several instances
-      std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.4.3/mode11eps.log");
+      std::string log_dir_path = std::string("/home/vektor/rss-2013/data/with_v.6.2/mode11eps.log");
       if( !boost::filesystem::exists(boost::filesystem::path(log_dir_path)) )
         boost::filesystem::create_directories(log_dir_path);
       
@@ -669,9 +678,7 @@ main(int argc, char **argv)
       // Closure
       utils::write_log(mode11eps_log,std::string(log_path+".log"));
       
-      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv")
-                                   ,std::string("/home/vektor/rss-2013/data/with_v.4.3/ml_offline_data/for_simulating_e-svr_training"+run_id+".tr_data.csv")
-                                   ,boost::filesystem::copy_option::overwrite_if_exists );
+      boost::filesystem::copy_file( std::string(ml_hot_path+"/tr_data.csv"),offline_tr_data_path,boost::filesystem::copy_option::overwrite_if_exists );
       boost::filesystem::remove_all( boost::filesystem::path(ml_hot_path) );
       
       break;
@@ -679,7 +686,7 @@ main(int argc, char **argv)
     case 13:
     // For collecting path samples offline from UCS-planned TMM
     // Note: set the ml_offline_data_path parameter server appropriately
-    // Usage: $ roslaunch hiro_common a.launch  mode:=13 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline.tuning n_obj:=1 n_run:=10
+    // Usage: $ roslaunch hiro_common a.launch  mode:=13 path:=/home/vektor/rss-2013/data/with_v.6.2/baseline.tuning n_obj:=1 n_run:=10
     {
       // Init  
       std::string run_id;
@@ -743,9 +750,9 @@ main(int argc, char **argv)
     }
     case 14:
     // For writing instance order into a file, should be rarely used
-    // Usage: $ roslaunch hiro_common a.launch  mode:=14 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline n_obj:=3 n_run:=25
+    // Usage: $ roslaunch hiro_common a.launch  mode:=14 path:=/home/vektor/rss-2013/data/with_v.6.2/baseline n_obj:=3 n_run:=25
     {
-      size_t n_eps = 10; 
+      size_t n_eps = 100; 
       for(size_t i=0; i < n_eps; ++i)
       {
         std::vector<std::string> instance_paths(n_run);
@@ -754,7 +761,7 @@ main(int argc, char **argv)
         utils::get_instance_paths(boost::filesystem::path(base_data_path),std::string(boost::lexical_cast<std::string>(n_obj)+"obj"),&instance_paths);
           
         // Write          
-        utils::write_instance_path(instance_paths,"/home/vektor/rss-2013/data/with_v.4.3/tmp",n_obj,i+1);
+        utils::write_instance_path(instance_paths,"/home/vektor/rss-2013/data/with_v.6.2/tmp",n_obj,i+1);
       }
       break;
     }
@@ -762,7 +769,7 @@ main(int argc, char **argv)
     // For rebase-ing i.e. fix some stuff in the baseline
     // Assume that al directories under path(base_data_path) are baseline directories
     // This overwrites all perf logs, tmm.dot
-    // Usage: $ roslaunch hiro_common a.launch  mode:=15 path:=/home/vektor/rss-2013/data/with_v.4.3/baseline.rebased.test
+    // Usage: $ roslaunch hiro_common a.launch  mode:=15 path:=/home/vektor/rss-2013/data/with_v.6.2/baseline.rebased.test
     {
       // Get all directory under path, assume all directories are the baselines
       std::vector<std::string> instance_paths;

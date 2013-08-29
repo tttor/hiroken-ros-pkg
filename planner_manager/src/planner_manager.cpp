@@ -175,6 +175,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
     ucs_tmm_dp.property( "srcstate",get(edge_srcstate, ucs_tmm_) );  
     ucs_tmm_dp.property( "mptime",get(edge_mptime, ucs_tmm_) );  
     ucs_tmm_dp.property( "planstr",get(edge_planstr, ucs_tmm_) );
+    // Notice: the edge_plan property is not initialized.
 
     std::ifstream ucs_tmm_dot(  std::string(base_data_path+"/tmm.dot").c_str()  );
     if( !read_graphviz(ucs_tmm_dot, ucs_tmm_, ucs_tmm_dp, "vertex_id") )
@@ -217,8 +218,9 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   std::vector<double> distances(num_vertices(tmm_));
   
   double search_time = 0.;// initially is gross, but then becomes net
-  double total_gp_time = 0.;// recorded by the visitor, used to substract the gross search time
-  double total_mp_time = 0.;// recorded by the visitor, used to substract the gross search time,
+  double total_gp_time = 0.;// recorded by the visitor during search (may be zero if in rerun modes), used to substract the gross search time
+  double total_mp_time = 0.;// recorded by the visitor during search (may be zero if in rerun modes), used to substract the gross search time,
+  double total_mp_time_2 = 0.;// will hold the value of edge_mptime, the value _must_ be equal to total_mp_time whenever not in rerun modes
   
   size_t n_exp_op = 0;// the number of vertex expansion operations
   size_t n_exp_vert = 0;// the number of unique vertex expansion
@@ -319,6 +321,16 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
       if(get(vertex_color,tmm_,*vi) == color_traits<boost::default_color_type>::black())
       {
         ++n_exp_vert;
+        
+        typename graph_traits<TaskMotionMultigraph>::out_edge_iterator oei, oei_end;
+        for(tie(oei,oei_end)=out_edges(*vi,tmm_); oei!=oei_end; ++oei)
+        {
+          std::string color;
+          color = get(edge_color,tmm_,*oei);
+          
+          if( strcmp(color.c_str(),std::string("black").c_str()) )// if _not_ black
+            total_mp_time_2 += get(edge_mptime,tmm_,*oei);
+        }
       }
     }
         
@@ -363,7 +375,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   
   for(std::vector<TMMEdge>::iterator i=sol_path.begin(); i!=sol_path.end(); ++i)
   {
-    if( get(edge_plan,tmm_,*i).points.empty() )
+    if( get(edge_planstr,tmm_,*i).size() == 0 )// Use edge_planstr, instead of edge_plan since in rerun modes, the latter does not hold any plan
     {
       sol_path.clear();
       ctamp_sol->clear();
@@ -387,9 +399,9 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   perf_log_out << "CTAMP_SearchTime=" << search_time << endl;
   perf_log.at(0) = search_time;
   
-  cout << "total_mp_time= " << total_mp_time << endl;
-  perf_log_out << "total_mp_time=" << total_mp_time << endl;
-  perf_log.at(1) = total_mp_time;
+  cout << "total_mp_time= " << total_mp_time_2 << endl;
+  perf_log_out << "total_mp_time=" << total_mp_time_2 << endl;
+  perf_log.at(1) = total_mp_time_2;
   
   cout << "#ExpandedVertices= " << n_exp_vert << endl;
   perf_log_out << "#ExpandedVertices=" << n_exp_vert << endl;
@@ -401,7 +413,7 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
   
   cout << "SolutionPath(e)=" << endl;
   perf_log_out << "SolutionPath(e)=";
-  for(std::vector<TMMEdge>::iterator i=copy_sol_path.begin(); i!=copy_sol_path.end(); ++i)
+  for(std::vector<TMMEdge>::iterator i=copy_sol_path.begin(); i!=copy_sol_path.end(); ++i)// NOTE: Using copy_sol_path, instead of sol_path
   {
     cout << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << " --> " << get(edge_color,tmm_,*i) << endl;
     perf_log_out << get(edge_name,tmm_,*i) << "[" << get(edge_jspace,tmm_,*i) << "]" << ",";
@@ -483,7 +495,14 @@ PlannerManager::plan(const size_t& ml_mode,const bool& rerun,const std::string& 
         x[idx].index = -1;// index = -1 indicates the end of one vector
 
         // Predict
-        y_te_fit.push_back( svm_predict(old_svr_model,x) );
+        double y_fit;
+        y_fit = svm_predict(old_svr_model,x);
+        
+        // Post-process
+        y_fit += prep_data_.mu_y(0);
+        
+        //
+        y_te_fit.push_back( y_fit );
       }
     }//if(n_ml_update_ > 0)
     

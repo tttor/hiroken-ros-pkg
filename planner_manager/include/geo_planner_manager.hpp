@@ -129,7 +129,7 @@ plan(TMMEdge e,double* gp_time,double* mp_time,bool* mp_found_ptr)
              
         put( edge_plan,pm_->tmm_,e, 
              get(edge_plan,pm_->ucs_tmm_,*matched_edge_it) );
-
+             
         if( !strcmp(matched_edge_color.c_str(),std::string("red").c_str()) )// no motion plan
           *mp_found_ptr = false;
         else if( !strcmp(matched_edge_color.c_str(),std::string("green").c_str()) )
